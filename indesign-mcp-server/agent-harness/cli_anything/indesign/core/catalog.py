@@ -221,12 +221,13 @@ class Catalog:
         result = []
         for domain, summary in DOMAINS.items():
             ranked = sorted(top_tools.get(domain, []), key=lambda item: (item["rank"], item["id"]))
+            callable_ranked = [item for item in ranked if item["callable"]]
             result.append(
                 {
                     "domain": domain,
                     "summary": summary,
                     "count_by_source": dict(source_counts.get(domain, Counter())),
-                    "top_tools": [item["id"] for item in ranked[:5]],
+                    "top_tools": [item["id"] for item in callable_ranked[:5]],
                 }
             )
         return result

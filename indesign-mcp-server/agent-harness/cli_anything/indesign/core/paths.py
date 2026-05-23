@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 
 
@@ -29,3 +30,12 @@ def scrub_path(path_value: str, cwd: Path) -> dict[str, object]:
             "extension": resolved.suffix.lower(),
             "hash": _hash_path(resolved),
         }
+
+
+def scrub_text_paths(value: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        raw_path = match.group(0)
+        suffix = Path(raw_path).suffix.lower()
+        return f"<external_path extension={suffix or 'unknown'} hash={_hash_path(Path(raw_path))}>"
+
+    return re.sub(r"[A-Za-z]:[\\/][^'\"\r\n]+", replace, value)

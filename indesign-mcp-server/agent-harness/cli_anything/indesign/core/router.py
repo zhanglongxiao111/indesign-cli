@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,42 @@ from .mcp_backend import McpBackend
 BACKENDS = {
     "advanced": "src/advanced/index.js",
     "classic": "src/index.js",
+}
+
+
+PRIMITIVE_SCHEMAS = {
+    "export.verify": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "path": {"type": "string", "description": "要验证的 PDF 或 IDML 路径"},
+            "created_after": {"type": "string", "description": "ISO 时间戳；用于避免验证到旧产物"},
+        },
+        "required": ["path"],
+    },
+    "server.health": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "deep": {"type": "boolean", "description": "是否执行较深的依赖检查"},
+        },
+    },
+    "session.show": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "verbose": {"type": "boolean", "description": "是否显示允许展示的详细 session 信息"},
+        },
+    },
+    "session.clear": {"type": "object", "additionalProperties": False, "properties": {}},
+    "script.run": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "file": {"type": "string", "description": "要执行的 JSX 文件路径"},
+            "stdin": {"type": "boolean", "description": "从 stdin 读取临时 JSX"},
+        },
+    },
 }
 
 
@@ -33,7 +70,7 @@ class Router:
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
         if tool["source"] in {"cli", "script"}:
-            return {"tool": tool, "inputSchema": {"type": "object", "properties": {}}}
+            return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})}
         backend = self._backend(tool["source"])
         for item in backend.list_tools():
             if item["name"] == tool["name"]:
@@ -64,8 +101,9 @@ class Router:
         if tool_id == "export.verify":
             from .artifacts import verify_artifact
 
+            path = self._require_arg(args, "path")
             created_after = datetime.fromisoformat(args["created_after"]) if args.get("created_after") else None
-            return verify_artifact(Path(args["path"]), created_after=created_after, cwd=Path.cwd())
+            return verify_artifact(Path(path), created_after=created_after, cwd=Path.cwd())
         if tool_id == "session.show":
             from .session import SessionStore
 
@@ -90,8 +128,24 @@ class Router:
             return run_script(self, Path(args["file"]))
         raise CliError("script.run requires file or stdin", code="SCRIPT_INPUT_REQUIRED")
 
+    @staticmethod
+    def _require_arg(args: dict[str, Any], key: str) -> Any:
+        value = args.get(key)
+        if value in (None, ""):
+            raise CliError(f"Missing required argument: {key}", code="MISSING_ARGUMENT", details={"argument": key})
+        return value
+
 
 def load_args(path_value: str) -> dict[str, Any]:
-    if path_value == "-":
-        return json.loads(sys.stdin.read() or "{}")
-    return json.loads(Path(path_value).read_text(encoding="utf-8"))
+    try:
+        if path_value == "-":
+            payload = json.loads(sys.stdin.read() or "{}")
+        else:
+            payload = json.loads(Path(path_value).read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise CliError("Arguments file not found", code="ARGS_FILE_NOT_FOUND") from exc
+    except JSONDecodeError as exc:
+        raise CliError("Arguments must be valid JSON", code="ARGS_JSON_INVALID") from exc
+    if not isinstance(payload, dict):
+        raise CliError("Arguments JSON must be an object", code="ARGS_NOT_OBJECT")
+    return payload

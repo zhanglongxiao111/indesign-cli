@@ -127,8 +127,37 @@ def run(argv: list[str] | None = None) -> int:
             return emit(success(command="tool schema", data=data, duration_ms=0, tool_id=args.tool_id, warnings=warnings))
         if args.tool_command == "call":
             call_args = load_args(args.args)
-            data = router.call(args.tool_id, call_args)
-            return emit(success(command="tool call", data=data, duration_ms=0, tool_id=args.tool_id, warnings=warnings))
+            tool = router._find(args.tool_id)
+            store = SessionStore(Path.cwd())
+            try:
+                data = router.call(args.tool_id, call_args)
+            except CliError:
+                store.record_call(
+                    tool_id=args.tool_id,
+                    domain=tool["domain"],
+                    source=tool["source"],
+                    ok=False,
+                    duration_ms=0,
+                )
+                raise
+            store.record_call(
+                tool_id=args.tool_id,
+                domain=tool["domain"],
+                source=tool["source"],
+                ok=True,
+                duration_ms=0,
+            )
+            return emit(
+                success(
+                    command="tool call",
+                    data=data,
+                    duration_ms=0,
+                    tool_id=args.tool_id,
+                    domain=tool["domain"],
+                    source=tool["source"],
+                    warnings=warnings,
+                )
+            )
     if args.group == "script" and args.script_command == "run":
         catalog, warnings = build_catalog_with_backends()
         router = Router(catalog=catalog, repo_root=REPO_ROOT)
@@ -138,11 +167,16 @@ def run(argv: list[str] | None = None) -> int:
             data = run_script(router, Path(args.file))
         else:
             raise CliError("script run requires a file path or --stdin", code="SCRIPT_INPUT_REQUIRED")
-        return emit(success(command="script run", data=data, duration_ms=0, tool_id="script.run", warnings=warnings))
+        SessionStore(Path.cwd()).record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=0)
+        return emit(success(command="script run", data=data, duration_ms=0, tool_id="script.run", domain="script", source="script", warnings=warnings))
     if args.group == "export" and args.export_command == "verify":
-        created_after = datetime.fromisoformat(args.created_after) if args.created_after else None
+        try:
+            created_after = datetime.fromisoformat(args.created_after) if args.created_after else None
+        except ValueError as exc:
+            raise CliError("created-after must be an ISO timestamp", code="BAD_TIMESTAMP") from exc
         data = verify_artifact(Path(args.path), created_after=created_after, cwd=Path.cwd())
-        return emit(success(command="export verify", data=data, duration_ms=0, tool_id="export.verify"))
+        SessionStore(Path.cwd()).record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=0)
+        return emit(success(command="export verify", data=data, duration_ms=0, tool_id="export.verify", domain="export", source="cli"))
     if args.group == "session":
         store = SessionStore(Path.cwd())
         if args.session_command == "show" or args.session_command is None:
@@ -176,3 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     except CliError as exc:
         duration_ms = now_ms() - start
         return emit(failure(command=safe_command(argv), error=exc, duration_ms=duration_ms))
+    except Exception as exc:
+        duration_ms = now_ms() - start
+        error = CliError("Unexpected CLI error", code="UNEXPECTED_ERROR", details={"type": exc.__class__.__name__})
+        return emit(failure(command=safe_command(argv), error=error, duration_ms=duration_ms))
