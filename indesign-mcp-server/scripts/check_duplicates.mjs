@@ -1,7 +1,10 @@
 import path from 'path';
-import { pathToFileURL } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const typesUrl = pathToFileURL(path.join(process.cwd(), 'indesign-mcp-server', 'src', 'types', 'index.js')).href;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const typesUrl = pathToFileURL(path.join(__dirname, '..', 'src', 'types', 'index.js')).href;
 const { allToolDefinitions } = await import(typesUrl);
 const seen = new Map();
 const dups = [];

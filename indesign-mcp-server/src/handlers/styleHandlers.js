@@ -3,7 +3,6 @@
  */
 import { ScriptExecutor } from '../core/scriptExecutor.js';
 import { formatResponse, escapeJsxString } from '../utils/stringUtils.js';
-import { sessionManager } from '../core/sessionManager.js';
 
 export class StyleHandlers {
     /**

@@ -63,6 +63,7 @@ temp_script.jsx
 # Logs
 logs
 *.log
+*.err
 
 # Runtime data
 pids
@@ -101,7 +102,14 @@ temp_script.jsx
 # Development artifacts
 *.tmp
 *.temp
+*.backup
 .cache/
+temp-*.mjs
+
+# Retired assistant workflow folders
+.augment/
+.claude/
+openspec/
 
 # OS generated files
 Thumbs.db

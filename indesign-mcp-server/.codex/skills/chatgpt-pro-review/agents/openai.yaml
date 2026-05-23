@@ -1,0 +1,4 @@
+interface:
+  display_name: "ChatGPT Pro Review"
+  short_description: "让 GPT Pro 通过 GitHub 审查本项目。"
+  default_prompt: "用中文请 GPT Pro 审查当前 SA-AIAPP 分支，让它自主深入查看并给出证据。"

@@ -1,44 +1,178 @@
-<!-- OPENSPEC:START -->
-# OpenSpec 指令
+# AGENTS 主入口
 
-这些指令适用于在此项目中工作的 AI 助手。
+## 0. 设计原则
 
-当请求满足以下条件时，始终打开 `@/openspec/AGENTS.md`：
-- 提到规划或提案（如 proposal、spec、change、plan 等词）
-- 引入新功能、破坏性更改、架构转变或重大性能/安全工作
-- 听起来模糊，你需要在编码前查看权威规范
+- **先理解现状，再动手。** 先读代码、工具定义、测试和当前文档，避免凭旧印象改项目。
+- **收口优先。** 能复用现有 `core`、`handlers`、`types`、`utils` 时，不新增平行实现。
+- **CLI 化复用现有能力。** CLI 是面向 Agent 和人的按需入口，不重写一套 InDesign 自动化。
+- **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，可能会在 CLI 化阶段重新启用。
+- **文档按用途归档。** 长期规范、方案、计划、排查、复盘分开放，避免一个目录堆成垃圾场。
+- **历史资料只追溯。** 当前开发以代码、`AGENTS.md` 和当前文档为准。
 
-使用 `@/openspec/AGENTS.md` 学习：
-- 如何创建和应用变更提案
-- 规范格式和约定
-- 项目结构和指南
+## 1. 真相顺序
 
-保留此托管块，以便 'openspec update' 可以刷新指令。
+| 优先级 | 依据 | 用法 |
+| ------ | ---- | ---- |
+| 1 | 当前用户指令 | 本轮任务的最高优先级 |
+| 2 | `AGENTS.md` | 项目级协作入口、硬规则、目录规范 |
+| 3 | 当前代码 | 校正文档、工具映射和行为判断的最终依据 |
+| 4 | `docs/README.md` 与当前 `docs/` | 文档目录、当前说明、方案和记录 |
+| 5 | `docs/legacy/` | 只追溯历史，不作为当前规范 |
+| 6 | Git 历史 | 需要恢复旧内容时才查看 |
 
-<!-- OPENSPEC:END -->
+冲突处理：
 
-# Repository Guidelines
+| 冲突类型 | 处理方式 |
+| -------- | -------- |
+| 文档与代码不一致 | 以代码为准，顺手修正文档 |
+| 当前文档与历史文档不一致 | 以当前文档为准 |
+| MCP 暴露工具与 handler 实现不一致 | 先判断是否是临时隐藏，不直接按死代码删除 |
+| CLI 化目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
 
-## Project Structure & Module Organization
-The working sources live in `indesign-mcp-server/src`: `core/` holds the MCP runtime (`InDesignMCPServer`, session and script executors), `handlers/` groups every tool family (document, page, style, graphics, export, etc.), `types/` defines the tool metadata consumed by the handlers, and `utils/` contains shared helpers like `stringUtils.js`. Scenario-driven tests are under `indesign-mcp-server/tests`, with `index.js` orchestrating suites (required vs. optional) and individual `test-*.js` files mirroring handler boundaries. Reference material, diagrams, and onboarding notes live in the workspace-level `docs/` directory, while `scripts/` stores maintenance helpers such as `fix_schemas.js`. Keep new code and accompanying docs co-located within these folders to simplify discoverability.
+## 2. 强制规则
 
-## Build, Test, and Development Commands
-Run all commands from `indesign-mcp-server/` unless stated otherwise.
-- `npm install`: install Node ≥18 dependencies (`@modelcontextprotocol/sdk`, `winax` COM bridge).
-- `npm run start`: launch the MCP server via `src/index.js` for CLI or batch usage.
-- `npm run dev`: start with `--inspect` for debugging sessions inside VS Code or Chrome DevTools.
-- `npm run build`: placeholder (no transpilation); extend only if bundling becomes necessary.
-- `node tests/index.js [--required|--help]`: execute the real-time test harness or limit runs to the mandatory suites.
-- `start-indesign-mcp.bat` (repo root): convenience launcher that boots the server with a pre-configured working directory—update the path before sharing externally.
+### 2.1 沟通规则
 
-## Coding Style & Naming Conventions
-Use ES modules with explicit file extensions, 4-space indentation, and semicolons. Export classes (e.g., `DocumentHandlers`) in PascalCase, individual tool functions in camelCase, and keep tool names aligned with `types/toolDefinitions*.js`. Group handler logic by feature; avoid monolithic files outside the existing folder boundaries. Favor descriptive log messages written to `stderr` (not `stdout`) to preserve MCP protocol streams. Run `node --check` or your editor’s ESLint integration before committing if you adjust the toolchain.
+- 与用户沟通使用中文，短句，直接说结论。
+- 文件名、命令、工具名、API 名保留原文，并用代码样式标出。
+- 不重复解释同一件事；已确认的项目口径直接执行。
 
-## Testing Guidelines
-Every new handler or tool must include at least one scenario in `tests/test-*.js` plus coverage wiring inside `tests/index.js`. Required suites validate baseline connectivity, document creation, and grid/layout; optional suites stress advanced workflows. When adding CLI flags or transport behavior, extend `tests/unified-test-runner.js` so the progress UI and coverage report stay truthful. Document any external assets referenced by tests inside `tests/README.md`.
+### 2.2 文档治理
 
-## Commit & Pull Request Guidelines
-Follow the existing conventional-commit style (`type: summary`), as seen in `refactor: improve script execution and session management`. Keep subject lines under 72 characters, and describe motivation plus impact in the body when refactoring COM or handler code. Pull requests should include: (1) a concise overview of the change, (2) linked issues or MCP tickets, (3) reproduction steps or sample tool invocations, and (4) screenshots/log excerpts if UI prompts or InDesign panels are affected. Mention any manual test commands you executed so reviewers can replay them quickly.
+- `AGENTS.md` 是唯一项目级总入口，不新增第二个总导航。
+- `docs/README.md` 是文档目录入口，新增长期文档前先查它。
+- 本项目不建立大体量项目上下文目录；当前规模直接靠 `AGENTS.md`、代码和专项文档维护上下文。
+- 中文文档统一使用 `UTF-8`。
+- 根目录 `docs/*.md` 只保留跨主题、当前仍有用的说明文档。
+- 新增专题文档必须进入对应子目录，不在 `docs/` 根目录随手堆文件。
+- 方案设计放 `docs/superpowers/specs/`，实施计划放 `docs/superpowers/plans/`。
+- 已落地并需要长期遵守的结论，沉淀到 `docs/技术决策/` 或更新相关当前文档。
+- 本地 Agent 任务、外部咨询、用户反馈等过程材料放 `docs/AI协作/`，具体分层以 `docs/AI协作/README.md` 为准。
+- 复杂缺陷修复记录放 `docs/bugfix/`。
+- 当前有效 review 和复盘放 `docs/review/`；历史材料放 `docs/legacy/`。
 
-## Environment & Security Tips
-The server uses `winax` to talk to Adobe InDesign via COM automation; contributions must be validated on Windows with InDesign installed and accessible under the same user session. Avoid logging document contents or customer asset paths—prefer anonymized snippets in test fixtures (`tests/test-data.csv`). If you modify `start-indesign-mcp.bat`, keep credentials or machine-specific paths out of version control and reference environment variables instead.
+### 2.3 代码边界
+
+- `src/core/` 放 MCP 运行时、会话状态和脚本执行。
+- `src/handlers/` 放 MCP 工具到 ExtendScript/JSX 的适配逻辑。
+- `src/types/` 放工具定义和 JSON Schema。
+- `src/utils/` 放共享工具函数。
+- `src/advanced/` 放高级模板服务器入口。
+- `scripts/` 只放维护脚本和轻量检查，不放临时手测脚本。
+- `tests/` 放测试入口、场景测试和测试数据。
+
+新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
+
+### 2.4 MCP 与 InDesign 自动化
+
+- 运行时通过 `winax` 和 Windows COM 控制 Adobe InDesign。
+- `stdout` 保留给 MCP 协议，日志和诊断信息写 `stderr`。
+- handler 负责参数处理、转义、脚本拼装和响应包装，不要变成新的业务框架。
+- 生成 ExtendScript/JSX 时必须处理字符串和路径转义，尤其是中文、空格、反斜杠和网络路径。
+- 脚本标签是模板槽位的重要元数据；除非工具明确负责覆盖标签，否则不要破坏现有标签。
+- 不要记录客户文档内容、客户名称或私有资产路径。
+
+### 2.5 CLI 化
+
+本项目准备按 CLI-Anything 思路逐步 CLI 化。
+
+CLI 化原则：
+
+- CLI 复用当前 MCP server、handler 和 COM/脚本执行层。
+- 不重写 InDesign 操作，不做玩具模拟器。
+- 推荐 harness 位置：`agent-harness/`。
+- 推荐命令入口：`cli-anything-indesign`。
+- 推荐 Python 包名：`cli_anything.indesign`。
+- Book、Presentation、XML、Cloud、Preflight 等工具域可在 CLI 化阶段按需重新暴露。
+
+### 2.6 方案与计划文档
+
+- 需要拆解方案、制定计划或执行多阶段改造时，先判断是否需要留下过程文档。
+- 方案设计写入 `docs/superpowers/specs/`。
+- 执行计划写入 `docs/superpowers/plans/`。
+- `specs` 和 `plans` 是工作过程材料，不自动等同于长期规范。
+- 方案落地后，如果产生长期约束，必须同步更新 `AGENTS.md`、`docs/技术决策/` 或对应当前文档。
+
+### 2.7 清理规则
+
+- 可以删除：日志、临时脚本、备份文件、无引用且无恢复价值的工具函数。
+- 暂不删除：有 handler 实现但当前 MCP 工具定义未暴露的能力。
+- 清理前先用 `rg` 查引用；清理后至少跑语法检查和轻量校验。
+- 不回退用户已有改动；遇到 dirty 文件先读 diff。
+
+## 3. 执行基线
+
+| 动作 | 命令 / 规则 |
+| ---- | ----------- |
+| 安装依赖 | `npm install` |
+| 启动经典服务器 | `npm run start` 或 `node src/index.js` |
+| 调试经典服务器 | `npm run dev` |
+| 启动高级模板服务器 | `node src/advanced/index.js` |
+| 语法检查 | `node --check <file>` |
+| Schema 校验 | `node scripts/validate_schemas.js` |
+| 工具名重复检查 | `node scripts/check_duplicates.mjs` |
+| 快速工具数检查 | `node scripts/quick_check.mjs` |
+| 必需测试 | `node tests/index.js --required` |
+| 测试帮助 | `node tests/index.js --help` |
+
+环境要求：
+
+- Node.js 18 及以上。
+- Windows。
+- Adobe InDesign 已安装，并与服务器运行在同一用户会话。
+- `winax` 可用。
+
+测试原则：
+
+- 纯文档或项目配置调整不需要跑代码测试，但要检查文件状态和路径是否正确。
+- 纯代码清理至少跑语法检查、Schema 校验、工具名重复检查。
+- 触及真实 InDesign 行为时，说明是否运行了 InDesign 集成测试。
+- 新增 handler 或 tool definition 时，补 `tests/test-*.js` 场景，并接入 `tests/index.js`。
+
+## 4. 仓库地图
+
+| 路径 | 作用 |
+| ---- | ---- |
+| `src/index.js` | 经典 MCP 服务器入口 |
+| `src/advanced/index.js` | 高级模板 MCP 服务器入口 |
+| `src/core/` | MCP 服务器、会话管理、脚本执行器 |
+| `src/handlers/` | 工具处理器，主要负责拼装并执行 InDesign ExtendScript/JSX |
+| `src/types/` | MCP 工具定义和输入 Schema |
+| `src/utils/` | 字符串、路径、响应格式等共享工具 |
+| `scripts/` | 维护脚本和轻量检查 |
+| `tests/` | 测试入口、场景测试、工具套件 |
+| `docs/` | 当前说明、流程文档、方案、计划和协作记录 |
+
+## 5. 文档目录
+
+| 路径 | 用途 |
+| ---- | ---- |
+| `docs/README.md` | 文档目录入口 |
+| `docs/AI协作/` | 本地 Agent、外部咨询、用户反馈等过程材料 |
+| `docs/技术决策/` | 已确认的长期技术决策 |
+| `docs/系统地图/` | 架构图、模块关系、运行链路 |
+| `docs/superpowers/specs/` | 方案设计、边界分析、备选方案 |
+| `docs/superpowers/plans/` | 实施计划、阶段拆分、验证清单 |
+| `docs/bugfix/` | 复杂缺陷根因、修复过程、回归记录 |
+| `docs/review/` | 当前有效 review、复盘和审查结论 |
+| `docs/image/` | 文档图片资源 |
+| `docs/legacy/` | 历史资料，只追溯 |
+
+当前根文档：
+
+| 文档 | 用途 |
+| ---- | ---- |
+| `docs/MCP_INSTRUCTIONS.md` | MCP 接入、工具能力、使用说明 |
+| `docs/LLM_PROMPT.md` | 给 LLM 使用 MCP 工具的提示词示例 |
+| `docs/SYNC.md` | Windows COM 适配、迁移和运行说明 |
+| `docs/template-blueprint.md` | 模板槽位导出示例和母版槽位清单 |
+| `docs/agent-template-flow.md` | AI Agent 使用模板槽位生成页面的流程图 |
+
+## 6. 当前注意事项
+
+| 事项 | 当前状态 | 处理原则 |
+| ---- | -------- | -------- |
+| Book / Presentation 等工具域 | handler 仍在，部分工具定义未暴露 | 不按死代码删除，CLI 化阶段可重新按需暴露 |
+| 根 README | 当前内容较薄，且指向上级 README | 后续可补成清晰项目入口 |
+| 部分 docs | 存在旧平台和旧版本描述 | 触及时按当前代码和 Windows COM 现状修正 |
+| InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话 | 没有真实环境时要明确说明未跑 |

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { ScriptExecutor } from '../core/scriptExecutor.js';
 import {
     escapeFilePathForJsx,
@@ -330,6 +332,39 @@ function buildSlotValuesScript(slotValues) {
 }
 
 export class AdvancedTemplateHandlers {
+    static async runJsxFile(args) {
+        const { filePath } = args || {};
+        if (!filePath || typeof filePath !== 'string' || !filePath.trim()) {
+            return formatErrorResponse('filePath 必须是 JSX 文件的有效路径。', 'Run JSX File');
+        }
+
+        const resolvedPath = path.resolve(filePath);
+        const ext = path.extname(resolvedPath).toLowerCase();
+        if (ext && ext !== '.jsx') {
+            return formatErrorResponse('filePath 需要指向 .jsx 文件。', 'Run JSX File');
+        }
+
+        try {
+            const stats = fs.statSync(resolvedPath);
+            if (!stats.isFile()) {
+                return formatErrorResponse(`指定路径不是文件：${resolvedPath}`, 'Run JSX File');
+            }
+            if (stats.size === 0) {
+                return formatErrorResponse('JSX 文件为空，无法执行。', 'Run JSX File');
+            }
+        } catch (error) {
+            return formatErrorResponse(`无法访问 JSX 文件：${error.message}`, 'Run JSX File');
+        }
+
+        try {
+            // 执行文件本身，保留 $.fileName 与相对路径环境
+            const result = await ScriptExecutor.executeInDesignScriptFile(resolvedPath);
+            return formatResponse(result, 'Run JSX File');
+        } catch (error) {
+            return formatErrorResponse(error.message, 'Run JSX File');
+        }
+    }
+
     static async inspectTemplate(args) {
         const { templatePath } = args || {};
         const hasPath = typeof templatePath === 'string' && templatePath.trim().length > 0;

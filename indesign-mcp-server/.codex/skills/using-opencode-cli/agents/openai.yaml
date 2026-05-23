@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenCode CLI"
+  short_description: "调用 OpenCode 执行本地 Agent 任务"
+  default_prompt: "使用 $using-opencode-cli 派发一个 OpenCode 本地 Agent 任务，并收集最终结论。"

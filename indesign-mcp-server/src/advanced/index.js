@@ -11,6 +11,7 @@ const TOOL_MAP = {
     create_page_with_template: AdvancedTemplateHandlers.createPageWithTemplate,
     get_page_information: AdvancedTemplateHandlers.getPageInformation,
     populate_template_slots: AdvancedTemplateHandlers.fillTemplateFromSlots,
+    run_jsx_file: AdvancedTemplateHandlers.runJsxFile,
 };
 
 class AdvancedTemplateServer {

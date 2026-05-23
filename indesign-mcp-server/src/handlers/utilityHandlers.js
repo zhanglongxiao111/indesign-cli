@@ -2,7 +2,7 @@
  * Utility handlers for InDesign MCP Server
  */
 import { ScriptExecutor } from '../core/scriptExecutor.js';
-import { formatResponse, formatErrorResponse, escapeJsxString } from '../utils/stringUtils.js';
+import { formatResponse } from '../utils/stringUtils.js';
 import { sessionManager } from '../core/sessionManager.js';
 
 export class UtilityHandlers {

@@ -5,6 +5,21 @@
 
 export const advancedTemplateToolDefinitions = [
     {
+        name: 'run_jsx_file',
+        description: '执行本地 .jsx 脚本文件，返回执行结果或错误信息。',
+        inputSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+                filePath: {
+                    type: 'string',
+                    description: '要执行的 JSX 文件绝对路径。'
+                }
+            },
+            required: ['filePath']
+        }
+    },
+    {
         name: 'inspect_template_blueprint',
         description: '读取指定模板的槽位说明、页面备注以及 PageNotes 图层中的说明信息，输出结构化 JSON。',
         inputSchema: {

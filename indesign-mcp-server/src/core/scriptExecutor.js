@@ -144,6 +144,31 @@ export class ScriptExecutor {
     }
 
     /**
+     * Execute a JSX file directly so $.fileName, relative #include, etc. behave correctly.
+     * @param {string} filePath - Absolute or relative path to the JSX file.
+     * @returns {string} The result of the script execution.
+     */
+    static async executeInDesignScriptFile(filePath) {
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('filePath must be a string');
+        }
+        const resolved = path.resolve(filePath);
+        const escaped = resolved.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const wrapper = [
+            'var __mcpResult = "";',
+            'try {',
+            `  var __mcpFile = File("${escaped}");`,
+            '  if (!__mcpFile.exists) { throw new Error("JSX 文件不存在: " + __mcpFile.fsName); }',
+            '  __mcpResult = app.doScript(__mcpFile, ScriptLanguage.JAVASCRIPT);',
+            '} catch (e) {',
+            '  __mcpResult = "Error: " + (e && e.message ? e.message : e);',
+            '}',
+            '__mcpResult;'
+        ].join('\n');
+        return await this.executeInDesignScript(wrapper);
+    }
+
+    /**
      * Windows: Execute via COM DoScript
      */
     static async _executeInDesignScriptWindows(script) {

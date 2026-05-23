@@ -22,7 +22,7 @@ import {
     UtilityHandlers,
     PresentationHandlers
 } from '../handlers/index.js';
-import { formatResponse, formatErrorResponse } from '../utils/stringUtils.js';
+import { formatErrorResponse } from '../utils/stringUtils.js';
 
 export class InDesignMCPServer {
     constructor() {

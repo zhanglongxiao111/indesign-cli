@@ -2,7 +2,7 @@
  * Layer management handlers
  */
 import { ScriptExecutor } from '../core/scriptExecutor.js';
-import { formatResponse, formatErrorResponse, escapeJsxString } from '../utils/stringUtils.js';
+import { formatResponse, escapeJsxString } from '../utils/stringUtils.js';
 
 export class LayerHandlers {
     static async createLayer(args) {

@@ -1,0 +1,29 @@
+# 文档目录说明
+
+本目录用于放长期可追溯的项目文档。`AGENTS.md` 是项目级协作入口，本文只规定文档放置位置。
+
+## 标准目录
+
+| 目录 | 用途 | 命名建议 |
+| ---- | ---- | -------- |
+| `AI协作/` | 本地 Agent、外部咨询、用户反馈等过程材料 | 见 `AI协作/README.md` |
+| `技术决策/` | 已确认的长期技术决策、架构取舍和影响范围 | `YYYY-MM-DD_主题.md` |
+| `系统地图/` | 架构图、模块关系、工具链路、运行流程 | `主题.md` 或 `index.md` |
+| `superpowers/specs/` | 方案设计、问题分析、边界定义、备选方案 | `YYYY-MM-DD-topic-design.md` |
+| `superpowers/plans/` | 实施计划、阶段拆分、验证清单 | `YYYY-MM-DD-topic-plan.md` |
+| `bugfix/` | 复杂缺陷根因、修复过程、回归记录 | `YYYY-MM-DD_问题.md` |
+| `review/` | 当前有效 review、复盘和审查结论 | `YYYY-MM-DD_主题.md` |
+| `image/` | 文档图片资源 | 跟随引用文档分目录 |
+| `legacy/` | 历史资料，只追溯 | 保持原名或按来源归档 |
+
+## 根文档
+
+| 文档 | 用途 |
+| ---- | ---- |
+| `MCP_INSTRUCTIONS.md` | MCP 接入、工具能力、使用说明 |
+| `LLM_PROMPT.md` | 给 LLM 使用 MCP 工具的提示词示例 |
+| `SYNC.md` | Windows COM 适配、迁移和运行说明 |
+| `template-blueprint.md` | 模板槽位导出示例和母版槽位清单 |
+| `agent-template-flow.md` | AI Agent 使用模板槽位生成页面的流程图 |
+
+新增长期文档前，先确认是否应进入标准目录，而不是继续放在根目录。
