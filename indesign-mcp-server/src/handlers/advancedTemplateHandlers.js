@@ -359,6 +359,9 @@ export class AdvancedTemplateHandlers {
         try {
             // 执行文件本身，保留 $.fileName 与相对路径环境
             const result = await ScriptExecutor.executeInDesignScriptFile(resolvedPath);
+            if (typeof result === 'string' && result.trim().startsWith('Error:')) {
+                return formatErrorResponse(result, 'Run JSX File');
+            }
             return formatResponse(result, 'Run JSX File');
         } catch (error) {
             return formatErrorResponse(error.message, 'Run JSX File');
