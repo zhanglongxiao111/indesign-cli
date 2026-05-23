@@ -7,6 +7,7 @@ from typing import Any
 
 from .domains import DOMAINS, infer_domain
 from .errors import CliError
+from .hidden_handler_schemas import HIDDEN_HANDLER_SCHEMAS
 
 
 CLI_PRIMITIVES = [
@@ -282,18 +283,22 @@ class Catalog:
             content = path.read_text(encoding="utf-8")
             for method in re.findall(r"static\s+async\s+([A-Za-z0-9_]+)\s*\(", content):
                 name = _camel_to_snake(method)
+                tool_id = f"{domain}.{name}"
+                schema = HIDDEN_HANDLER_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})
+                arg_names = list(schema.get("properties", {}).keys())
+                callable_handler = tool_id in HIDDEN_HANDLER_SCHEMAS
                 entries.append(
                     {
-                        "id": f"{domain}.{name}",
+                        "id": tool_id,
                         "domain": domain,
                         "name": name,
-                        "one_line_purpose": f"{domain} handler 中已有但当前目录不直接调用的能力",
-                        "arg_names": [],
+                        "one_line_purpose": f"调用已有 {domain} handler 能力",
+                        "arg_names": arg_names,
                         "source": "hidden_handler",
                         "rank": 90,
-                        "schema_size": "unknown",
-                        "availability": "hidden_handler",
-                        "callable": False,
+                        "schema_size": _schema_size(schema) if callable_handler else "unknown",
+                        "availability": "exposed" if callable_handler else "hidden_handler",
+                        "callable": callable_handler,
                         "requires": ["indesign_com"],
                         "side_effects": ["indesign_mutation"],
                         "artifact_kinds": _artifact_kinds(name),

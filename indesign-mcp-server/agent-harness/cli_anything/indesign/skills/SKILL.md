@@ -32,7 +32,7 @@ cli-anything-indesign export verify path/to/output.pdf
 
 - 默认读取 domain 摘要，不默认拉全量 schema。
 - 只对明确候选执行 `tool schema`。
-- `hidden_handler` 只能作为能力线索，不能直接调用。
+- `hidden_handler` 来源的 Book / Presentation 工具已经可通过 `tool schema` 和 `tool call` 直接调用。
 - 需要连续状态时，依赖 JSON 返回值、脚本标签、显式路径或 `.indesign-cli/session.json`。
 - 不记录客户文档内容、客户名称或外部完整路径。
 - 真实 InDesign 行为必须走现有 MCP/COM/JSX 链路，不做模拟成功。

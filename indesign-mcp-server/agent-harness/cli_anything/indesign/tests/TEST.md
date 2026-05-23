@@ -5,7 +5,7 @@
 - JSON envelope。
 - 路径脱敏。
 - 工具目录和 domain 查询。
-- hidden handler 进入目录但不可直接调用。
+- 21 个 hidden handler 进入目录、可调用且有 schema。
 - session compact 输出不保存完整参数。
 - PDF / IDML 产物验证。
 - server health 基础项目文件检查。

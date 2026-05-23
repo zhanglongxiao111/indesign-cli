@@ -165,25 +165,64 @@ def test_cli_action_commands_return_agent_useful_payloads(tmp_path):
     assert script_payload["error"]["code"] == "SCRIPT_INPUT_REQUIRED"
 
 
-def test_domain_top_tools_do_not_recommend_hidden_handlers():
+def test_domain_top_tools_include_exposed_hidden_handlers():
     from cli_anything.indesign.core.catalog import Catalog
 
     catalog = Catalog(repo_root=REPO_ROOT)
     book = next(item for item in catalog.domains() if item["domain"] == "book")
-    assert book["top_tools"] == []
+    assert "book.create_book" in book["top_tools"]
     assert book["count_by_source"]["hidden_handler"] > 0
 
 
-def test_hidden_handlers_are_listed_but_not_callable():
+def test_hidden_handlers_are_listed_callable_and_schema_backed():
     from cli_anything.indesign.core.catalog import Catalog
 
+    expected = {
+        "book.create_book",
+        "book.open_book",
+        "book.add_document_to_book",
+        "book.synchronize_book",
+        "book.export_book",
+        "book.package_book",
+        "book.get_book_info",
+        "book.list_books",
+        "book.repaginate_book",
+        "book.update_all_cross_references",
+        "book.update_all_numbers",
+        "book.update_chapter_and_paragraph_numbers",
+        "book.preflight_book",
+        "book.print_book",
+        "book.set_book_properties",
+        "presentation.create_presentation_document",
+        "presentation.add_cover_page",
+        "presentation.add_section_page",
+        "presentation.add_full_bleed_image",
+        "presentation.add_image_grid",
+        "presentation.export_presentation_pdf",
+    }
     catalog = Catalog(repo_root=REPO_ROOT)
-    book_tools = catalog.list_tools(domain="book", callable_only=False)
-    assert any(item["availability"] == "hidden_handler" for item in book_tools)
-    assert all(item["callable"] is False for item in book_tools if item["availability"] == "hidden_handler")
+    hidden_tools = catalog.list_tools(source="hidden_handler", callable_only=True)
+    assert {item["id"] for item in hidden_tools} == expected
+    assert len(hidden_tools) == 21
+    assert all(item["availability"] == "exposed" for item in hidden_tools)
+    assert all(item["schema_size"] != "unknown" for item in hidden_tools)
+    assert "filePath" in next(item for item in hidden_tools if item["id"] == "book.create_book")["arg_names"]
+    assert "files" in next(item for item in hidden_tools if item["id"] == "presentation.add_image_grid")["arg_names"]
 
 
-def test_tool_call_rejects_hidden_handler():
+def test_tool_schema_supports_hidden_handler():
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.router import Router
+
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT)
+    payload = router.schema("book.create_book")
+    schema = payload["inputSchema"]
+    assert schema["required"] == ["filePath"]
+    assert schema["properties"]["filePath"]["type"] == "string"
+    assert payload["tool"]["source"] == "hidden_handler"
+
+
+def test_tool_call_hidden_handler_validates_required_args():
     from cli_anything.indesign.core.catalog import Catalog
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.router import Router
@@ -192,9 +231,35 @@ def test_tool_call_rejects_hidden_handler():
     try:
         router.call("book.create_book", {})
     except CliError as exc:
-        assert exc.code == "TOOL_NOT_CALLABLE"
+        assert exc.code == "MISSING_ARGUMENT"
+        assert exc.details["argument"] == "filePath"
     else:
-        raise AssertionError("hidden handler should not be callable")
+        raise AssertionError("hidden handler should reject missing required argument")
+
+
+def test_hidden_bridge_resolves_acronym_handler_names():
+    bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
+    result = subprocess.run(
+        ["node", str(bridge)],
+        cwd=REPO_ROOT,
+        input=json.dumps(
+            {
+                "domain": "presentation",
+                "name": "export_presentation_pdf",
+                "args": {},
+                "resolveOnly": True,
+            }
+        ),
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["methodName"] == "exportPresentationPDF"
 
 
 def test_catalog_infers_expected_domains_from_tool_names():
@@ -273,10 +338,11 @@ def test_every_listed_callable_tool_has_agent_contract_fields():
 
 def test_every_callable_tool_schema_covers_catalog_args():
     from cli_anything.indesign.core.mcp_backend import McpBackend
-    from cli_anything.indesign.core.router import PRIMITIVE_SCHEMAS
+    from cli_anything.indesign.core.router import PRIMITIVE_SCHEMAS, Router
     from cli_anything.indesign.indesign_cli import build_catalog_with_backends
 
     catalog, _warnings = build_catalog_with_backends()
+    router = Router(catalog=catalog, repo_root=REPO_ROOT)
     backend_schemas: dict[tuple[str, str], dict] = {}
     for source, entry in (("advanced", "src/advanced/index.js"), ("classic", "src/index.js")):
         for item in McpBackend(repo_root=REPO_ROOT, entry=entry).list_tools():
@@ -285,6 +351,8 @@ def test_every_callable_tool_schema_covers_catalog_args():
     for tool in catalog.list_tools(callable_only=True):
         if tool["source"] in {"cli", "script"}:
             schema = PRIMITIVE_SCHEMAS[tool["id"]]
+        elif tool["source"] == "hidden_handler":
+            schema = router.schema(tool["id"])["inputSchema"]
         else:
             schema = backend_schemas[(tool["source"], tool["name"])]
         properties = schema.get("properties", {})

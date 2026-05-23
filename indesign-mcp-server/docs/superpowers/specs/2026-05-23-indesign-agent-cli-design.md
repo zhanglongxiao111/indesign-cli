@@ -126,18 +126,19 @@ cli-anything-indesign tool search --domain export --query pdf
 - CLI 自带 primitive。
 - `script.run`。
 
-有 handler 但当前没有通过 `ListTools` 暴露的能力也进入功能域目录，但必须标记为不可直接调用：
+有 handler 但当前没有通过 `ListTools` 暴露的能力也进入功能域目录。Book / Presentation 的 21 个 handler 已补 CLI direct bridge，因此在目录中保持 `source: "hidden_handler"`，但标记为可调用：
 
 ```json
 {
-  "availability": "hidden_handler",
-  "callable": false
+  "source": "hidden_handler",
+  "availability": "exposed",
+  "callable": true
 }
 ```
 
-这样 Agent 能知道项目里存在这类能力，并据此判断是否应写 JSX、请求重新暴露 schema，或在后续 CLI 化阶段补入口。
+后续如果新增 handler 但尚未补 schema 和 bridge 路由，可以临时保留 `availability: "hidden_handler"` 与 `callable: false`。
 
-默认 `tool list --domain <domain>` 返回该 domain 下的精简目录，包括 `exposed` 和 `hidden_handler`。但只有 `callable: true` 的条目允许 `tool schema` 和 `tool call`。如果 Agent 只想看当前可直接调用能力，可使用：
+默认 `tool list --domain <domain>` 返回该 domain 下的精简目录。只有 `callable: true` 的条目允许 `tool schema` 和 `tool call`。如果 Agent 只想看当前可直接调用能力，可使用：
 
 ```powershell
 cli-anything-indesign tool list --domain export --callable-only
@@ -516,7 +517,7 @@ cli-anything-indesign export verify path/to/output.idml --created-after 2026-05-
 - 后端命令构造
 - 子进程超时和清理逻辑
 - domain 映射、`rank` 排序、`source` 过滤
-- hidden handler 进入目录但 `callable: false`
+- 21 个 hidden handler 进入目录、`callable: true` 且有 schema
 
 ### 12.2 MCP 后端冒烟测试
 

@@ -20,9 +20,9 @@
 | `script` | 1 | 1 | 必须执行并验收 |
 | `advanced` | 6 | 6 | 必须执行并验收 |
 | `classic` | 114 | 114 | 必须执行并验收 |
-| `hidden_handler` | 21 | 0 | 必须写入覆盖图；full 模式前必须暴露或提供等价 direct 调用入口并验收 |
+| `hidden_handler` | 21 | 21 | 必须通过 CLI 调用入口执行并验收 |
 
-当前能力目录总数为 146，其中当前直接可调用命令为 125，隐藏 handler 能力为 21。测试运行时必须从实时目录重新计算这些数字，不允许写死。`--full` 的最终通过分母应是能力总数 146；在隐藏 handler 尚未暴露前，只能运行 `--current-callable` 或 `--inventory` 模式，不能宣称全覆盖通过。
+当前能力目录总数为 146，当前直接可调用命令为 146，其中隐藏 handler 能力为 21。测试运行时必须从实时目录重新计算这些数字，不允许写死。`--full` 的最终通过分母应是能力总数 146。
 
 当前隐藏 handler 清单：
 
@@ -55,7 +55,7 @@ presentation.export_presentation_pdf
 - 不把测试产物提交到 git。
 - 不用假 InDesign、mock COM 或纯字符串模拟替代真实应用。
 - 不要求每个工具都必须服务于同一个最终演示稿页面。
-- 不把隐藏 handler 的 `not_callable` 状态当成 full 覆盖通过；它们必须在实现阶段被暴露为 CLI 可调用能力，或由 runner 提供等价 direct handler 调用入口。
+- 不把隐藏 handler 只列目录当成 full 覆盖通过；它们必须通过 CLI 调用入口真实执行并验收。
 - 不把旧 `tests/index.js` 作为唯一验收入口；它可以继续存在，但真实 E2E 要独立。
 
 ## 3. 运行目录
@@ -161,7 +161,7 @@ node tests/real-e2e/run-architecture-presentation.mjs --tool document.create_doc
 - open/save/close 类命令运行在 outputs 下的副本文档。
 - page/spread/master 删除和移动在临时页面组内执行，再审计结果。
 - error handling 使用故意错误入参验证失败 envelope。
-- book/presentation hidden handler 先验证目录可见；full 模式必须通过暴露或 direct handler 调用真实执行这些能力。
+- book/presentation hidden handler 通过 CLI 调用入口执行，不能只验证目录可见。
 
 ## 6. 素材策略
 
@@ -225,17 +225,10 @@ ability_total:
 
 current_callable_total:
 callable == true
-source in ["cli", "script", "advanced", "classic"]
+source in ["cli", "script", "advanced", "classic", "hidden_handler"]
 ```
 
-`--full` 必须以 `ability_total` 为分母。隐藏 handler 不允许永久停留在 `not_callable`，实现计划必须先完成以下二选一：
-
-```text
-方案 A：把 Book / Presentation handler 暴露到 MCP/CLI 工具定义，成为普通 callable tool。
-方案 B：在真实 E2E runner 内提供 direct handler adapter，只用于测试，仍执行真实 handler 和 InDesign。
-```
-
-推荐方案 A，因为它同时提升 Agent 可用性；方案 B 只适合作为过渡。
+`--full` 必须以 `ability_total` 为分母。Book / Presentation 的 21 个 hidden handler 已经通过 CLI Node bridge 成为 `callable: true`，E2E runner 需要按普通可调用工具验收。
 
 ### 7.2 覆盖表
 
@@ -375,7 +368,7 @@ source in ["cli", "script", "advanced", "classic"]
 ```json
 {
   "ability_total": 146,
-  "current_callable_total": 125,
+  "current_callable_total": 146,
   "hidden_handler_total": 21,
   "passed": 146,
   "failed": 0,
@@ -399,7 +392,7 @@ source in ["cli", "script", "advanced", "classic"]
 | `template_flow` | 高级模板工具 | advanced, template |
 | `script_transport` | 文件 JSX、stdin JSX、classic 代码执行 | script |
 | `destructive_scratch` | 删除、关闭、清理、移动类工具 | document, page, spread, master, object, book |
-| `book_presentation` | 隐藏 handler 暴露后的 book / presentation 场景 | book, presentation |
+| `book_presentation` | hidden handler 来源的 book / presentation 场景 | book, presentation |
 | `export_package` | PDF、IDML、图片、package | export |
 | `audit` | 重开、审计、覆盖报告 | utility, query tools |
 
@@ -491,10 +484,9 @@ advanced 工具必须进入主验收，不允许只做 schema 测试。
 
 验收：`.indd` 保存、关闭、重开、审计通过。
 
-### 阶段三：隐藏 handler 暴露与全工具覆盖
+### 阶段三：hidden handler 验收与全工具覆盖
 
-- 先把 21 个 hidden handler 暴露为可调用工具，或建立 direct handler adapter。
-- 为每个 hidden handler 补 schema、参数样例、验收逻辑。
+- 为每个 hidden handler 补参数样例、验收逻辑。
 - 根据 `coverage-map.json` 补齐全部 146 个能力。
 - destructive 工具进入 scratch 文档。
 - 查询工具必须验证返回有效信息。
@@ -543,10 +535,10 @@ advanced 工具必须进入主验收，不允许只做 schema 测试。
 默认决策：
 
 - 全量 E2E 统计全部能力目录，当前基线为 146。
-- 隐藏 handler 在 `--inventory` 模式可记录为 `not_callable`，但在 `--full` 模式必须被暴露或 direct 调用并通过验收。
+- 隐藏 handler 在 `--inventory` 模式必须记录为 `callable: true`，在 `--full` 模式必须调用并通过验收。
 - 主场景默认 28 页。
 - 产物保留在 `.indesign-e2e-runs/`，不自动清理。
 - 图片和 SVG 首选下载，网络失败时 fallback 到生成素材。
 - 覆盖失败时不继续声称文档验收通过。
 
-Book / Presentation handler 已经进入 full 覆盖分母。实现计划必须优先解决它们的调用入口，否则只能跑 current-callable 子集，不能宣称全覆盖。
+Book / Presentation handler 已经进入 full 覆盖分母，且已有 CLI 调用入口。后续 E2E 重点是为每个工具补参数样例和验收逻辑。

@@ -8,6 +8,7 @@ from typing import Any
 
 from .catalog import Catalog
 from .errors import CliError
+from .hidden_backend import HiddenHandlerBackend
 from .mcp_backend import McpBackend
 
 
@@ -70,6 +71,8 @@ class Router:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
         if tool["source"] in {"cli", "script"}:
             return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})}
+        if tool["source"] == "hidden_handler":
+            return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id)}
         backend = self._backend(tool["source"])
         for item in backend.list_tools():
             if item["name"] == tool["name"]:
@@ -84,6 +87,8 @@ class Router:
             return self._call_cli_primitive(tool_id, args)
         if tool["source"] == "script":
             return self._call_script_primitive(args)
+        if tool["source"] == "hidden_handler":
+            return HiddenHandlerBackend(self.repo_root).call_tool(tool, args)
         if tool["source"] not in BACKENDS:
             raise CliError(f"Tool is handled by a CLI command: {tool_id}", code="CLI_PRIMITIVE_ROUTE")
         backend = self._backend(tool["source"])
