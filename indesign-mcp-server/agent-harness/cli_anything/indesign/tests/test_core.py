@@ -94,3 +94,27 @@ def test_tool_call_rejects_hidden_handler():
         assert exc.code == "TOOL_NOT_CALLABLE"
     else:
         raise AssertionError("hidden handler should not be callable")
+
+
+def test_pdf_verify_rejects_non_pdf(tmp_path):
+    from cli_anything.indesign.core.artifacts import verify_artifact
+    from cli_anything.indesign.core.errors import CliError
+
+    fake = tmp_path / "out.pdf"
+    fake.write_text("not a pdf", encoding="utf-8")
+    try:
+        verify_artifact(fake)
+    except CliError as exc:
+        assert exc.code == "ARTIFACT_SIGNATURE_INVALID"
+    else:
+        raise AssertionError("invalid PDF should fail")
+
+
+def test_session_compact_does_not_store_args(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="document.info", domain="document", source="classic", ok=True, duration_ms=5)
+    payload = store.read(compact=True)
+    assert "recent_calls" in payload
+    assert "args" not in json.dumps(payload, ensure_ascii=False)
