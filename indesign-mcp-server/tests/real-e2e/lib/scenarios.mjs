@@ -19,10 +19,9 @@ function jsxPath(value) {
 
 function coverageSource(toolId) {
   const domain = toolId.split('.')[0];
-  if (['server', 'session', 'export'].includes(domain)) return 'cli';
+  if (['server', 'session'].includes(domain) || toolId === 'export.verify') return 'cli';
   if (domain === 'script') return 'script';
   if (domain === 'template') return 'advanced';
-  if (['book', 'presentation'].includes(domain)) return 'hidden_handler';
   return 'classic';
 }
 
@@ -66,6 +65,25 @@ async function callRequired(run, toolId, args = {}, options = {}) {
   });
   if (!ok) {
     throw new Error(`${toolId} failed: ${semanticText(call) || call.stderr || call.stdout}`);
+  }
+  return call;
+}
+
+async function callExpectedFailure(run, toolId, args = {}, expectedPattern = /not found|Error|failed/i, options = {}) {
+  const call = await toolCall(run, toolId, args, {
+    source: options.source || coverageSource(toolId),
+    backend: options.backend,
+  });
+  const text = semanticText(call);
+  const expected = !isSemanticallyOk(call) || expectedPattern.test(text) || call.payload?.ok === false;
+  await recordCallCoverage(run, toolId, call, {
+    status: expected ? 'expected_failure_passed' : 'failed',
+    artifact_paths: options.artifact_paths || [],
+    audit_refs: options.audit_refs || [],
+    note: options.note,
+  });
+  if (!expected) {
+    throw new Error(`${toolId} expected failure did not happen: ${text || call.stdout}`);
   }
   return call;
 }
@@ -368,6 +386,200 @@ function place(page, itemLayer, filePath, bounds, label, fitFill) {
   } catch (xmlError) {}
   doc.activeLayer = textLayer;
   return "architecture content populated pages=" + doc.pages.length + " links=" + doc.links.length;
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeTemplateSetupScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'setup-template-slots.jsx');
+  const script = `
+(function () {
+  if (app.documents.length === 0) throw new Error("NO_DOCUMENT");
+  var doc = app.activeDocument;
+  var master = doc.masterSpreads.itemByName("B-Content");
+  if (!master || !master.isValid) throw new Error("B-Content master missing");
+  var page = master.pages[0];
+  function addText(bounds, label, contents) {
+    var frame = page.textFrames.add({ geometricBounds: bounds });
+    frame.contents = contents;
+    frame.label = label;
+    return frame;
+  }
+  function addRect(bounds, label) {
+    var frame = page.rectangles.add({ geometricBounds: bounds });
+    frame.label = label;
+    frame.strokeWeight = 1;
+    return frame;
+  }
+  addText([120, 70, 155, 520], "slot:title;type:text;desc:模板页标题", "模板标题槽位");
+  addText([170, 70, 235, 360], "slot:metric;type:text;desc:模板指标", "模板指标槽位");
+  addRect([150, 430, 360, 780], "slot:image;type:image;fit:FILL_FRAME;desc:模板图片");
+  return "template slots ready";
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeDestructiveScratchSetupScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'setup-destructive-scratch.jsx');
+  const scratchPath = jsxPath(path.join(run.dirs.outputs, 'destructive-scratch.indd'));
+  const script = `
+(function () {
+  var doc = app.documents.add();
+  doc.documentPreferences.facingPages = false;
+  doc.documentPreferences.pageWidth = 420;
+  doc.documentPreferences.pageHeight = 297;
+  while (doc.pages.length < 4) doc.pages.add();
+  var page = doc.pages[0];
+  var a = page.rectangles.add({ geometricBounds: [40, 40, 110, 130] });
+  a.label = "e2e.scratch.rect.a";
+  var b = page.rectangles.add({ geometricBounds: [40, 150, 110, 240] });
+  b.label = "e2e.scratch.rect.b";
+  var c = page.ovals.add({ geometricBounds: [130, 40, 210, 120] });
+  c.label = "e2e.scratch.oval.c";
+  var group = page.groups.add([a, b]);
+  group.label = "e2e.scratch.group";
+  var master = doc.masterSpreads.add();
+  try { master.namePrefix = "Z"; } catch (e) {}
+  try { master.baseName = "Scratch"; } catch (e) {}
+  var mp = master.pages[0];
+  var mr = mp.rectangles.add({ geometricBounds: [20, 20, 80, 100] });
+  mr.label = "e2e.scratch.master.item";
+  doc.pages[1].appliedMaster = master;
+  var page2 = doc.pages[1];
+  var p2a = page2.rectangles.add({ geometricBounds: [40, 40, 110, 130] });
+  p2a.label = "e2e.scratch.page2.rect.a";
+  var p2b = page2.rectangles.add({ geometricBounds: [40, 150, 110, 240] });
+  p2b.label = "e2e.scratch.page2.rect.b";
+  doc.save(File("${scratchPath}"));
+  return "scratch ready:" + doc.fullName.fsName;
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeScratchIndexScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'inspect-destructive-indexes.jsx');
+  const script = `
+(function () {
+  var doc = app.activeDocument;
+  var page = doc.pages[0];
+  var groupIndex = 0;
+  var firstNonGroupIndex = 0;
+  for (var i = 0; i < page.allPageItems.length; i++) {
+    var item = page.allPageItems[i];
+    if (item.constructor && item.constructor.name === "Group") groupIndex = i;
+    if (item.constructor && item.constructor.name !== "Group") firstNonGroupIndex = i;
+  }
+  return '{"groupIndex":' + groupIndex + ',"itemIndex":' + firstNonGroupIndex + '}';
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeBookFixtureScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'create-book-fixture-docs.jsx');
+  const docAPath = jsxPath(path.join(run.dirs.pathBook, 'chapter-01-site.indd'));
+  const docBPath = jsxPath(path.join(run.dirs.pathBook, 'chapter-02-design.indd'));
+  const script = `
+(function () {
+  function makeDoc(filePath, title, colorValue) {
+    var doc = app.documents.add();
+    doc.documentPreferences.facingPages = false;
+    doc.documentPreferences.pageWidth = 210;
+    doc.documentPreferences.pageHeight = 148;
+    while (doc.pages.length < 2) doc.pages.add();
+    var color = doc.colors.itemByName("E2E Book Accent");
+    if (!color.isValid) {
+      color = doc.colors.add({ name: "E2E Book Accent", model: ColorModel.PROCESS, space: ColorSpace.RGB, colorValue: colorValue });
+    }
+    for (var i = 0; i < doc.pages.length; i++) {
+      var page = doc.pages[i];
+      var band = page.rectangles.add({ geometricBounds: [0, 0, 148, 12] });
+      band.fillColor = color;
+      band.strokeWeight = 0;
+      var tf = page.textFrames.add({ geometricBounds: [30, 24, 92, 186] });
+      tf.contents = title + " / page " + (i + 1) + "\\n用于 Book handler 真实 E2E 覆盖。";
+      try { tf.texts[0].pointSize = 14; } catch (e) {}
+      tf.label = "e2e.book." + title + "." + (i + 1);
+    }
+    var file = File(filePath);
+    var folder = file.parent;
+    if (folder && !folder.exists) folder.create();
+    doc.save(file);
+    doc.close(SaveOptions.YES);
+    return file.fsName;
+  }
+  var a = makeDoc("${docAPath}", "场地与背景", [37, 138, 130]);
+  var b = makeDoc("${docBPath}", "方案与实施", [169, 82, 55]);
+  return "book fixtures created:" + a + "|" + b;
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeCloseBooksScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'close-open-books.jsx');
+  const script = `
+(function () {
+  var closed = 0;
+  for (var i = app.books.length - 1; i >= 0; i--) {
+    try {
+      app.books[i].close();
+      closed++;
+    } catch (e) {}
+  }
+  return "books closed=" + closed;
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writePresentationNavigationScript(run, pageIndex, scriptName) {
+  const scriptPath = path.join(run.dirs.scripts, scriptName);
+  const script = `
+(function () {
+  if (app.documents.length === 0) throw new Error("NO_DOCUMENT");
+  var doc = app.activeDocument;
+  while (doc.pages.length <= ${pageIndex}) doc.pages.add();
+  try {
+    if (app.layoutWindows.length > 0) {
+      app.layoutWindows[0].activePage = doc.pages[${pageIndex}];
+    }
+  } catch (e) {}
+  return "presentation active page=" + (${pageIndex} + 1);
+})();
+`.trim();
+  await fs.writeFile(scriptPath, script, 'utf8');
+  return scriptPath;
+}
+
+async function writeMainDeckFinalCleanupScript(run) {
+  const scriptPath = path.join(run.dirs.scripts, 'final-clean-main-deck.jsx');
+  const script = `
+(function () {
+  if (app.documents.length === 0) throw new Error("NO_DOCUMENT");
+  var doc = app.activeDocument;
+  var removed = 0;
+  for (var i = doc.pages.length - 1; i >= 0; i--) {
+    if (doc.pages[i].label === "e2e.deck.page.29.template-generated") {
+      doc.pages[i].remove();
+      removed++;
+    }
+  }
+  while (doc.pages.length > 28) {
+    doc.pages[doc.pages.length - 1].remove();
+    removed++;
+  }
+  doc.save();
+  return "main deck final cleanup removed=" + removed + " pages=" + doc.pages.length;
 })();
 `.trim();
   await fs.writeFile(scriptPath, script, 'utf8');
@@ -797,5 +1009,434 @@ export async function runContentTextAndAssets(run) {
   return {
     status: 'passed',
     auditPath: relativeToRun(run, auditPath),
+  };
+}
+
+export async function runTemplateAndScriptTransport(run) {
+  const documentPath = mainDocumentPath(run);
+  const setupScript = await writeTemplateSetupScript(run);
+  const setupCall = await toolCall(run, 'template.run_jsx_file', { filePath: setupScript }, {
+    source: 'advanced',
+    backend: 'mcp_advanced',
+  });
+  const setupOk = isSemanticallyOk(setupCall);
+  await recordCallCoverage(run, 'template.run_jsx_file', setupCall, {
+    status: setupOk ? 'passed' : 'failed',
+    artifact_paths: [relativeToRun(run, setupScript)],
+  });
+  if (!setupOk) {
+    throw new Error(`template.run_jsx_file failed: ${semanticText(setupCall) || setupCall.stdout}`);
+  }
+
+  await callRequired(run, 'template.list_template_blueprints', {});
+  await callRequired(run, 'template.inspect_template_blueprint', {});
+  await callRequired(run, 'template.create_page_with_template', {
+    templateName: 'B-Content',
+    position: 'AT_END',
+    label: 'e2e.deck.page.29.template-generated',
+  });
+  await callRequired(run, 'page.get_page_information', { pageIndex: 28 });
+  await callRequired(run, 'template.populate_template_slots', {
+    pageIndex: 28,
+    values: {
+      title: { text: '模板槽位页 / CLI 生成' },
+      metric: { text: '槽位填充：标题、指标、图片均由高级模板工具完成' },
+      image: {
+        imagePath: photoPath(run, 'architecture-facade'),
+        fit: 'FILL_FRAME',
+        clearExisting: true,
+      },
+    },
+  });
+
+  const fileScript = path.join(run.dirs.scripts, 'script-transport-file.jsx');
+  await fs.writeFile(fileScript, `
+(function () {
+  if (app.documents.length === 0) throw new Error("NO_DOCUMENT");
+  var doc = app.activeDocument;
+  doc.insertLabel("e2e.script.file", "中文 路径 空格 \\\\ 引号");
+  return "script file ok:" + doc.extractLabel("e2e.script.file");
+})();
+`.trim(), 'utf8');
+  await scriptRunFile(run, fileScript, {
+    artifact_paths: [relativeToRun(run, fileScript)],
+    note: 'script.run file transport',
+  });
+
+  const stdinCall = await runCli(run, ['script', 'run', '--stdin'], {
+    toolId: 'script.run',
+    source: 'script',
+    backend: 'script_bridge',
+    stdin: `
+(function () {
+  if (app.documents.length === 0) throw new Error("NO_DOCUMENT");
+  var doc = app.activeDocument;
+  var value = doc.extractLabel("e2e.script.file");
+  doc.insertLabel("e2e.script.stdin", "stdin读取:" + value);
+  return "script stdin ok:" + doc.extractLabel("e2e.script.stdin");
+})();
+`.trim(),
+  });
+  const stdinOk = isSemanticallyOk(stdinCall);
+  await recordCallCoverage(run, 'script.run', stdinCall, {
+    status: stdinOk ? 'passed' : 'failed',
+    note: 'script.run stdin transport',
+  });
+  if (!stdinOk) {
+    throw new Error(`script.run --stdin failed: ${semanticText(stdinCall) || stdinCall.stdout}`);
+  }
+
+  await callRequired(run, 'script.execute_indesign_code', {
+    code: [
+      'var doc = app.activeDocument;',
+      'doc.insertLabel("e2e.script.code", "execute_indesign_code 中文/空格/\\\\\\\\/\\\"");',
+      '"script code ok:" + doc.extractLabel("e2e.script.code");',
+    ].join('\n'),
+  });
+
+  await callRequired(run, 'document.save_document', { filePath: documentPath }, {
+    artifact_paths: [relativeToRun(run, documentPath)],
+  });
+  await writeCheckpoint(run, {
+    phase: 'template_flow',
+    status: 'passed',
+    open_documents_expected: [documentPath],
+    main_document_path: documentPath,
+    scratch_paths: [],
+    next_phase: 'destructive_scratch',
+  });
+  return { status: 'passed' };
+}
+
+export async function runDestructiveScratch(run) {
+  const mainPath = mainDocumentPath(run);
+  const setupScript = await writeDestructiveScratchSetupScript(run);
+  const scratchPath = path.join(run.dirs.outputs, 'destructive-scratch.indd');
+  await scriptRunFile(run, setupScript, {
+    artifact_paths: [relativeToRun(run, setupScript), relativeToRun(run, scratchPath)],
+    note: 'create scratch document for destructive commands',
+  });
+
+  const indexScript = await writeScratchIndexScript(run);
+  const indexCall = await scriptRunFile(run, indexScript, {
+    artifact_paths: [relativeToRun(run, indexScript)],
+    allowAnyText: true,
+    note: 'inspect scratch group indexes',
+  });
+  let indexes = { groupIndex: 0, itemIndex: 1 };
+  try {
+    indexes = JSON.parse(semanticText(indexCall));
+  } catch {}
+
+  await callRequired(run, 'page.duplicate_page', { pageIndex: 0 });
+  await callRequired(run, 'page.move_page', { pageIndex: 1, newPosition: 'AT_END', position: 'AT_END' });
+  await callRequired(run, 'page.resize_page', { pageIndex: 0, width: 430, height: 300 });
+  await callRequired(run, 'page.snapshot_page_layout', { pageIndex: 0 });
+  await callRequired(run, 'page.delete_page_layout_snapshot', { pageIndex: 0 });
+  await callRequired(run, 'page.delete_all_page_layout_snapshots', { pageIndex: 0 });
+  await callRequired(run, 'page.reframe_page', { pageIndex: 0, x1: 0, y1: 0, x2: 420, y2: 297 });
+  await callRequired(run, 'page.get_page_content_summary', { pageIndex: 0 });
+
+  await callRequired(run, 'object.get_group_info', { pageIndex: 0, groupIndex: indexes.groupIndex });
+  await callRequired(run, 'object.set_group_properties', {
+    pageIndex: 0,
+    groupIndex: indexes.groupIndex,
+    visible: true,
+    locked: false,
+    name: 'E2E Scratch Group',
+  });
+  await callRequired(run, 'page.list_groups', { pageIndex: 0 });
+  await callRequired(run, 'object.create_group_from_items', { pageIndex: 1, itemIndices: [0, 1] });
+  await callRequired(run, 'object.create_group', { pageIndex: 0 });
+  await callRequired(run, 'page.add_item_to_group', { pageIndex: 0, groupIndex: indexes.groupIndex, itemIndex: indexes.itemIndex });
+  await callRequired(run, 'page.remove_item_from_group', { pageIndex: 0, groupIndex: indexes.groupIndex, itemIndex: 0 });
+  await callRequired(run, 'object.ungroup', { pageIndex: 0, groupIndex: indexes.groupIndex });
+  await callRequired(run, 'page.delete_page_item', { pageIndex: 0, itemIndex: 0 });
+
+  await callRequired(run, 'spread.duplicate_spread', { spreadIndex: 0 });
+  await callRequired(run, 'spread.move_spread', { spreadIndex: 1, position: 'AT_END' });
+  await callRequired(run, 'spread.place_file_on_spread', {
+    spreadIndex: 0,
+    filePath: svgPath(run, 'section'),
+    x: 260,
+    y: 60,
+    layerName: '',
+  });
+  await callRequired(run, 'spread.get_spread_content_summary', { spreadIndex: 0 });
+  await callRequired(run, 'spread.delete_spread', { spreadIndex: 1 });
+
+  await callRequired(run, 'master.detach_master_items', { pageIndex: 1 });
+  await callRequired(run, 'master.remove_master_override', { pageIndex: 1, itemIndex: 0 });
+  await callRequired(run, 'master.delete_master_spread', { name: 'Z-Scratch', masterIndex: 1 });
+  await callRequired(run, 'document.organize_document_layers', { deleteEmptyLayers: false, sortLayers: true });
+  await callRequired(run, 'document.get_session_info', {});
+  await callRequired(run, 'document.clear_session', {});
+  await callRequired(run, 'document.close_document', {});
+
+  await callRequired(run, 'document.open_document', { filePath: mainPath }, {
+    artifact_paths: [relativeToRun(run, mainPath)],
+  });
+  await writeCheckpoint(run, {
+    phase: 'destructive_scratch',
+    status: 'passed',
+    open_documents_expected: [mainPath],
+    main_document_path: mainPath,
+    scratch_paths: [scratchPath],
+    next_phase: 'presentation_hidden',
+  });
+  return { status: 'passed', scratchPath: relativeToRun(run, scratchPath) };
+}
+
+export async function runPresentationHidden(run) {
+  const mainPath = mainDocumentPath(run);
+  const presentationPath = path.join(run.dirs.outputs, 'presentation-hidden.indd');
+  const presentationPdfPath = path.join(run.dirs.outputs, 'presentation-hidden.pdf');
+
+  await callRequired(run, 'presentation.create_presentation_document', {
+    preset: 'RATIO_16x9',
+    pages: 1,
+    facingPages: false,
+  });
+  await callRequired(run, 'presentation.add_cover_page', {
+    title: '东岸文化中心',
+    subtitle: 'CLI-Anything Presentation Handler E2E',
+    bgImagePath: photoPath(run, 'hero-waterfront'),
+  });
+
+  await scriptRunFile(run, await writePresentationNavigationScript(run, 1, 'presentation-page-2.jsx'), {
+    note: 'prepare presentation section page',
+  });
+  await callRequired(run, 'presentation.add_section_page', {
+    title: '场地、策略与形体',
+  });
+
+  await scriptRunFile(run, await writePresentationNavigationScript(run, 2, 'presentation-page-3.jsx'), {
+    note: 'prepare presentation full bleed page',
+  });
+  await callRequired(run, 'presentation.add_full_bleed_image', {
+    filePath: photoPath(run, 'architecture-facade'),
+    caption: '立面与材料测试页',
+  });
+
+  await scriptRunFile(run, await writePresentationNavigationScript(run, 3, 'presentation-page-4.jsx'), {
+    note: 'prepare presentation image grid page',
+  });
+  await callRequired(run, 'presentation.add_image_grid', {
+    files: [
+      photoPath(run, 'hero-waterfront'),
+      photoPath(run, 'industrial-site'),
+      photoPath(run, 'urban-site'),
+      photoPath(run, 'green-roof'),
+      photoPath(run, 'brick-material'),
+      photoPath(run, 'architecture-facade'),
+    ],
+    rows: 2,
+    columns: 3,
+    gap: 6,
+  });
+
+  await callRequired(run, 'document.save_document', { filePath: presentationPath }, {
+    artifact_paths: [relativeToRun(run, presentationPath)],
+    note: 'save presentation hidden handler fixture',
+  });
+  await callRequired(run, 'presentation.export_presentation_pdf', {
+    filePath: presentationPdfPath,
+    preset: 'High Quality Print',
+  }, {
+    artifact_paths: [relativeToRun(run, presentationPdfPath)],
+  });
+  await callRequired(run, 'export.verify', { path: presentationPdfPath }, {
+    artifact_paths: [relativeToRun(run, presentationPdfPath)],
+    note: 'verify presentation hidden handler PDF',
+  });
+  await callRequired(run, 'document.close_document', {});
+  await callRequired(run, 'document.open_document', { filePath: mainPath }, {
+    artifact_paths: [relativeToRun(run, mainPath)],
+  });
+
+  await writeCheckpoint(run, {
+    phase: 'presentation_hidden',
+    status: 'passed',
+    open_documents_expected: [mainPath],
+    main_document_path: mainPath,
+    scratch_paths: [presentationPath],
+    next_phase: 'book_hidden',
+  });
+  return {
+    status: 'passed',
+    presentationPath: relativeToRun(run, presentationPath),
+    presentationPdfPath: relativeToRun(run, presentationPdfPath),
+  };
+}
+
+export async function runBookHidden(run) {
+  const mainPath = mainDocumentPath(run);
+  const fixtureScript = await writeBookFixtureScript(run);
+  const bookPath = path.join(run.dirs.outputs, 'architecture-book.indb');
+  const docAPath = path.join(run.dirs.pathBook, 'chapter-01-site.indd');
+  const docBPath = path.join(run.dirs.pathBook, 'chapter-02-design.indd');
+  const bookPdfPath = path.join(run.dirs.outputs, 'architecture-book.pdf');
+  const bookPackagePath = path.join(run.dirs.outputs, 'book-package');
+  const preflightPath = path.join(run.dirs.outputs, 'book-preflight.txt');
+  const missingPrintPath = path.join(run.dirs.outputs, 'missing-print-target.indb');
+
+  await scriptRunFile(run, fixtureScript, {
+    artifact_paths: [relativeToRun(run, fixtureScript), relativeToRun(run, docAPath), relativeToRun(run, docBPath)],
+    note: 'create two saved InDesign chapter documents for book tools',
+  });
+
+  await callRequired(run, 'book.create_book', { filePath: bookPath }, {
+    artifact_paths: [relativeToRun(run, bookPath)],
+  });
+  await callRequired(run, 'book.open_book', { filePath: bookPath });
+  await callRequired(run, 'book.list_books', {});
+  await scriptRunFile(run, await writeCloseBooksScript(run), {
+    note: 'reset open Book state after open_book/list_books coverage',
+  });
+  await callRequired(run, 'book.add_document_to_book', { bookPath, documentPath: docAPath });
+  await callRequired(run, 'book.add_document_to_book', { bookPath, documentPath: docBPath });
+  await callRequired(run, 'book.get_book_info', { bookPath });
+  await callRequired(run, 'book.set_book_properties', {
+    bookPath,
+    automaticPagination: true,
+    automaticDocumentConversion: true,
+    insertBlankPage: false,
+    mergeIdenticalLayers: false,
+    synchronizeParagraphStyle: true,
+    synchronizeCharacterStyle: true,
+    synchronizeSwatch: true,
+  });
+  await callRequired(run, 'book.synchronize_book', { bookPath });
+  await callRequired(run, 'book.repaginate_book', { bookPath });
+  await callRequired(run, 'book.update_all_cross_references', { bookPath });
+  await callRequired(run, 'book.update_all_numbers', { bookPath });
+  await callRequired(run, 'book.update_chapter_and_paragraph_numbers', { bookPath });
+  await callRequired(run, 'book.preflight_book', {
+    bookPath,
+    outputPath: preflightPath,
+    autoOpen: false,
+  }, {
+    artifact_paths: [relativeToRun(run, preflightPath)],
+  });
+  await callRequired(run, 'book.export_book', {
+    bookPath,
+    outputPath: bookPdfPath,
+    format: 'PDF',
+  }, {
+    artifact_paths: [relativeToRun(run, bookPdfPath)],
+  });
+  await callRequired(run, 'book.package_book', {
+    bookPath,
+    outputPath: bookPackagePath,
+    copyingFonts: false,
+    copyingLinkedGraphics: true,
+    copyingProfiles: false,
+    updatingGraphics: false,
+    includingHiddenLayers: false,
+    ignorePreflightErrors: true,
+    creatingReport: true,
+    includeIdml: false,
+    includePdf: false,
+  }, {
+    artifact_paths: [relativeToRun(run, bookPackagePath)],
+  });
+  await callExpectedFailure(run, 'book.print_book', {
+    bookPath: missingPrintPath,
+    printDialog: false,
+    printerPreset: 'DEFAULT_VALUE',
+  }, /Book file not found/i, {
+    note: 'print_book is covered through safe missing-file guard to avoid sending a print job',
+  });
+
+  await callRequired(run, 'document.open_document', { filePath: mainPath }, {
+    artifact_paths: [relativeToRun(run, mainPath)],
+  });
+  await writeCheckpoint(run, {
+    phase: 'book_hidden',
+    status: 'passed',
+    open_documents_expected: [mainPath],
+    main_document_path: mainPath,
+    scratch_paths: [docAPath, docBPath, bookPath],
+    next_phase: 'export_package',
+  });
+  return {
+    status: 'passed',
+    bookPath: relativeToRun(run, bookPath),
+    bookPdfPath: relativeToRun(run, bookPdfPath),
+  };
+}
+
+export async function runExportPackage(run) {
+  const documentPath = mainDocumentPath(run);
+  const pdfPath = path.join(run.dirs.outputs, 'architecture-presentation.pdf');
+  const imagesPath = path.join(run.dirs.outputs, 'page-images');
+  const epubPath = path.join(run.dirs.outputs, 'architecture-presentation.epub');
+  const packagePath = run.dirs.pathPackage;
+  const cleanupScript = await writeMainDeckFinalCleanupScript(run);
+
+  await callRequired(run, 'document.open_document', { filePath: documentPath }, {
+    artifact_paths: [relativeToRun(run, documentPath)],
+  });
+  await callRequired(run, 'page.delete_page', { pageIndex: 28 });
+  await scriptRunFile(run, cleanupScript, {
+    artifact_paths: [relativeToRun(run, cleanupScript)],
+    note: 'ensure main architecture deck returns to 28 pages before export',
+  });
+  const { auditPath } = await runAudit(run, 'final-export-ready');
+
+  await callRequired(run, 'export.export_pdf', {
+    filePath: pdfPath,
+    pages: 'all',
+    quality: 'PRINT',
+    includeBleed: true,
+    includeMarks: false,
+  }, {
+    artifact_paths: [relativeToRun(run, pdfPath)],
+  });
+  await callRequired(run, 'export.verify', { path: pdfPath }, {
+    artifact_paths: [relativeToRun(run, pdfPath)],
+    audit_refs: [relativeToRun(run, auditPath)],
+    note: 'verify final architecture presentation PDF',
+  });
+  await callRequired(run, 'export.export_images', {
+    outputPath: imagesPath,
+    format: 'JPEG',
+    resolution: 144,
+    quality: 80,
+    pages: '1-4',
+  }, {
+    artifact_paths: [relativeToRun(run, imagesPath)],
+  });
+  await callRequired(run, 'export.export_epub', {
+    filePath: epubPath,
+  }, {
+    artifact_paths: [relativeToRun(run, epubPath)],
+  });
+  await callRequired(run, 'export.package_document', {
+    outputPath: packagePath,
+    includeFonts: false,
+    includeLinks: true,
+    includeProfiles: false,
+  }, {
+    artifact_paths: [relativeToRun(run, packagePath)],
+  });
+  await callRequired(run, 'document.save_document', { filePath: documentPath }, {
+    artifact_paths: [relativeToRun(run, documentPath)],
+  });
+
+  await writeCheckpoint(run, {
+    phase: 'export_package',
+    status: 'passed',
+    open_documents_expected: [documentPath],
+    main_document_path: documentPath,
+    scratch_paths: [],
+    next_phase: 'complete',
+  });
+  return {
+    status: 'passed',
+    pdfPath: relativeToRun(run, pdfPath),
+    imagesPath: relativeToRun(run, imagesPath),
+    epubPath: relativeToRun(run, epubPath),
+    packagePath: relativeToRun(run, packagePath),
   };
 }

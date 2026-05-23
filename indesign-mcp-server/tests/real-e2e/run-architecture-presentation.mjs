@@ -5,7 +5,16 @@ import { prepareOfflineAssets } from './lib/assets.mjs';
 import { captureCatalog } from './lib/catalog.mjs';
 import { buildCoverageBaseline } from './lib/coverage.mjs';
 import { createRunContext, writeCheckpoint, writeJson } from './lib/run-dir.mjs';
-import { runBootstrapContract, runContentTextAndAssets, runMainDeckSetup } from './lib/scenarios.mjs';
+import {
+  runBootstrapContract,
+  runBookHidden,
+  runContentTextAndAssets,
+  runDestructiveScratch,
+  runExportPackage,
+  runMainDeckSetup,
+  runPresentationHidden,
+  runTemplateAndScriptTransport,
+} from './lib/scenarios.mjs';
 
 function parseArgs(argv) {
   const options = {
@@ -44,11 +53,16 @@ function printHelp() {
   node tests/real-e2e/run-architecture-presentation.mjs --phase assets --offline
   node tests/real-e2e/run-architecture-presentation.mjs --phase main_deck_setup --offline
   node tests/real-e2e/run-architecture-presentation.mjs --phase content_text_table --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase template_flow --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase destructive_scratch --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase presentation_hidden --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase book_hidden --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase export_package --offline
   node tests/real-e2e/run-architecture-presentation.mjs --full --offline
 
 Options:
   --inventory          Generate catalog, schemas, baseline reports without launching InDesign
-  --phase <name>       Run a single phase. Supported: assets, inventory, bootstrap_contract, main_deck_setup, content_text_table
+  --phase <name>       Run a single phase. Supported: assets, inventory, bootstrap_contract, main_deck_setup, content_text_table, template_flow, destructive_scratch, presentation_hidden, book_hidden, export_package
   --tool <tool_id>     Reserve a single-tool rerun slot for later full E2E implementation
   --offline            Use checked-in seed assets
   --run-id <id>        Use a stable run directory id
@@ -123,17 +137,71 @@ async function main() {
     results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
     results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
     results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+  } else if (options.phase === 'template_flow') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
+    results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+  } else if (options.phase === 'destructive_scratch') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
+    results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+    results.phases.push({ phase: 'destructive_scratch', ...(await runDestructiveScratch(run)) });
+  } else if (options.phase === 'presentation_hidden') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
+    results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+    results.phases.push({ phase: 'destructive_scratch', ...(await runDestructiveScratch(run)) });
+    results.phases.push({ phase: 'presentation_hidden', ...(await runPresentationHidden(run)) });
+  } else if (options.phase === 'book_hidden') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
+    results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+    results.phases.push({ phase: 'destructive_scratch', ...(await runDestructiveScratch(run)) });
+    results.phases.push({ phase: 'presentation_hidden', ...(await runPresentationHidden(run)) });
+    results.phases.push({ phase: 'book_hidden', ...(await runBookHidden(run)) });
+  } else if (options.phase === 'export_package') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
+    results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+    results.phases.push({ phase: 'destructive_scratch', ...(await runDestructiveScratch(run)) });
+    results.phases.push({ phase: 'presentation_hidden', ...(await runPresentationHidden(run)) });
+    results.phases.push({ phase: 'book_hidden', ...(await runBookHidden(run)) });
+    results.phases.push({ phase: 'export_package', ...(await runExportPackage(run)) });
   } else if (options.full) {
     await ensureInventoryAndAssets(run, results);
     results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
     results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
     results.phases.push({ phase: 'content_text_table', ...(await runContentTextAndAssets(run)) });
+    results.phases.push({ phase: 'template_flow', ...(await runTemplateAndScriptTransport(run)) });
+    results.phases.push({ phase: 'destructive_scratch', ...(await runDestructiveScratch(run)) });
+    results.phases.push({ phase: 'presentation_hidden', ...(await runPresentationHidden(run)) });
+    results.phases.push({ phase: 'book_hidden', ...(await runBookHidden(run)) });
+    results.phases.push({ phase: 'export_package', ...(await runExportPackage(run)) });
     await writeJson(path.join(run.dirs.reports, 'full-status.json'), {
-      status: 'blocked',
-      reason: 'Remaining full InDesign execution phases are not implemented in this checkpoint.',
-      implemented: ['inventory', 'assets', 'bootstrap_contract', 'main_deck_setup', 'content_text_table'],
+      status: 'passed',
+      implemented: [
+        'inventory',
+        'assets',
+        'bootstrap_contract',
+        'main_deck_setup',
+        'content_text_table',
+        'template_flow',
+        'destructive_scratch',
+        'presentation_hidden',
+        'book_hidden',
+        'export_package',
+      ],
     });
-    throw new Error('Full InDesign execution phases are not complete yet. Content phase was generated.');
   } else if (options.tool) {
     throw new Error('--tool rerun is reserved for the full E2E implementation checkpoint.');
   } else {
