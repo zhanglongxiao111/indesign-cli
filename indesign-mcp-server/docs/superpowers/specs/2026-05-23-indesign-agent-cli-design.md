@@ -88,6 +88,8 @@ cli-anything-indesign tool search --domain export --query pdf
 | `graphics` | 图片、图形框、适配和基础绘制 |
 | `style` | 段落样式、字符样式、对象样式 |
 | `export` | PDF、IDML、图片等导出和产物验证 |
+| `book` | InDesign Book 文件、章节和书籍级同步 |
+| `presentation` | 演示型版面、页面序列和早期 presentation handler 能力 |
 | `script` | JSX 文件执行和 stdin 临时脚本 |
 | `session` | CLI 本地状态、最近文档和最近输出 |
 | `server` | 依赖、后端、InDesign COM 健康检查 |
