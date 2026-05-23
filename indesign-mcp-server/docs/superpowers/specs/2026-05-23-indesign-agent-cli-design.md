@@ -412,20 +412,41 @@ cli-anything-indesign export verify path/to/output.idml --created-after 2026-05-
 - `.indesign-cli/` 必须加入 `.gitignore`。
 - 所有写入 session 和 JSON envelope 的错误详情都要经过路径脱敏，避免 `raw_backend_error` 泄露客户名或完整路径。
 
-## 9. MCP 内存状态边界
+## 9. 跨步骤状态设计
 
-当前 Node 侧可能存在进程内 session 状态。由于第一版 CLI 不做常驻服务，每次命令都会启动新 MCP 子进程，因此不能假设后端内存 session 能跨 CLI 调用保留。
+第一版 CLI 不做常驻服务，每次命令都会启动新 MCP 子进程。这个设计不会让 InDesign 本身断开：Adobe InDesign 进程、当前打开文档和文档内部对象仍然可以跨 CLI 调用存在。真正不能依赖的是 Node MCP server 进程内的临时内存。
 
 处理原则：
 
+- 所有跨步骤需要继续使用的信息，都必须通过 JSON 显式返回给 Agent。
+- Agent 可以依赖上一条命令返回的结构化字段，例如文档路径、对象 ID、脚本标签、页面索引、几何 bounds、输出路径。
 - CLI 的 `.indesign-cli/session.json` 只保存 Agent 可用的本地线索，不等同于 Node MCP 内存 session。
-- InDesign 应用和当前打开文档本身仍然可以跨 CLI 调用保持存在，因为它们属于 Adobe InDesign 进程，不属于 Node 子进程。
-- Node MCP server 里的内存状态不会跨 CLI 调用保留，例如 `sessionManager` 中的最近创建对象、页面尺寸缓存、智能定位历史等。
-- 因此，跨命令连续操作必须依赖 InDesign 真实状态、显式文件路径、显式对象标识或 CLI `.indesign-cli/session.json`，不能依赖 Node 进程内记忆。
-- 多步骤且强依赖中间状态的 InDesign 操作，优先合并进单个 JSX 文件。
-- 依赖“上一次工具调用内存状态”的能力，在第一版目录中应降低 `rank`，并在 `requires` 或 `side_effects` 中标明状态依赖。
+- Node MCP server 里的临时内存不会跨 CLI 调用保留，例如未返回给 Agent 的最近创建对象、页面尺寸缓存、智能定位历史等。
+- 因此，跨命令连续操作必须依赖 InDesign 真实状态、显式文件路径、显式对象标识、脚本标签或 CLI `.indesign-cli/session.json`。
+- 如果一个现有 handler 依赖 Node 进程内记忆，但没有把必要状态返回给 Agent，该能力在 CLI 目录中应降低 `rank`，并在 `requires` 或 `side_effects` 中标明状态依赖。
+- 多步骤且中间状态难以结构化表达的操作，优先合并进单个 JSX 文件。
 - 如果工具需要 active document、selection 或当前页面，必须在工具条目的 `requires` 字段中标出。
-- 第一版不做 MCP session rehydrate，避免把状态同步做重。
+- 第一版不做 MCP session rehydrate；需要连续性的地方，优先通过结构化返回值和显式参数解决。
+
+示例返回：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "document": {
+      "path": "samples/booklet.indd",
+      "active": true
+    },
+    "object": {
+      "id": 123,
+      "label": "title_slot",
+      "page_index": 0,
+      "bounds": [10, 10, 80, 200]
+    }
+  }
+}
+```
 
 ## 10. Agent 使用策略
 
