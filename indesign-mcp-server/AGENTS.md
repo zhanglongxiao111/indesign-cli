@@ -4,8 +4,8 @@
 
 - **先理解现状，再动手。** 先读代码、工具定义、测试和当前文档，避免凭旧印象改项目。
 - **收口优先。** 能复用现有 `core`、`handlers`、`types`、`utils` 时，不新增平行实现。
-- **CLI 化复用现有能力。** CLI 是面向 Agent 和人的按需入口，不重写一套 InDesign 自动化。
-- **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，可能会在 CLI 化阶段重新启用。
+- **CLI 复用现有能力。** CLI 是面向 Agent 的按需入口，不重写一套 InDesign 自动化。
+- **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，可能通过 CLI 工具目录继续使用。
 - **文档按用途归档。** 长期规范、方案、计划、排查、复盘分开放，避免一个目录堆成垃圾场。
 - **历史资料只追溯。** 当前开发以代码、`AGENTS.md` 和当前文档为准。
 
@@ -27,7 +27,7 @@
 | 文档与代码不一致 | 以代码为准，顺手修正文档 |
 | 当前文档与历史文档不一致 | 以当前文档为准 |
 | MCP 暴露工具与 handler 实现不一致 | 先判断是否是临时隐藏，不直接按死代码删除 |
-| CLI 化目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
+| CLI 目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
 
 ## 2. 强制规则
 
@@ -72,18 +72,26 @@
 - 脚本标签是模板槽位的重要元数据；除非工具明确负责覆盖标签，否则不要破坏现有标签。
 - 不要记录客户文档内容、客户名称或私有资产路径。
 
-### 2.5 CLI 化
+### 2.5 CLI 使用
 
-本项目准备按 CLI-Anything 思路逐步 CLI 化。
+本项目已提供 Agent 专用 CLI harness：
 
-CLI 化原则：
+- 位置：`agent-harness/`
+- 命令入口：`cli-anything-indesign`
+- Python 包名：`cli_anything.indesign`
+- 本地 session：当前工作目录下的 `.indesign-cli/session.json`
+
+使用原则：
 
 - CLI 复用当前 MCP server、handler 和 COM/脚本执行层。
 - 不重写 InDesign 操作，不做玩具模拟器。
-- 推荐 harness 位置：`agent-harness/`。
-- 推荐命令入口：`cli-anything-indesign`。
-- 推荐 Python 包名：`cli_anything.indesign`。
-- Book、Presentation、XML、Cloud、Preflight 等工具域可在 CLI 化阶段按需重新暴露。
+- 不需要单独启动常驻服务；每次调用按需启动 Node MCP/bridge 子进程，调用完退出。
+- InDesign 进程和打开文档可以连续存在，但 Node 子进程内存不跨命令保留。
+- 跨步骤连续操作依赖 JSON 返回值、InDesign 真实文档状态、显式文件路径、脚本标签或 `.indesign-cli/session.json`。
+- 简单单步操作用 `tool call`；复杂多步骤优先写成单个 JSX，再用 `script run` 执行。
+- Book、Presentation、Export、Template 等工具域都进入 CLI 工具目录；是否公开到 MCP 另行判断。
+- 生成 PDF 或 IDML 后必须用 `export verify` 验证产物。
+- 不要把客户文档内容、客户名称或外部资产完整路径写进日志和 session。
 
 ### 2.6 方案与计划文档
 
@@ -105,6 +113,14 @@ CLI 化原则：
 | 动作 | 命令 / 规则 |
 | ---- | ----------- |
 | 安装依赖 | `npm install` |
+| 安装 CLI harness | `cd agent-harness && pip install -e .` |
+| CLI 健康检查 | `cli-anything-indesign server health` |
+| CLI 工具域 | `cli-anything-indesign tool domains` |
+| CLI 工具列表 | `cli-anything-indesign tool list --domain <domain>` |
+| CLI Schema | `cli-anything-indesign tool schema <tool_id>` |
+| CLI 调用工具 | `cli-anything-indesign tool call <tool_id> --args args.json` |
+| CLI 执行 JSX | `cli-anything-indesign script run <file.jsx>` |
+| CLI 验证产物 | `cli-anything-indesign export verify <path>` |
 | 启动经典服务器 | `npm run start` 或 `node src/index.js` |
 | 调试经典服务器 | `npm run dev` |
 | 启动高级模板服务器 | `node src/advanced/index.js` |
@@ -113,11 +129,15 @@ CLI 化原则：
 | 工具名重复检查 | `node scripts/check_duplicates.mjs` |
 | 快速工具数检查 | `node scripts/quick_check.mjs` |
 | 必需测试 | `node tests/index.js --required` |
+| CLI 单元测试 | `python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q` |
+| 真实 E2E 全量 | `node tests\real-e2e\run-architecture-presentation.mjs --full --offline` |
+| E2E 覆盖校验 | `node tests\real-e2e\validators\validate-coverage.mjs <coverage-report.json>` |
 | 测试帮助 | `node tests/index.js --help` |
 
 环境要求：
 
 - Node.js 18 及以上。
+- Python 3.10 及以上。
 - Windows。
 - Adobe InDesign 已安装，并与服务器运行在同一用户会话。
 - `winax` 可用。
@@ -128,6 +148,7 @@ CLI 化原则：
 - 纯代码清理至少跑语法检查、Schema 校验、工具名重复检查。
 - 触及真实 InDesign 行为时，说明是否运行了 InDesign 集成测试。
 - 新增 handler 或 tool definition 时，补 `tests/test-*.js` 场景，并接入 `tests/index.js`。
+- 触及 CLI harness 或工具目录时，至少跑 CLI 单元测试；触及真实 InDesign 行为或 E2E runner 时，跑真实 E2E 对应阶段或全量。
 
 ## 4. 仓库地图
 
@@ -139,8 +160,9 @@ CLI 化原则：
 | `src/handlers/` | 工具处理器，主要负责拼装并执行 InDesign ExtendScript/JSX |
 | `src/types/` | MCP 工具定义和输入 Schema |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
+| `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
 | `scripts/` | 维护脚本和轻量检查 |
-| `tests/` | 测试入口、场景测试、工具套件 |
+| `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |
 
 ## 5. 文档目录
@@ -172,7 +194,7 @@ CLI 化原则：
 
 | 事项 | 当前状态 | 处理原则 |
 | ---- | -------- | -------- |
-| Book / Presentation 等工具域 | handler 仍在，部分工具定义未暴露 | 不按死代码删除，CLI 化阶段可重新按需暴露 |
+| Book / Presentation 等工具域 | 已进入 CLI 工具目录和真实 E2E 覆盖，部分 MCP 工具定义仍未暴露 | 不按死代码删除；是否公开到 MCP 另行判断 |
 | 根 README | 当前内容较薄，且指向上级 README | 后续可补成清晰项目入口 |
 | 部分 docs | 存在旧平台和旧版本描述 | 触及时按当前代码和 Windows COM 现状修正 |
-| InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话 | 没有真实环境时要明确说明未跑 |
+| InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话；当前真实 E2E 入口在 `tests/real-e2e/` | 没有真实环境时要明确说明未跑 |

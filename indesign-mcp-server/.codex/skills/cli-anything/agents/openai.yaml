@@ -1,4 +1,0 @@
-interface:
-  display_name: "CLI-Anything"
-  short_description: "为当前 InDesign MCP 项目构建、优化、测试或验证 CLI-Anything harness。"
-  default_prompt: "使用项目级 CLI-Anything skill，为当前 InDesign MCP 项目构建、优化、测试或验证 agent 可用的命令行 harness。"
