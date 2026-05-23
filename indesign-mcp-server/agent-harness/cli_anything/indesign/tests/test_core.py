@@ -80,3 +80,17 @@ def test_hidden_handlers_are_listed_but_not_callable():
     book_tools = catalog.list_tools(domain="book", callable_only=False)
     assert any(item["availability"] == "hidden_handler" for item in book_tools)
     assert all(item["callable"] is False for item in book_tools if item["availability"] == "hidden_handler")
+
+
+def test_tool_call_rejects_hidden_handler():
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.router import Router
+
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT)
+    try:
+        router.call("book.create_book", {})
+    except CliError as exc:
+        assert exc.code == "TOOL_NOT_CALLABLE"
+    else:
+        raise AssertionError("hidden handler should not be callable")
