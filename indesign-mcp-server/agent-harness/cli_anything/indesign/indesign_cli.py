@@ -6,6 +6,7 @@ import sys
 from typing import Any
 
 from . import __version__
+from .core.envelope import success
 
 
 def emit(payload: dict[str, Any]) -> int:
@@ -14,17 +15,11 @@ def emit(payload: dict[str, Any]) -> int:
 
 
 def version_payload() -> dict[str, Any]:
-    return {
-        "schema_version": 1,
-        "ok": True,
-        "exit_code": 0,
-        "command": "version",
-        "data": {
-            "name": "cli-anything-indesign",
-            "version": __version__,
-        },
-        "warnings": [],
-    }
+    return success(
+        command="version",
+        data={"name": "cli-anything-indesign", "version": __version__},
+        duration_ms=0,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
