@@ -41,7 +41,11 @@ export class SpreadHandlers {
             '    info += "Pages: " + sp.pages.length + "\\n";',
             '    info += "Allow Shuffle: " + sp.allowPageShuffle + "\\n";',
             '    info += "Show Master Items: " + sp.showMasterItems + "\\n";',
-            '    info += "Hidden: " + sp.visible === false ? "true" : "false" + "\\n";',
+            '    try {',
+            '      info += "Hidden: " + (sp.visible === false ? "true" : "false") + "\\n";',
+            '    } catch (e) {',
+            '      info += "Hidden: Not available\\n";',
+            '    }',
             '    info += "All Page Items: " + sp.allPageItems.length + "\\n";',
             '    info;',
             '  }',
@@ -154,6 +158,10 @@ export class SpreadHandlers {
     static async createSpreadGuides(args) {
         const { spreadIndex, numberOfRows = 0, numberOfColumns = 0, rowGutter, columnGutter, guideColor = 'BLUE', fitMargins = true, removeExisting = false, layerName } = args;
         const escapedLayerName = layerName ? escapeJsxString(layerName) : '';
+        const normalizedGuideColor = typeof guideColor === 'string' ? guideColor.trim() : 'BLUE';
+        const guideColorLiteral = /^\s*\[/.test(normalizedGuideColor)
+            ? normalizedGuideColor
+            : `UIColors.${/^[A-Z_]+$/.test(normalizedGuideColor.toUpperCase()) ? normalizedGuideColor.toUpperCase() : 'BLUE'}`;
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
@@ -166,7 +174,7 @@ export class SpreadHandlers {
             (escapedLayerName ? `    var layer = doc.layers.itemByName("${escapedLayerName}");
             try { if (layer.isValid) sp = layer; } catch(e) {}
 ` : ''),
-            `    sp.createGuides(${numberOfRows}, ${numberOfColumns}, "${rowGutter || ''}", "${columnGutter || ''}", "${guideColor}", ${fitMargins}, ${removeExisting});`,
+            `    sp.createGuides(${numberOfRows}, ${numberOfColumns}, "${rowGutter || ''}", "${columnGutter || ''}", ${guideColorLiteral}, ${fitMargins}, ${removeExisting});`,
             '    "Spread guides created";',
             '  }',
             '}'

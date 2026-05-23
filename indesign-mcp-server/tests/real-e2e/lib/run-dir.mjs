@@ -37,6 +37,7 @@ export async function createRunContext(options) {
     outputs: path.join(root, 'outputs'),
     reports: path.join(root, 'reports'),
     logs: path.join(root, 'logs'),
+    args: path.join(root, 'logs', 'args'),
     stdout: path.join(root, 'logs', 'stdout'),
     stderr: path.join(root, 'logs', 'stderr'),
     failures: path.join(root, 'logs', 'failures'),

@@ -68,6 +68,66 @@ export async function buildCoverageBaseline(run, catalog) {
   return baseline;
 }
 
+export async function readCoverageTools(run) {
+  const reportPath = path.join(run.dirs.reports, 'coverage-report.json');
+  const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+  return report.tools;
+}
+
+export async function ensureCoverageBaseline(run) {
+  const reportPath = path.join(run.dirs.reports, 'coverage-report.json');
+  try {
+    await fs.access(reportPath);
+  } catch {
+    throw new Error('coverage-report.json is missing; run inventory before executing real E2E phases.');
+  }
+}
+
+export async function recordCoverage(run, toolId, update = {}) {
+  await ensureCoverageBaseline(run);
+  const tools = await readCoverageTools(run);
+  const tool = tools.find(entry => entry.tool_id === toolId);
+  if (!tool) {
+    throw new Error(`coverage report does not contain tool id: ${toolId}`);
+  }
+
+  const callSequence = Array.isArray(update.call_sequence)
+    ? update.call_sequence
+    : update.call
+      ? [update.call.sequence]
+      : [];
+  const artifactPaths = Array.isArray(update.artifact_paths) ? update.artifact_paths : [];
+  const auditRefs = Array.isArray(update.audit_refs) ? update.audit_refs : [];
+
+  tool.status = update.status || tool.status;
+  tool.call_sequence = [...new Set([...(tool.call_sequence || []), ...callSequence])];
+  tool.stdout_path = update.stdout_path || update.call?.stdout_path || tool.stdout_path || null;
+  tool.stderr_path = update.stderr_path || update.call?.stderr_path || tool.stderr_path || null;
+  tool.artifact_paths = [...new Set([...(tool.artifact_paths || []), ...artifactPaths])];
+  tool.audit_refs = [...new Set([...(tool.audit_refs || []), ...auditRefs])];
+  if (update.backend) tool.backend = update.backend;
+  if (update.note) tool.note = update.note;
+  if (update.error) tool.error = update.error;
+
+  return writeCoverageReport(run, tools, { mode: update.mode || 'phase' });
+}
+
+export async function recordCallCoverage(run, toolId, call, options = {}) {
+  return recordCoverage(run, toolId, {
+    status: options.status || (call.ok ? 'passed' : 'failed'),
+    call,
+    backend: call.backend,
+    artifact_paths: options.artifact_paths || [],
+    audit_refs: options.audit_refs || [],
+    note: options.note,
+    error: call.ok ? undefined : {
+      exit_code: call.exit_code,
+      stderr_path: call.stderr_path,
+      stdout_path: call.stdout_path,
+    },
+  });
+}
+
 export async function writeCoverageReport(run, tools, extra = {}) {
   const unique = new Map(tools.map(tool => [tool.tool_id, tool]));
   const values = [...unique.values()];

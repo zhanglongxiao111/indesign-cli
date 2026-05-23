@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 
-import { appendJsonl, relativeToRun } from './run-dir.mjs';
+import { appendJsonl, relativeToRun, writeJson } from './run-dir.mjs';
 
 function digest(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -50,6 +50,10 @@ export async function runCli(run, args, meta = {}) {
     child.on('error', error => {
       stderr += `${error.stack || error.message}\n`;
     });
+    if (typeof meta.stdin === 'string') {
+      child.stdin.write(meta.stdin);
+      child.stdin.end();
+    }
     child.on('close', code => {
       resolve({ code, stdout, stderr });
     });
@@ -87,4 +91,19 @@ export async function runCli(run, args, meta = {}) {
     stderr: result.stderr,
     payload,
   };
+}
+
+export async function writeArgsFile(run, name, payload) {
+  const safeName = String(name || 'args').replace(/[^a-zA-Z0-9_.-]+/g, '-');
+  const filePath = path.join(run.dirs.args, `${String(run.sequence + 1).padStart(4, '0')}-${safeName}.json`);
+  await writeJson(filePath, payload || {});
+  return filePath;
+}
+
+export async function toolCall(run, toolId, args = {}, meta = {}) {
+  const argsPath = await writeArgsFile(run, toolId, args);
+  return runCli(run, ['tool', 'call', toolId, '--args', argsPath], {
+    toolId,
+    ...meta,
+  });
 }

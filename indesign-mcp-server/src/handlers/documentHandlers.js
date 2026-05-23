@@ -312,7 +312,13 @@ export class DocumentHandlers {
             '  } else {',
             '    try {',
             `      var page = doc.pages[${pageIndex}];`,
-            `      page.zoomToFit(${zoomLevel});`,
+            '      if (app.layoutWindows.length > 0) {',
+            '        var win = app.layoutWindows[0];',
+            '        try { win.activePage = page; } catch (e) {}',
+            `        try { win.zoomPercentage = ${zoomLevel}; } catch (e) {}`,
+            '      } else {',
+            '        try { page.select(); } catch (e) {}',
+            '      }',
             `      "Zoomed to page ${pageIndex} at ${zoomLevel}%";`,
             '    } catch (error) {',
             '      "Error zooming to page: " + error.message;',
@@ -1321,24 +1327,29 @@ export class DocumentHandlers {
         } = args;
 
         const lines = [];
-        if (adjustLayout !== null) lines.push(`doc.adjustLayoutPreferences.adjustLayout = ${adjustLayout};`);
-        if (adjustLayoutMargins !== null) lines.push(`doc.adjustLayoutPreferences.adjustLayoutMargins = ${adjustLayoutMargins};`);
-        if (adjustLayoutPageBreaks !== null) lines.push(`doc.adjustLayoutPreferences.adjustLayoutPageBreaks = ${adjustLayoutPageBreaks};`);
-        if (adjustLayoutRules) lines.push(`doc.adjustLayoutPreferences.adjustLayoutRules = "${escapeJsxString(adjustLayoutRules)}";`);
+        const safeSet = (name, statement) => (
+            `try { ${statement} updatedCount++; } catch (e) { skipped.push("${name}: " + e.message); }`
+        );
+        if (adjustLayout !== null) lines.push(safeSet('adjustLayout', `doc.adjustLayoutPreferences.adjustLayout = ${adjustLayout};`));
+        if (adjustLayoutMargins !== null) lines.push(safeSet('adjustLayoutMargins', `doc.adjustLayoutPreferences.adjustLayoutMargins = ${adjustLayoutMargins};`));
+        if (adjustLayoutPageBreaks !== null) lines.push(safeSet('adjustLayoutPageBreaks', `doc.adjustLayoutPreferences.adjustLayoutPageBreaks = ${adjustLayoutPageBreaks};`));
+        if (adjustLayoutRules) lines.push(safeSet('adjustLayoutRules', `doc.adjustLayoutPreferences.adjustLayoutRules = "${escapeJsxString(adjustLayoutRules)}";`));
 
-        if (alignDistributeBounds) lines.push(`doc.alignDistributePreferences.alignDistributeBounds = "${escapeJsxString(alignDistributeBounds)}";`);
-        if (alignDistributeSpacing) lines.push(`doc.alignDistributePreferences.alignDistributeSpacing = "${escapeJsxString(alignDistributeSpacing)}";`);
+        if (alignDistributeBounds) lines.push(safeSet('alignDistributeBounds', `doc.alignDistributePreferences.alignDistributeBounds = "${escapeJsxString(alignDistributeBounds)}";`));
+        if (alignDistributeSpacing) lines.push(safeSet('alignDistributeSpacing', `doc.alignDistributePreferences.alignDistributeSpacing = "${escapeJsxString(alignDistributeSpacing)}";`));
 
-        if (smartGuidePreferences !== null) lines.push(`doc.smartGuidePreferences.smartGuidePreferences = ${smartGuidePreferences};`);
+        if (smartGuidePreferences !== null) lines.push(safeSet('smartGuidePreferences', `doc.smartGuidePreferences.smartGuidePreferences = ${smartGuidePreferences};`));
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
+            '  var updatedCount = 0;',
+            '  var skipped = [];',
             '  try {',
             ...(lines.length ? lines : ['    // No layout preference changes provided']),
-            '    "Document layout preferences updated successfully";',
+            '    "Document layout preferences updated successfully. Updated: " + updatedCount + ", skipped: " + skipped.length;',
             '  } catch (error) {',
             '    "Error updating layout preferences: " + error.message;',
             '  }',

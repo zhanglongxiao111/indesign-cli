@@ -11,22 +11,40 @@ export class MasterSpreadHandlers {
     static async createMasterSpread(args) {
         const { name, namePrefix, baseName, showMasterItems = true } = args;
 
-        const escapedName = escapeJsxString(name);
-        const escapedNamePrefix = escapeJsxString(namePrefix);
-        const escapedBaseName = escapeJsxString(baseName);
+        let resolvedNamePrefix = namePrefix;
+        let resolvedBaseName = baseName;
+        if (name && (!resolvedNamePrefix || !resolvedBaseName)) {
+            const match = String(name).match(/^([A-Za-z]+)-(.+)$/);
+            if (match) {
+                resolvedNamePrefix = resolvedNamePrefix || match[1];
+                resolvedBaseName = resolvedBaseName || match[2];
+            } else {
+                resolvedBaseName = resolvedBaseName || name;
+            }
+        }
+
+        const escapedNamePrefix = escapeJsxString(resolvedNamePrefix);
+        const escapedBaseName = escapeJsxString(resolvedBaseName);
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
-            '  var masterSpread = doc.masterSpreads.add();',
+            '  var masterSpread = null;',
+            ...(resolvedNamePrefix ? [
+                `  for (var i = 0; i < doc.masterSpreads.length; i++) {`,
+                `    if (doc.masterSpreads[i].namePrefix === "${escapedNamePrefix}") { masterSpread = doc.masterSpreads[i]; break; }`,
+                '  }'
+            ] : []),
+            '  if (masterSpread === null) {',
+            '    masterSpread = doc.masterSpreads.add();',
+            ...(resolvedNamePrefix ? [`    masterSpread.namePrefix = "${escapedNamePrefix}";`] : []),
+            '  }',
             '',
             `  masterSpread.showMasterItems = ${showMasterItems};`,
             // Apply naming if provided
-            ...(name ? [`  masterSpread.name = "${escapedName}";`] : []),
-            ...(namePrefix ? [`  masterSpread.namePrefix = "${escapedNamePrefix}";`] : []),
-            ...(baseName ? [`  masterSpread.baseName = "${escapedBaseName}";`] : []),
+            ...(resolvedBaseName ? [`  masterSpread.baseName = "${escapedBaseName}";`] : []),
             '',
             '  "Master spread created successfully: " + masterSpread.name;',
             '}'
@@ -215,10 +233,10 @@ export class MasterSpreadHandlers {
             '',
             `    textFrame.geometricBounds = [${y}, ${x}, ${y + height}, ${x + width}];`,
             `    textFrame.contents = "${escapedContent}";`,
-            `    textFrame.texts[0].pointSize = ${fontSize};`,
-            `    textFrame.texts[0].appliedFont = app.fonts.itemByName("${escapedFontFamily}");`,
-            `    textFrame.texts[0].fontStyle = "${fontStyle}";`,
-            `    textFrame.texts[0].justification = Justification.${alignment};`,
+            `    try { textFrame.texts[0].pointSize = ${fontSize}; } catch (e) {}`,
+            `    try { textFrame.texts[0].appliedFont = app.fonts.itemByName("${escapedFontFamily}"); } catch (e) {}`,
+            `    try { textFrame.texts[0].fontStyle = "${fontStyle}"; } catch (e) {}`,
+            `    try { textFrame.texts[0].justification = Justification.${alignment}; } catch (e) {}`,
             '',
             '    "Master text frame created successfully";',
             '  }',

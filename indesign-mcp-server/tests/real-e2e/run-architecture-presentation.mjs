@@ -5,6 +5,7 @@ import { prepareOfflineAssets } from './lib/assets.mjs';
 import { captureCatalog } from './lib/catalog.mjs';
 import { buildCoverageBaseline } from './lib/coverage.mjs';
 import { createRunContext, writeCheckpoint, writeJson } from './lib/run-dir.mjs';
+import { runBootstrapContract, runMainDeckSetup } from './lib/scenarios.mjs';
 
 function parseArgs(argv) {
   const options = {
@@ -41,11 +42,12 @@ function printHelp() {
   console.log(`Usage:
   node tests/real-e2e/run-architecture-presentation.mjs --inventory --offline
   node tests/real-e2e/run-architecture-presentation.mjs --phase assets --offline
+  node tests/real-e2e/run-architecture-presentation.mjs --phase main_deck_setup --offline
   node tests/real-e2e/run-architecture-presentation.mjs --full --offline
 
 Options:
   --inventory          Generate catalog, schemas, baseline reports without launching InDesign
-  --phase <name>       Run a single phase. Currently supported: assets, inventory
+  --phase <name>       Run a single phase. Supported: assets, inventory, bootstrap_contract, main_deck_setup
   --tool <tool_id>     Reserve a single-tool rerun slot for later full E2E implementation
   --offline            Use checked-in seed assets
   --run-id <id>        Use a stable run directory id
@@ -80,6 +82,13 @@ async function runAssets(run) {
   return { assetReport };
 }
 
+async function ensureInventoryAndAssets(run, results) {
+  results.phases.push({ phase: 'inventory', ...(await runInventory(run)) });
+  if (run.options.offline) {
+    results.phases.push({ phase: 'assets', ...(await runAssets(run)) });
+  }
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -101,15 +110,23 @@ async function main() {
     if (options.offline) {
       results.phases.push({ phase: 'assets', ...(await runAssets(run)) });
     }
+  } else if (options.phase === 'bootstrap_contract') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+  } else if (options.phase === 'main_deck_setup') {
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
   } else if (options.full) {
-    results.phases.push({ phase: 'inventory', ...(await runInventory(run)) });
-    results.phases.push({ phase: 'assets', ...(await runAssets(run)) });
+    await ensureInventoryAndAssets(run, results);
+    results.phases.push({ phase: 'bootstrap_contract', ...(await runBootstrapContract(run)) });
+    results.phases.push({ phase: 'main_deck_setup', ...(await runMainDeckSetup(run)) });
     await writeJson(path.join(run.dirs.reports, 'full-status.json'), {
       status: 'blocked',
-      reason: 'Full InDesign execution phases are not implemented in this checkpoint.',
-      implemented: ['inventory', 'assets'],
+      reason: 'Remaining full InDesign execution phases are not implemented in this checkpoint.',
+      implemented: ['inventory', 'assets', 'bootstrap_contract', 'main_deck_setup'],
     });
-    throw new Error('Full InDesign execution phases are not implemented yet. Inventory and assets were generated.');
+    throw new Error('Full InDesign execution phases are not complete yet. Main deck setup was generated.');
   } else if (options.tool) {
     throw new Error('--tool rerun is reserved for the full E2E implementation checkpoint.');
   } else {

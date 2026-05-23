@@ -221,6 +221,11 @@ export class PageHandlers {
      */
     static async setPageProperties(args) {
         const { pageIndex, label, pageColor, optionalPage, layoutRule, snapshotBlendingMode, appliedTrapPreset } = args;
+        const pageColorLiteral = pageColor
+            ? (/^\s*\[/.test(String(pageColor))
+                ? String(pageColor)
+                : `UIColors.${/^[A-Z_]+$/.test(String(pageColor).trim().toUpperCase()) ? String(pageColor).trim().toUpperCase() : 'BLUE'}`)
+            : null;
 
         const script = [
             'if (app.documents.length === 0) {',
@@ -233,7 +238,7 @@ export class PageHandlers {
             `    var page = doc.pages[${pageIndex}];`,
             '    try {',
             ...(label ? [`      page.label = "${escapeJsxString(label)}";`] : []),
-            ...(pageColor ? [`      page.pageColor = "${escapeJsxString(pageColor)}";`] : []),
+            ...(pageColorLiteral ? [`      page.pageColor = ${pageColorLiteral};`] : []),
             ...(optionalPage !== undefined ? [`      page.optionalPage = ${optionalPage};`] : []),
             ...(layoutRule ? [`      page.layoutRule = LayoutRule.${layoutRule};`] : []),
             ...(snapshotBlendingMode ? [`      page.snapshotBlendingMode = SnapshotBlendingMode.${snapshotBlendingMode};`] : []),
@@ -255,6 +260,19 @@ export class PageHandlers {
      */
     static async adjustPageLayout(args) {
         const { pageIndex, width, height, bleedInside, bleedTop, bleedOutside, bleedBottom, leftMargin, topMargin, rightMargin, bottomMargin } = args;
+        const updates = [];
+        const safeSet = (name, statement) => (
+            `try { ${statement} updatedCount++; } catch (e) { skipped.push("${name}: " + e.message); }`
+        );
+        if (width) updates.push(safeSet('size', `page.resize(CoordinateSpaces.PAGE_COORDINATES, AnchorPoint.CENTER_ANCHOR, ResizeMethods.REPLACING_CURRENT_DIMENSIONS_WITH, UnitValue("${escapeJsxString(String(width))}"), UnitValue("${escapeJsxString(String(height || width))}"));`));
+        if (leftMargin) updates.push(safeSet('leftMargin', `page.marginPreferences.left = UnitValue("${escapeJsxString(String(leftMargin))}");`));
+        if (topMargin) updates.push(safeSet('topMargin', `page.marginPreferences.top = UnitValue("${escapeJsxString(String(topMargin))}");`));
+        if (rightMargin) updates.push(safeSet('rightMargin', `page.marginPreferences.right = UnitValue("${escapeJsxString(String(rightMargin))}");`));
+        if (bottomMargin) updates.push(safeSet('bottomMargin', `page.marginPreferences.bottom = UnitValue("${escapeJsxString(String(bottomMargin))}");`));
+        if (bleedInside) updates.push(safeSet('bleedInside', `page.bleedBoxPreferences.inside = UnitValue("${escapeJsxString(String(bleedInside))}");`));
+        if (bleedTop) updates.push(safeSet('bleedTop', `page.bleedBoxPreferences.top = UnitValue("${escapeJsxString(String(bleedTop))}");`));
+        if (bleedOutside) updates.push(safeSet('bleedOutside', `page.bleedBoxPreferences.outside = UnitValue("${escapeJsxString(String(bleedOutside))}");`));
+        if (bleedBottom) updates.push(safeSet('bleedBottom', `page.bleedBoxPreferences.bottom = UnitValue("${escapeJsxString(String(bleedBottom))}");`));
 
         const script = [
             'if (app.documents.length === 0) {',
@@ -265,17 +283,11 @@ export class PageHandlers {
             '    "Page index out of range";',
             '  } else {',
             `    var page = doc.pages[${pageIndex}];`,
+            '    var updatedCount = 0;',
+            '    var skipped = [];',
             '    try {',
-            ...(width ? [`      page.resize(CoordinateSpaces.PAGE_COORDINATES, AnchorPoint.CENTER_ANCHOR, ResizeMethods.REPLACING_CURRENT_DIMENSIONS_WITH, UnitValue("${escapeJsxString(width)}"), UnitValue("${escapeJsxString(height || width)}"));`] : []),
-            ...(leftMargin ? [`      page.marginPreferences.left = UnitValue("${escapeJsxString(leftMargin)}");`] : []),
-            ...(topMargin ? [`      page.marginPreferences.top = UnitValue("${escapeJsxString(topMargin)}");`] : []),
-            ...(rightMargin ? [`      page.marginPreferences.right = UnitValue("${escapeJsxString(rightMargin)}");`] : []),
-            ...(bottomMargin ? [`      page.marginPreferences.bottom = UnitValue("${escapeJsxString(bottomMargin)}");`] : []),
-            ...(bleedInside ? [`      page.bleedBoxPreferences.inside = UnitValue("${escapeJsxString(bleedInside)}");`] : []),
-            ...(bleedTop ? [`      page.bleedBoxPreferences.top = UnitValue("${escapeJsxString(bleedTop)}");`] : []),
-            ...(bleedOutside ? [`      page.bleedBoxPreferences.outside = UnitValue("${escapeJsxString(bleedOutside)}");`] : []),
-            ...(bleedBottom ? [`      page.bleedBoxPreferences.bottom = UnitValue("${escapeJsxString(bleedBottom)}");`] : []),
-            '      "Page layout adjusted successfully";',
+            ...(updates.length ? updates : ['      // No page layout changes provided']),
+            '      "Page layout adjusted successfully. Updated: " + updatedCount + ", skipped: " + skipped.length;',
             '    } catch (error) {',
             '      "Error adjusting page layout: " + error.message;',
             '    }',
@@ -505,7 +517,16 @@ export class PageHandlers {
         const { pageIndex, numberOfRows = 0, numberOfColumns = 0, rowGutter = 5, columnGutter = 5, guideColor = 'BLUE', fitMargins = true, removeExisting = false, layerName } = args;
 
         const escapedLayerName = layerName ? escapeJsxString(layerName) : '';
-        const escapedGuideColor = escapeJsxString(guideColor);
+        const formatUnit = (value) => {
+            const text = String(value);
+            return /[a-z%]/i.test(text) ? text : `${text}mm`;
+        };
+        const rowGutterUnit = escapeJsxString(formatUnit(rowGutter));
+        const columnGutterUnit = escapeJsxString(formatUnit(columnGutter));
+        const normalizedGuideColor = typeof guideColor === 'string' ? guideColor.trim() : 'BLUE';
+        const guideColorLiteral = /^\s*\[/.test(normalizedGuideColor)
+            ? normalizedGuideColor
+            : `UIColors.${/^[A-Z_]+$/.test(normalizedGuideColor.toUpperCase()) ? normalizedGuideColor.toUpperCase() : 'BLUE'}`;
 
         const script = [
             'if (app.documents.length === 0) {',
@@ -519,7 +540,8 @@ export class PageHandlers {
             '    try {',
             ...(escapedLayerName ? [`      var layer = doc.layers.itemByName("${escapedLayerName}");`] : []),
             ...(removeExisting ? ['      page.guides.everyItem().remove();'] : []),
-            `      page.createGuides(${numberOfRows}, ${numberOfColumns}, UnitValue("${rowGutter}mm"), UnitValue("${columnGutter}mm"), "${escapedGuideColor}", ${fitMargins}${escapedLayerName ? ', layer' : ''});`,
+            '      var guideTarget = (typeof page.createGuides === "function") ? page : page.parent;',
+            `      guideTarget.createGuides(${numberOfRows}, ${numberOfColumns}, "${rowGutterUnit}", "${columnGutterUnit}", ${guideColorLiteral}, ${fitMargins}${escapedLayerName ? ', layer' : ''});`,
             '      "Page guides created successfully";',
             '    } catch (error) {',
             '      "Error creating page guides: " + error.message;',
