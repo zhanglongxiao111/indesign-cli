@@ -116,14 +116,15 @@ cli-anything-indesign tool search --domain export --query pdf
 
 ### 5.4 可用性边界
 
-第一版目录只包含：
+第一版目录包含：
 
 - 当前高级模板服务器 `ListTools` 暴露的工具。
 - 当前经典 MCP 服务器 `ListTools` 暴露的工具。
+- 有 handler 实现但当前未通过 `ListTools` 暴露的能力。
 - CLI 自带 primitive。
 - `script.run`。
 
-有 handler 但当前没有通过 `ListTools` 暴露的能力，不进入默认可调用目录。后续需要重启用时，可以先标记为：
+有 handler 但当前没有通过 `ListTools` 暴露的能力也进入功能域目录，但必须标记为不可直接调用：
 
 ```json
 {
@@ -132,7 +133,13 @@ cli-anything-indesign tool search --domain export --query pdf
 }
 ```
 
-默认 `tool list` 只返回 `availability: "exposed"` 且 `callable: true` 的能力。
+这样 Agent 能知道项目里存在这类能力，并据此判断是否应写 JSX、请求重新暴露 schema，或在后续 CLI 化阶段补入口。
+
+默认 `tool list --domain <domain>` 返回该 domain 下的精简目录，包括 `exposed` 和 `hidden_handler`。但只有 `callable: true` 的条目允许 `tool schema` 和 `tool call`。如果 Agent 只想看当前可直接调用能力，可使用：
+
+```powershell
+cli-anything-indesign tool list --domain export --callable-only
+```
 
 ## 6. 命令面设计
 
@@ -205,6 +212,8 @@ cli-anything-indesign tool call document.get_info --args args.json
 - `source` 表示能力来源，不作为主导航。
 - `rank` 是推荐顺序，数字越小越优先。
 - `schema_size` 可取 `small`、`medium`、`large`，用于提示读取 schema 的 token 成本。
+- `availability` 可取 `exposed`、`hidden_handler`、`planned`。
+- `callable: false` 表示该条目只能作为目录线索，不能直接 `schema/call`。
 - `requires`、`side_effects`、`artifact_kinds`、`destructive`、`target_scope` 帮助 Agent 在不读完整 schema 时判断风险。
 - 同一功能如果同时有多个来源，默认只把 `rank` 更高的条目放进 `top_tools`。
 - `tool schema <id>` 才返回完整参数、描述和示例。
@@ -410,8 +419,11 @@ cli-anything-indesign export verify path/to/output.idml --created-after 2026-05-
 处理原则：
 
 - CLI 的 `.indesign-cli/session.json` 只保存 Agent 可用的本地线索，不等同于 Node MCP 内存 session。
-- 多步骤 InDesign 操作优先合并进单个 JSX 文件。
-- 依赖“上一次工具调用内存状态”的能力，不应在第一版作为推荐工具。
+- InDesign 应用和当前打开文档本身仍然可以跨 CLI 调用保持存在，因为它们属于 Adobe InDesign 进程，不属于 Node 子进程。
+- Node MCP server 里的内存状态不会跨 CLI 调用保留，例如 `sessionManager` 中的最近创建对象、页面尺寸缓存、智能定位历史等。
+- 因此，跨命令连续操作必须依赖 InDesign 真实状态、显式文件路径、显式对象标识或 CLI `.indesign-cli/session.json`，不能依赖 Node 进程内记忆。
+- 多步骤且强依赖中间状态的 InDesign 操作，优先合并进单个 JSX 文件。
+- 依赖“上一次工具调用内存状态”的能力，在第一版目录中应降低 `rank`，并在 `requires` 或 `side_effects` 中标明状态依赖。
 - 如果工具需要 active document、selection 或当前页面，必须在工具条目的 `requires` 字段中标出。
 - 第一版不做 MCP session rehydrate，避免把状态同步做重。
 
@@ -481,7 +493,7 @@ cli-anything-indesign export verify path/to/output.idml --created-after 2026-05-
 - 后端命令构造
 - 子进程超时和清理逻辑
 - domain 映射、`rank` 排序、`source` 过滤
-- hidden handler 不进入默认可调用目录
+- hidden handler 进入目录但 `callable: false`
 
 ### 12.2 MCP 后端冒烟测试
 
