@@ -114,6 +114,18 @@ def test_catalog_infers_expected_domains_from_tool_names():
     assert "graphics.create_rectangle" in ids
 
 
+def test_router_calls_export_verify_cli_primitive(tmp_path):
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.router import Router
+
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT)
+    payload = router.call("export.verify", {"path": str(pdf)})
+    assert payload["kind"] == "pdf"
+    assert payload["signature_ok"] is True
+
+
 def test_pdf_verify_rejects_non_pdf(tmp_path):
     from cli_anything.indesign.core.artifacts import verify_artifact
     from cli_anything.indesign.core.errors import CliError

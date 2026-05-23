@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,10 @@ class Router:
         tool = self._find(tool_id)
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
+        if tool["source"] == "cli":
+            return self._call_cli_primitive(tool_id, args)
+        if tool["source"] == "script":
+            return self._call_script_primitive(args)
         if tool["source"] not in BACKENDS:
             raise CliError(f"Tool is handled by a CLI command: {tool_id}", code="CLI_PRIMITIVE_ROUTE")
         backend = self._backend(tool["source"])
@@ -54,6 +59,36 @@ class Router:
         except KeyError as exc:
             raise CliError(f"Unsupported backend source: {source}", code="BACKEND_NOT_SUPPORTED") from exc
         return McpBackend(repo_root=self.repo_root, entry=entry)
+
+    def _call_cli_primitive(self, tool_id: str, args: dict[str, Any]) -> dict[str, Any]:
+        if tool_id == "export.verify":
+            from .artifacts import verify_artifact
+
+            created_after = datetime.fromisoformat(args["created_after"]) if args.get("created_after") else None
+            return verify_artifact(Path(args["path"]), created_after=created_after, cwd=Path.cwd())
+        if tool_id == "session.show":
+            from .session import SessionStore
+
+            return SessionStore(Path.cwd()).read(compact=not bool(args.get("verbose")))
+        if tool_id == "session.clear":
+            from .session import SessionStore
+
+            SessionStore(Path.cwd()).clear()
+            return {"cleared": True}
+        if tool_id == "server.health":
+            from .health import health
+
+            return health(self.repo_root, deep=bool(args.get("deep")))
+        raise CliError(f"Unsupported CLI primitive: {tool_id}", code="CLI_PRIMITIVE_UNSUPPORTED")
+
+    def _call_script_primitive(self, args: dict[str, Any]) -> dict[str, Any]:
+        from .scripts import run_script, run_stdin_script
+
+        if args.get("stdin"):
+            return run_stdin_script(self, Path.cwd())
+        if args.get("file"):
+            return run_script(self, Path(args["file"]))
+        raise CliError("script.run requires file or stdin", code="SCRIPT_INPUT_REQUIRED")
 
 
 def load_args(path_value: str) -> dict[str, Any]:
