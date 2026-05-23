@@ -22,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def emit(payload: dict[str, Any]) -> int:
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
     return int(payload.get("exit_code", 0))
 
 
@@ -187,8 +187,12 @@ def run(argv: list[str] | None = None) -> int:
     if args.group == "server" and (args.server_command == "health" or args.server_command is None):
         data = health(REPO_ROOT, deep=getattr(args, "deep", False))
         return emit(success(command="server health", data=data, duration_ms=0, tool_id="server.health"))
-    parser.print_help(sys.stderr)
-    return 2
+    raise CliError(
+        "Command is required",
+        code="COMMAND_REQUIRED",
+        details={"groups": ["tool", "script", "export", "session", "server"]},
+        hint="先用 tool domains 查看工具域，或用 tool search --query <关键词> 查找工具。",
+    )
 
 
 def safe_command(argv: list[str] | None) -> str:

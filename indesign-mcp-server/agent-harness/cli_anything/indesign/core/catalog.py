@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .domains import DOMAINS, infer_domain
+from .errors import CliError
 
 
 CLI_PRIMITIVES = [
@@ -111,6 +112,8 @@ HIDDEN_HANDLER_FILES = {
     "book": "src/handlers/bookHandlers.js",
     "presentation": "src/handlers/presentationHandlers.js",
 }
+
+VALID_SOURCES = {"cli", "script", "advanced", "classic", "hidden_handler"}
 
 
 def _camel_to_snake(value: str) -> str:
@@ -242,8 +245,20 @@ class Catalog:
     ) -> list[dict[str, Any]]:
         tools = self._tools
         if domain:
+            if domain not in DOMAINS:
+                raise CliError(
+                    f"Unknown domain: {domain}",
+                    code="DOMAIN_NOT_FOUND",
+                    details={"domain": domain, "available": list(DOMAINS)},
+                )
             tools = [tool for tool in tools if tool["domain"] == domain]
         if source:
+            if source not in VALID_SOURCES:
+                raise CliError(
+                    f"Unknown source: {source}",
+                    code="SOURCE_NOT_FOUND",
+                    details={"source": source, "available": sorted(VALID_SOURCES)},
+                )
             tools = [tool for tool in tools if tool["source"] == source]
         if callable_only:
             tools = [tool for tool in tools if tool["callable"]]

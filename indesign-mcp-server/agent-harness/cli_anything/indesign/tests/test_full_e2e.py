@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 HARNESS_ROOT = REPO_ROOT / "agent-harness"
 
 
-def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+def run_cli(*args: str, input_data: str | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
     return subprocess.run(
@@ -21,6 +21,7 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         encoding="utf-8",
         errors="replace",
+        input=input_data,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -34,6 +35,16 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
 def test_real_indesign_creates_and_saves_document(tmp_path):
     health = run_cli("server", "health", "--deep")
     assert health.returncode == 0, health.stderr
+
+    stdin_probe = run_cli(
+        "script",
+        "run",
+        "--stdin",
+        input_data='try { "STDIN_PROBE_OK|documents=" + app.documents.length; } catch (e) { "Error: " + e.message; }',
+    )
+    assert stdin_probe.returncode == 0, stdin_probe.stdout + stdin_probe.stderr
+    stdin_payload = json.loads(stdin_probe.stdout)
+    assert stdin_payload["data"]["parsed"]["result"].startswith("STDIN_PROBE_OK|documents=")
 
     output_path = tmp_path / "cli-anything-real-e2e.indd"
     output_jsx_path = str(output_path).replace("\\", "/")
@@ -67,6 +78,39 @@ try {{
     assert payload["data"]["parsed"]["result"].startswith("DOC_CREATE_OK|")
     assert output_path.exists()
     assert output_path.stat().st_size > 0
+
+    inspect_script_path = tmp_path / "inspect-document.jsx"
+    inspect_script_path.write_text(
+        f"""
+try {{
+  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;
+  var file = File("{output_jsx_path}");
+  var doc = app.open(file, false);
+  var items = doc.pageItems.everyItem().getElements();
+  var labelText = "";
+  for (var i = 0; i < items.length; i++) {{
+    if (items[i].label == "cli_anything_e2e_text_frame") {{
+      labelText = items[i].contents;
+      break;
+    }}
+  }}
+  var pageCount = doc.pages.length;
+  doc.close(SaveOptions.NO);
+  "DOC_INSPECT_OK|pages=" + pageCount + "|labelText=" + labelText;
+}} catch (e) {{
+  "Error: " + e.message;
+}}
+""",
+        encoding="utf-8",
+    )
+
+    inspect = run_cli("script", "run", str(inspect_script_path))
+    assert inspect.returncode == 0, inspect.stdout + inspect.stderr
+    inspect_payload = json.loads(inspect.stdout)
+    result_text = inspect_payload["data"]["parsed"]["result"]
+    assert result_text.startswith("DOC_INSPECT_OK|")
+    assert "pages=1" in result_text
+    assert "CLI-Anything real InDesign document E2E" in result_text
 
 
 @pytest.mark.skipif(

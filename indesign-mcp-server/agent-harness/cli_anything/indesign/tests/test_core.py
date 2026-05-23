@@ -73,6 +73,98 @@ def test_tool_domains_are_compact():
     assert "tools" not in export
 
 
+def test_root_command_missing_still_returns_json_failure():
+    result = run_module()
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "COMMAND_REQUIRED"
+    assert "usage:" not in result.stdout.lower()
+
+
+def test_invalid_domain_is_actionable():
+    result = run_module("tool", "list", "--domain", "not-a-domain")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "DOMAIN_NOT_FOUND"
+    assert payload["error"]["details"]["domain"] == "not-a-domain"
+    assert "export" in payload["error"]["details"]["available"]
+
+
+def test_invalid_source_is_actionable():
+    result = run_module("tool", "search", "--source", "not-a-source", "--query", "pdf")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "SOURCE_NOT_FOUND"
+    assert payload["error"]["details"]["source"] == "not-a-source"
+    assert "advanced" in payload["error"]["details"]["available"]
+
+
+def test_cli_discovery_commands_return_agent_useful_payloads():
+    cases = [
+        ("tool", "domains"),
+        ("tool",),
+        ("tool", "list"),
+        ("tool", "list", "--domain", "export", "--callable-only"),
+        ("tool", "search", "--domain", "export", "--query", "pdf"),
+        ("tool", "schema", "export.verify"),
+        ("server", "health"),
+        ("server",),
+        ("session", "show"),
+        ("session",),
+    ]
+    for case in cases:
+        result = run_module(*case)
+        assert result.returncode == 0, case
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True, case
+        assert payload["data"] not in (None, ""), case
+
+    domains = json.loads(run_module("tool", "domains").stdout)["data"]
+    export = next(item for item in domains if item["domain"] == "export")
+    assert export["summary"]
+    assert export["count_by_source"]
+    assert export["top_tools"]
+
+    listed = json.loads(run_module("tool", "list", "--domain", "export", "--callable-only").stdout)["data"]
+    assert any(item["id"] == "export.verify" for item in listed)
+    assert all(item["callable"] is True for item in listed)
+
+    schema = json.loads(run_module("tool", "schema", "export.verify").stdout)["data"]["inputSchema"]
+    assert schema["required"] == ["path"]
+    assert "path" in schema["properties"]
+
+
+def test_cli_action_commands_return_agent_useful_payloads(tmp_path):
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+
+    export_result = run_module("export", "verify", str(pdf))
+    assert export_result.returncode == 0
+    export_payload = json.loads(export_result.stdout)
+    assert export_payload["data"]["kind"] == "pdf"
+    assert export_payload["data"]["signature_ok"] is True
+
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps({"path": str(pdf)}), encoding="utf-8")
+    call_result = run_module("tool", "call", "export.verify", "--args", str(args_file))
+    assert call_result.returncode == 0
+    call_payload = json.loads(call_result.stdout)
+    assert call_payload["tool_id"] == "export.verify"
+    assert call_payload["data"]["kind"] == "pdf"
+
+    clear_result = run_module("session", "clear")
+    assert clear_result.returncode == 0
+    assert json.loads(clear_result.stdout)["data"]["cleared"] is True
+
+    script_result = run_module("script", "run")
+    assert script_result.returncode == 1
+    script_payload = json.loads(script_result.stdout)
+    assert script_payload["error"]["code"] == "SCRIPT_INPUT_REQUIRED"
+
+
 def test_domain_top_tools_do_not_recommend_hidden_handlers():
     from cli_anything.indesign.core.catalog import Catalog
 
@@ -143,6 +235,65 @@ def test_cli_primitive_schema_exposes_required_args():
     payload = router.schema("export.verify")
     assert payload["inputSchema"]["required"] == ["path"]
     assert "path" in payload["inputSchema"]["properties"]
+
+
+def test_every_listed_callable_tool_has_agent_contract_fields():
+    from cli_anything.indesign.indesign_cli import build_catalog_with_backends
+
+    catalog, _warnings = build_catalog_with_backends()
+    tools = catalog.list_tools(callable_only=True)
+    assert tools
+
+    required_fields = {
+        "id",
+        "domain",
+        "name",
+        "one_line_purpose",
+        "arg_names",
+        "source",
+        "rank",
+        "schema_size",
+        "availability",
+        "callable",
+        "requires",
+        "side_effects",
+        "destructive",
+        "target_scope",
+        "needs_indesign",
+        "produces_artifacts",
+    }
+    for tool in tools:
+        assert required_fields.issubset(tool), tool["id"]
+        assert isinstance(tool["arg_names"], list), tool["id"]
+        assert isinstance(tool["requires"], list), tool["id"]
+        assert isinstance(tool["side_effects"], list), tool["id"]
+        assert tool["callable"] is True, tool["id"]
+        assert "inputSchema" not in tool, tool["id"]
+
+
+def test_every_callable_tool_schema_covers_catalog_args():
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+    from cli_anything.indesign.core.router import PRIMITIVE_SCHEMAS
+    from cli_anything.indesign.indesign_cli import build_catalog_with_backends
+
+    catalog, _warnings = build_catalog_with_backends()
+    backend_schemas: dict[tuple[str, str], dict] = {}
+    for source, entry in (("advanced", "src/advanced/index.js"), ("classic", "src/index.js")):
+        for item in McpBackend(repo_root=REPO_ROOT, entry=entry).list_tools():
+            backend_schemas[(source, item["name"])] = item.get("inputSchema", {})
+
+    for tool in catalog.list_tools(callable_only=True):
+        if tool["source"] in {"cli", "script"}:
+            schema = PRIMITIVE_SCHEMAS[tool["id"]]
+        else:
+            schema = backend_schemas[(tool["source"], tool["name"])]
+        properties = schema.get("properties", {})
+        assert schema.get("type") == "object", tool["id"]
+        assert isinstance(properties, dict), tool["id"]
+        for arg_name in tool["arg_names"]:
+            assert arg_name in properties, tool["id"]
+        for required_name in schema.get("required", []):
+            assert required_name in properties, tool["id"]
 
 
 def test_tool_call_missing_args_returns_json_failure(tmp_path):
