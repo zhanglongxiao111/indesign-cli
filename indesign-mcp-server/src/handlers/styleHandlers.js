@@ -42,8 +42,7 @@ export class StyleHandlers {
             '    try {',
             `      style.appliedFont = app.fonts.itemByName("${escapedFontFamily}");`,
             '    } catch (fontError) {',
-            '      // Fallback to default font if specified font not found',
-            '      style.appliedFont = app.fonts.itemByName("Arial\\tRegular");',
+            '      // Keep the document default font when the requested font is unavailable.',
             '    }',
             `    style.pointSize = ${fontSize};`,
             '',
@@ -122,8 +121,7 @@ export class StyleHandlers {
             '    try {',
             `      style.appliedFont = app.fonts.itemByName("${escapedFontFamily}");`,
             '    } catch (fontError) {',
-            '      // Fallback to default font if specified font not found',
-            '      style.appliedFont = app.fonts.itemByName("Arial\\tRegular");',
+            '      // Keep the document default font when the requested font is unavailable.',
             '    }',
             `    style.pointSize = ${fontSize};`,
             '',
@@ -333,28 +331,6 @@ export class StyleHandlers {
 
         const escapedName = escapeJsxString(name);
 
-        // Convert RGB to CMYK using correct formula
-        const r = red / 255;
-        const g = green / 255;
-        const b = blue / 255;
-
-        const max = Math.max(r, g, b);
-        const k = 1 - max;
-
-        let c = 0, m = 0, y = 0;
-        if (k < 1) {
-            c = (1 - r - k) / (1 - k);
-            m = (1 - g - k) / (1 - k);
-            y = (1 - b - k) / (1 - k);
-        } else {
-            c = 0; m = 0; y = 0;
-        }
-
-        const cyan = Math.round(c * 100);
-        const magenta = Math.round(m * 100);
-        const yellow = Math.round(y * 100);
-        const black = Math.round(k * 100);
-
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
@@ -362,15 +338,19 @@ export class StyleHandlers {
             '  var doc = app.activeDocument;',
             '',
             '  try {',
-            `    var color = doc.colors.add({name: "${escapedName}"});`,
+            `    var color = doc.colors.itemByName("${escapedName}");`,
+            '    if (!color.isValid) {',
+            `      color = doc.colors.add({name: "${escapedName}"});`,
+            '    }',
             '',
-            '    // Set CMYK values directly (InDesign defaults to process color)',
-            `    color.colorValue = [${cyan}, ${magenta}, ${yellow}, ${black}];`,
+            '    color.model = ColorModel.PROCESS;',
+            '    color.space = ColorSpace.RGB;',
+            `    color.colorValue = [${red}, ${green}, ${blue}];`,
             '',
             '    // Verify the color was set correctly',
             '    var actualValues = color.colorValue;',
             '',
-            `    "Color swatch '${escapedName}' created successfully with CMYK values [" + actualValues[0] + ", " + actualValues[1] + ", " + actualValues[2] + ", " + actualValues[3] + "] (from RGB ${red}, ${green}, ${blue})";`,
+            `    "Color swatch '${escapedName}' created successfully with RGB values [" + actualValues[0] + ", " + actualValues[1] + ", " + actualValues[2] + "]";`,
             '  } catch (error) {',
             '    "Error creating color swatch: " + error.message;',
             '  }',

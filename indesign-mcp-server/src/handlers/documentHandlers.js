@@ -766,12 +766,18 @@ export class DocumentHandlers {
             '',
             '  for (var i = 0; i < doc.stories.length; i++) {',
             '    var story = doc.stories[i];',
-            '    if (' + includeHidden + ' || !story.hidden) {',
+            '    var isHidden = false;',
+            '    var isOverset = false;',
+            '    var storyName = "";',
+            '    try { isHidden = story.hidden; } catch (hiddenError) { isHidden = false; }',
+            '    try { isOverset = story.overset; } catch (oversetError) { isOverset = false; }',
+            '    try { storyName = story.name; } catch (nameError) { storyName = "Story " + (i + 1); }',
+            '    if (' + includeHidden + ' || !isHidden) {',
             '      storyCount++;',
-            '      result += "Story " + storyCount + ": " + story.name + "\\n";',
+            '      result += "Story " + storyCount + ": " + storyName + "\\n";',
             '      result += "  Contents: " + story.contents.substring(0, 50) + "...\\n";',
-            '      result += "  Overset: " + story.overset + "\\n";',
-            '      result += "  Hidden: " + story.hidden + "\\n\\n";',
+            '      result += "  Overset: " + isOverset + "\\n";',
+            '      result += "  Hidden: " + isHidden + "\\n\\n";',
             '    }',
             '  }',
             '',
@@ -802,8 +808,8 @@ export class DocumentHandlers {
             '  try {',
             '    app.findTextPreferences = app.changeTextPreferences = NothingEnum.NOTHING;',
             '    app.findTextPreferences.findWhat = "' + escapedSearchText + '";',
-            '    app.findTextPreferences.caseSensitive = ' + caseSensitive + ';',
-            '    app.findTextPreferences.wholeWord = ' + wholeWord + ';',
+            '    try { app.findTextPreferences.caseSensitive = ' + caseSensitive + '; } catch (caseError) {}',
+            '    try { app.findTextPreferences.wholeWord = ' + wholeWord + '; } catch (wordError) {}',
             '',
             '    if ("' + escapedReplaceText + '") {',
             '      app.changeTextPreferences.changeTo = "' + escapedReplaceText + '";',
@@ -945,11 +951,17 @@ export class DocumentHandlers {
             '} else {',
             '  var doc = app.activeDocument;',
             '  try {',
-            '    var hyperlink = doc.hyperlinks.add({',
-            '      name: "Link to ' + escapedDestination + '",',
-            '      source: "' + escapedSourceText + '",',
-            '      destination: "' + escapedDestination + '"',
-            '    });',
+            '    app.findTextPreferences = NothingEnum.NOTHING;',
+            `    app.findTextPreferences.findWhat = "${escapedSourceText}";`,
+            '    var found = doc.findText();',
+            '    app.findTextPreferences = NothingEnum.NOTHING;',
+            '    if (!found || found.length === 0) {',
+            `      throw new Error("Source text not found: ${escapedSourceText}");`,
+            '    }',
+            `    var urlDestination = doc.hyperlinkURLDestinations.add("${escapedDestination}");`,
+            '    var textSource = doc.hyperlinkTextSources.add(found[0]);',
+            '    var hyperlink = doc.hyperlinks.add(textSource, urlDestination);',
+            '    hyperlink.name = "Link to ' + escapedDestination + '";',
             '    "Hyperlink created successfully: " + hyperlink.name;',
             '  } catch (error) {',
             '    "Error creating hyperlink: " + error.message;',
@@ -995,6 +1007,10 @@ export class DocumentHandlers {
     static async createDocumentSection(args) {
         const { startPage, sectionPrefix, startNumber = 1, numberingStyle = 'ARABIC' } = args;
         const escapedSectionPrefix = sectionPrefix ? escapeJsxString(sectionPrefix) : '';
+        const normalizedNumberingStyle = typeof numberingStyle === 'string' ? numberingStyle.trim().toUpperCase() : 'ARABIC';
+        const numberingStyleLiteral = /^[A-Z_]+$/.test(normalizedNumberingStyle)
+            ? `PageNumberStyle.${normalizedNumberingStyle}`
+            : 'PageNumberStyle.ARABIC';
 
         const script = [
             'if (app.documents.length === 0) {',
@@ -1005,7 +1021,8 @@ export class DocumentHandlers {
             `    var page = doc.pages[${startPage}];`,
             '    var section = doc.sections.add(page);',
             '    if ("' + escapedSectionPrefix + '") section.sectionPrefix = "' + escapedSectionPrefix + '";',
-            '    section.pageNumberingStyle = "' + numberingStyle + '";',
+            `    try { section.pageNumberingStyle = ${numberingStyleLiteral}; } catch (styleError) {}`,
+            `    try { section.pageNumberStart = ${startNumber}; } catch (startError) {}`,
             '    "Section created successfully on page " + page.name;',
             '  } catch (error) {',
             '    "Error creating section: " + error.message;',
@@ -1222,26 +1239,31 @@ export class DocumentHandlers {
         } = args;
 
         const lines = [];
-        if (documentGridColor !== null) lines.push(`doc.gridPreferences.documentGridColor = "${escapeJsxString(documentGridColor)}";`);
-        if (documentGridIncrement !== null) lines.push(`doc.gridPreferences.documentGridIncrement = UnitValue("${documentGridIncrement}mm");`);
-        if (documentGridSubdivision !== null) lines.push(`doc.gridPreferences.documentGridSubdivision = ${documentGridSubdivision};`);
-        if (gridViewThreshold !== null) lines.push(`doc.gridPreferences.gridViewThreshold = ${gridViewThreshold};`);
+        const safeSet = (name, statement) => (
+            `try { ${statement} updatedCount++; } catch (e) { skipped.push("${name}: " + e.message); }`
+        );
+        if (documentGridColor !== null) lines.push(safeSet('documentGridColor', `doc.gridPreferences.documentGridColor = "${escapeJsxString(documentGridColor)}";`));
+        if (documentGridIncrement !== null) lines.push(safeSet('documentGridIncrement', `doc.gridPreferences.documentGridIncrement = UnitValue("${documentGridIncrement}mm");`));
+        if (documentGridSubdivision !== null) lines.push(safeSet('documentGridSubdivision', `doc.gridPreferences.documentGridSubdivision = ${documentGridSubdivision};`));
+        if (gridViewThreshold !== null) lines.push(safeSet('gridViewThreshold', `doc.gridPreferences.gridViewThreshold = ${gridViewThreshold};`));
 
-        if (baselineGridColor !== null) lines.push(`doc.gridPreferences.baselineGridColor = "${escapeJsxString(baselineGridColor)}";`);
-        if (baselineGridIncrement !== null) lines.push(`doc.gridPreferences.baselineGridIncrement = UnitValue("${baselineGridIncrement}mm");`);
-        if (baselineGridOffset !== null) lines.push(`doc.gridPreferences.baselineGridOffset = UnitValue("${baselineGridOffset}mm");`);
-        if (baselineGridViewThreshold !== null) lines.push(`doc.gridPreferences.baselineGridViewThreshold = ${baselineGridViewThreshold};`);
+        if (baselineGridColor !== null) lines.push(safeSet('baselineGridColor', `doc.gridPreferences.baselineGridColor = "${escapeJsxString(baselineGridColor)}";`));
+        if (baselineGridIncrement !== null) lines.push(safeSet('baselineGridIncrement', `doc.gridPreferences.baselineGridIncrement = UnitValue("${baselineGridIncrement}mm");`));
+        if (baselineGridOffset !== null) lines.push(safeSet('baselineGridOffset', `doc.gridPreferences.baselineGridOffset = UnitValue("${baselineGridOffset}mm");`));
+        if (baselineGridViewThreshold !== null) lines.push(safeSet('baselineGridViewThreshold', `doc.gridPreferences.baselineGridViewThreshold = ${baselineGridViewThreshold};`));
 
-        if (gridAlignment !== null) lines.push(`doc.gridPreferences.gridAlignment = "${escapeJsxString(gridAlignment)}";`);
+        if (gridAlignment !== null) lines.push(safeSet('gridAlignment', `doc.gridPreferences.gridAlignment = "${escapeJsxString(gridAlignment)}";`));
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
+            '  var updatedCount = 0;',
+            '  var skipped = [];',
             '  try {',
             ...(lines.length ? lines : ['    // No grid settings provided']),
-            '    "Document grid settings updated successfully";',
+            '    "Document grid settings updated successfully. Updated: " + updatedCount + ", skipped: " + skipped.length;',
             '  } catch (error) {',
             '    "Error updating grid settings: " + error.message;',
             '  }',
