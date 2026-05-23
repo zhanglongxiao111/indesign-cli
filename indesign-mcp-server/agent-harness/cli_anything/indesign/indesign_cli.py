@@ -160,13 +160,18 @@ def run(argv: list[str] | None = None) -> int:
     if args.group == "script" and args.script_command == "run":
         catalog, warnings = build_catalog_with_backends()
         router = Router(catalog=catalog, repo_root=REPO_ROOT)
-        if args.stdin:
-            data = run_stdin_script(router, Path.cwd())
-        elif args.file:
-            data = run_script(router, Path(args.file))
-        else:
-            raise CliError("script run requires a file path or --stdin", code="SCRIPT_INPUT_REQUIRED")
-        SessionStore(Path.cwd()).record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=0)
+        store = SessionStore(Path.cwd())
+        try:
+            if args.stdin:
+                data = run_stdin_script(router, Path.cwd())
+            elif args.file:
+                data = run_script(router, Path(args.file))
+            else:
+                raise CliError("script run requires a file path or --stdin", code="SCRIPT_INPUT_REQUIRED")
+        except Exception:
+            store.record_call(tool_id="script.run", domain="script", source="script", ok=False, duration_ms=0)
+            raise
+        store.record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=0)
         return emit(success(command="script run", data=data, duration_ms=0, tool_id="script.run", domain="script", source="script", warnings=warnings))
     if args.group == "export" and args.export_command == "verify":
         try:
@@ -197,6 +202,8 @@ def run(argv: list[str] | None = None) -> int:
 
 def safe_command(argv: list[str] | None) -> str:
     parts = list(argv if argv is not None else sys.argv[1:])
+    while parts and parts[0] in {"--json", "--pretty"}:
+        parts.pop(0)
     if not parts:
         return "cli"
     if parts[0] == "tool" and len(parts) > 1:

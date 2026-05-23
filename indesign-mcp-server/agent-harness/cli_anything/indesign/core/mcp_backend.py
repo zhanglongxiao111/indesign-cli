@@ -143,4 +143,10 @@ class McpBackend:
                 details["result"] = scrub_text_paths(str(parsed.get("result", "")))
             raise CliError("MCP tool failed", code="MCP_TOOL_FAILED", details=details)
 
-        return {"content": content, "parsed": parsed}
+        payload = {"content": content, "parsed": parsed}
+        if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
+            try:
+                payload["result_json"] = json.loads(parsed["result"])
+            except json.JSONDecodeError:
+                pass
+        return payload

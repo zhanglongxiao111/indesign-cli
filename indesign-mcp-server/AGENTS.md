@@ -5,6 +5,7 @@
 - **先理解现状，再动手。** 先读代码、工具定义、测试和当前文档，避免凭旧印象改项目。
 - **收口优先。** 能复用现有 `core`、`handlers`、`types`、`utils` 时，不新增平行实现。
 - **CLI 复用现有能力。** CLI 是面向 Agent 的按需入口，不重写一套 InDesign 自动化。
+- **下一阶段转向固定语义 HTML。** 先定义可校验、可编译的 HTML 语义，再把它转换成 InDesign 页面、样式和对象。
 - **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，可能通过 CLI 工具目录继续使用。
 - **文档按用途归档。** 长期规范、方案、计划、排查、复盘分开放，避免一个目录堆成垃圾场。
 - **历史资料只追溯。** 当前开发以代码、`AGENTS.md` 和当前文档为准。
@@ -28,6 +29,7 @@
 | 当前文档与历史文档不一致 | 以当前文档为准 |
 | MCP 暴露工具与 handler 实现不一致 | 先判断是否是临时隐藏，不直接按死代码删除 |
 | CLI 目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
+| HTML 语义转换目标与现有工具不一致 | 以语义协议和可验证转换链路为准，CLI 只作为调用入口 |
 
 ## 2. 强制规则
 
@@ -89,11 +91,53 @@
 - InDesign 进程和打开文档可以连续存在，但 Node 子进程内存不跨命令保留。
 - 跨步骤连续操作依赖 JSON 返回值、InDesign 真实文档状态、显式文件路径、脚本标签或 `.indesign-cli/session.json`。
 - 简单单步操作用 `tool call`；复杂多步骤优先写成单个 JSX，再用 `script run` 执行。
+- `script run` 支持文件和 `--stdin`；stdin 支持中文输入。
+- JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)` 的 JSON 字符串；JSON 字符串会额外解析到 `data.result_json`。
+- ExtendScript 执行环境会补最小 `JSON.stringify` / `JSON.parse` 兼容层。
+- `script run` 成功和失败都会写入当前目录 `.indesign-cli/session.json`。
 - Book、Presentation、Export、Template 等工具域都进入 CLI 工具目录；是否公开到 MCP 另行判断。
 - 生成 PDF 或 IDML 后必须用 `export verify` 验证产物。
 - 不要把客户文档内容、客户名称或外部资产完整路径写进日志和 session。
 
-### 2.6 方案与计划文档
+### 2.6 固定语义 HTML 转 InDesign
+
+下一阶段目标是建立固定语义 HTML 到 InDesign 的转换能力。
+
+定位：
+
+- 本质上是一个 `HTML to InDesign` 的语义编译库，不只是 CLI 命令集合。
+- CLI 是 Agent 调用入口，负责发现能力、校验输入、编排转换和返回结构化结果。
+- ExtendScript/JSX 是 InDesign 执行后端，负责创建页面、文本框、图片框、样式和置入资源。
+- 不在 ExtendScript 里承担复杂 HTML 解析、语义校验和模板推理；这些逻辑应放在宿主侧库中，便于测试和维护。
+
+设计原则：
+
+- 第一版先定义建筑设计汇报可用的固定语义，不急于生产大量模板。
+- HTML 是受约束的语义输入，不是任意网页源码。
+- 语义层应稳定表达 `deck`、`section`、`page`、`title`、`body`、`image`、`caption`、`metric`、`table`、`case-study`、`image-grid` 等出版/汇报对象。
+- CSS 主要作为样式 token 和受限布局表达，最终应映射到 InDesign 段落样式、字符样式、对象样式和页面对象属性。
+- 不支持完整浏览器 CSS；需要浏览器排版时，应作为后续受限布局能力单独设计。
+- 旧 `D:\AI\html-indesign` 项目可作为语义、蓝图、校验和回填链路的参考来源，但不能原样迁入当前项目。
+- 兼容已有 InDesign 模板槽位时，通过映射层把稳定语义映射到母版名、脚本标签和槽位名。
+
+推荐转换链路：
+
+```text
+固定语义 HTML
+-> 语义校验
+-> 样式和资源解析
+-> InDesign 构建指令 JSON
+-> CLI 调用 JSX 执行后端
+-> InDesign 内容页、样式和资源
+```
+
+边界：
+
+- 模板库、模板生成和浏览器布局转换是后续能力，不作为第一版前置条件。
+- InDesign 母版可以作为兼容目标或缓存优化，但不是主流程必经中间层。
+- 转换过程不得记录客户文档内容、客户名称或私有资产完整路径。
+
+### 2.7 方案与计划文档
 
 - 需要拆解方案、制定计划或执行多阶段改造时，先判断是否需要留下过程文档。
 - 方案设计写入 `docs/superpowers/specs/`。
@@ -101,7 +145,7 @@
 - `specs` 和 `plans` 是工作过程材料，不自动等同于长期规范。
 - 方案落地后，如果产生长期约束，必须同步更新 `AGENTS.md`、`docs/技术决策/` 或对应当前文档。
 
-### 2.7 清理规则
+### 2.8 清理规则
 
 - 可以删除：日志、临时脚本、备份文件、无引用且无恢复价值的工具函数。
 - 暂不删除：有 handler 实现但当前 MCP 工具定义未暴露的能力。
@@ -120,6 +164,7 @@
 | CLI Schema | `cli-anything-indesign tool schema <tool_id>` |
 | CLI 调用工具 | `cli-anything-indesign tool call <tool_id> --args args.json` |
 | CLI 执行 JSX | `cli-anything-indesign script run <file.jsx>` |
+| CLI 执行 stdin JSX | `cli-anything-indesign script run --stdin` |
 | CLI 验证产物 | `cli-anything-indesign export verify <path>` |
 | 启动经典服务器 | `npm run start` 或 `node src/index.js` |
 | 调试经典服务器 | `npm run dev` |
@@ -195,6 +240,7 @@
 | 事项 | 当前状态 | 处理原则 |
 | ---- | -------- | -------- |
 | Book / Presentation 等工具域 | 已进入 CLI 工具目录和真实 E2E 覆盖，部分 MCP 工具定义仍未暴露 | 不按死代码删除；是否公开到 MCP 另行判断 |
+| 固定语义 HTML 转 InDesign | 下一阶段目标；当前只形成项目级口径，尚未实现 | 先写方案和语义协议，再进入实现计划 |
 | 根 README | 当前内容较薄，且指向上级 README | 后续可补成清晰项目入口 |
 | 部分 docs | 存在旧平台和旧版本描述 | 触及时按当前代码和 Windows COM 现状修正 |
 | InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话；当前真实 E2E 入口在 `tests/real-e2e/` | 没有真实环境时要明确说明未跑 |

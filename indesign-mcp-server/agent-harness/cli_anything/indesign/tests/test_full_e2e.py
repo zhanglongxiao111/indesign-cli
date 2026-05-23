@@ -40,11 +40,23 @@ def test_real_indesign_creates_and_saves_document(tmp_path):
         "script",
         "run",
         "--stdin",
-        input_data='try { "STDIN_PROBE_OK|documents=" + app.documents.length; } catch (e) { "Error: " + e.message; }',
+        input_data='try { "STDIN_PROBE_OK|中文|documents=" + app.documents.length; } catch (e) { "Error: " + e.message; }',
     )
     assert stdin_probe.returncode == 0, stdin_probe.stdout + stdin_probe.stderr
     stdin_payload = json.loads(stdin_probe.stdout)
-    assert stdin_payload["data"]["parsed"]["result"].startswith("STDIN_PROBE_OK|documents=")
+    assert stdin_payload["data"]["parsed"]["result"].startswith("STDIN_PROBE_OK|中文|documents=")
+
+    json_script_path = tmp_path / "json-return.jsx"
+    json_script_path.write_text(
+        'JSON.stringify({ ok: true, marker: "JSON_POLYFILL_OK", text: "中文" });\n',
+        encoding="utf-8",
+    )
+    json_result = run_cli("script", "run", str(json_script_path))
+    assert json_result.returncode == 0, json_result.stdout + json_result.stderr
+    json_payload = json.loads(json_result.stdout)
+    returned_json = json.loads(json_payload["data"]["parsed"]["result"])
+    assert returned_json["marker"] == "JSON_POLYFILL_OK"
+    assert returned_json["text"] == "中文"
 
     output_path = tmp_path / "cli-anything-real-e2e.indd"
     output_jsx_path = str(output_path).replace("\\", "/")

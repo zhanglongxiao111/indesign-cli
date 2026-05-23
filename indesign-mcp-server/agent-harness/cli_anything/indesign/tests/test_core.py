@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import subprocess
@@ -30,7 +31,7 @@ def test_version_returns_json():
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
     assert payload["data"]["name"] == "cli-anything-indesign"
-    assert payload["data"]["version"] == "0.1.0"
+    assert payload["data"]["version"] == "0.1.1"
 
 
 def test_external_path_is_scrubbed():
@@ -80,6 +81,13 @@ def test_root_command_missing_still_returns_json_failure():
     assert payload["ok"] is False
     assert payload["error"]["code"] == "COMMAND_REQUIRED"
     assert "usage:" not in result.stdout.lower()
+
+
+def test_safe_command_ignores_global_flags():
+    from cli_anything.indesign.indesign_cli import safe_command
+
+    assert safe_command(["--json", "--pretty", "script", "run"]) == "script run"
+    assert safe_command(["--pretty", "tool", "domains"]) == "tool domains"
 
 
 def test_invalid_domain_is_actionable():
@@ -163,6 +171,33 @@ def test_cli_action_commands_return_agent_useful_payloads(tmp_path):
     assert script_result.returncode == 1
     script_payload = json.loads(script_result.stdout)
     assert script_payload["error"]["code"] == "SCRIPT_INPUT_REQUIRED"
+
+
+def test_run_stdin_script_reads_utf8_bytes(tmp_path, monkeypatch):
+    from cli_anything.indesign.core.scripts import run_stdin_script
+
+    class FakeStdin:
+        buffer = io.BytesIO('"STDIN_UTF8_OK|中文";'.encode("utf-8"))
+
+    class FakeRouter:
+        def __init__(self):
+            self.file_path = None
+
+        def call(self, tool_id, args):
+            self.file_path = Path(args["filePath"])
+            return {
+                "tool_id": tool_id,
+                "script": self.file_path.read_text(encoding="utf-8"),
+            }
+
+    router = FakeRouter()
+    monkeypatch.setattr(sys, "stdin", FakeStdin())
+
+    payload = run_stdin_script(router, tmp_path)
+
+    assert payload["tool_id"] == "template.run_jsx_file"
+    assert "STDIN_UTF8_OK|中文" in payload["script"]
+    assert router.file_path == tmp_path / ".indesign-cli" / "tmp" / "stdin.jsx"
 
 
 def test_domain_top_tools_include_exposed_hidden_handlers():
@@ -404,6 +439,18 @@ def test_tool_call_updates_session(tmp_path):
     assert payload["data"]["recent_calls"][0]["ok"] is True
 
 
+def test_script_run_failure_updates_session():
+    run_module("session", "clear")
+
+    result = run_module("script", "run")
+    assert result.returncode == 1
+
+    session = run_module("session", "show")
+    payload = json.loads(session.stdout)
+    assert payload["data"]["recent_calls"][0]["tool_id"] == "script.run"
+    assert payload["data"]["recent_calls"][0]["ok"] is False
+
+
 def test_backend_tool_failure_returns_failure_envelope_without_path_leak(tmp_path):
     args_file = tmp_path / "args.json"
     secret_path = r"D:\Clients\AcmeSecret\missing.jsx"
@@ -417,6 +464,31 @@ def test_backend_tool_failure_returns_failure_envelope_without_path_leak(tmp_pat
     assert "AcmeSecret" not in dumped
     assert "missing.jsx" not in dumped
     assert "D:\\Clients" not in dumped
+
+
+def test_backend_tool_response_exposes_nested_json_result():
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": True,
+                        "operation": "Run JSX File",
+                        "result": json.dumps({"ok": True, "marker": "NESTED_JSON_OK"}),
+                    }
+                ),
+            }
+        ]
+    }
+
+    payload = backend._parse_tool_response("run_jsx_file", response)
+
+    assert payload["parsed"]["result"]
+    assert payload["result_json"] == {"ok": True, "marker": "NESTED_JSON_OK"}
 
 
 def test_pdf_verify_rejects_non_pdf(tmp_path):

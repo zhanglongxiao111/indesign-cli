@@ -11,6 +11,81 @@ import { createRequire } from 'module';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const EXTENDSCRIPT_RUNTIME_SNIPPET = `
+if (typeof JSON === "undefined") { JSON = {}; }
+function __mcpJsonSeenContains(arr, value) {
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] === value) return true;
+  }
+  return false;
+}
+function __mcpJsonEscapeString(str) {
+  if (str === null || str === undefined) return "";
+  var result = "";
+  var backslash = String.fromCharCode(92);
+  for (var i = 0; i < str.length; i++) {
+    var ch = str.charAt(i);
+    var code = str.charCodeAt(i);
+    if (code === 34) {
+      result += backslash + '"';
+    } else if (code === 92) {
+      result += backslash + backslash;
+    } else if (code === 8) {
+      result += backslash + "b";
+    } else if (code === 9) {
+      result += backslash + "t";
+    } else if (code === 10) {
+      result += backslash + "n";
+    } else if (code === 12) {
+      result += backslash + "f";
+    } else if (code === 13) {
+      result += backslash + "r";
+    } else if (code === 0x2028 || code === 0x2029) {
+      result += backslash + "u" + code.toString(16);
+    } else if (code < 32) {
+      var hex = code.toString(16);
+      result += backslash + "u" + ("0000" + hex).slice(-4);
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+function __mcpJsonSerialize(value) {
+  var seen = [];
+  function serialize(v) {
+    if (v === null) return "null";
+    var t = typeof v;
+    if (t === "number" || t === "boolean") return String(v);
+    if (t === "string") return '"' + __mcpJsonEscapeString(v) + '"';
+    if (v instanceof Array) {
+      var arr = [];
+      for (var i = 0; i < v.length; i++) arr.push(serialize(v[i]));
+      return "[" + arr.join(",") + "]";
+    }
+    if (t === "object") {
+      if (__mcpJsonSeenContains(seen, v)) return '"[Circular]"';
+      seen.push(v);
+      var props = [];
+      for (var key in v) {
+        if (!v.hasOwnProperty(key)) continue;
+        props.push('"' + __mcpJsonEscapeString(key) + '":' + serialize(v[key]));
+      }
+      seen.pop();
+      return "{" + props.join(",") + "}";
+    }
+    return "null";
+  }
+  return serialize(value);
+}
+if (typeof JSON.stringify !== "function") {
+  JSON.stringify = function(value) { return __mcpJsonSerialize(value); };
+}
+if (typeof JSON.parse !== "function") {
+  JSON.parse = function(text) { return eval("(" + text + ")"); };
+}
+`;
+
 export class ScriptExecutor {
     // Cache a COM Application instance for Windows to avoid repeated activation
     static _winApp = null;
@@ -117,6 +192,7 @@ export class ScriptExecutor {
             const wrapped = [
                 'try {',
                 '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
+                EXTENDSCRIPT_RUNTIME_SNIPPET,
                 script,
                 '} catch (e) {',
                 '  "Error: " + e.message;',
@@ -178,6 +254,7 @@ export class ScriptExecutor {
             const wrapped = [
                 'try {',
                 '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
+                EXTENDSCRIPT_RUNTIME_SNIPPET,
                 script,
                 '} catch (e) {',
                 '  "Error: " + e.message;',
