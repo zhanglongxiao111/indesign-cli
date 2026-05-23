@@ -110,6 +110,7 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .indesign-cli/
+.indesign-e2e-runs/
 
 # Retired assistant workflow folders
 .augment/

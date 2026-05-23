@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "defaultMode": "offline",
+  "seedAssetsDir": "tests/real-e2e/seed-assets",
+  "onlineSmokePhase": "assets_online_smoke",
+  "description": "Default full E2E runs copy checked-in seed assets. Online download checks are isolated from the default full path.",
+  "requiredTypes": {
+    "photo": 6,
+    "svg": 8,
+    "csv": 1,
+    "xml": 1
+  }
+}

@@ -21,6 +21,8 @@
 
 需要 Windows、Adobe InDesign、`winax`。
 
+- `node tests/real-e2e/run-architecture-presentation.mjs --inventory --offline`
+- `node tests/real-e2e/run-architecture-presentation.mjs --phase assets --offline`
 - `server health --deep`
 - `script run`
 - 导出 PDF 后执行 `export verify`

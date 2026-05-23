@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "description": "Runtime catalog generates the baseline. Keep this file small: only add fixture, acceptance, or cleanup overrides that differ from the domain defaults.",
+  "overrides": {}
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "东岸文化中心更新方案",
+    "type": "城市滨水文化综合体概念设计",
+    "audience": "方案评审会",
+    "site": "架空城市：东岸新区滨水工业遗存片区",
+    "theme": "旧厂房更新、公共文化、滨水慢行、低碳材料"
+  },
+  "output": {
+    "indd": "outputs/architecture-presentation.indd",
+    "pdf": "outputs/architecture-presentation.pdf",
+    "idml": "outputs/architecture-presentation.idml"
+  },
+  "pages": [
+    {"page": 1, "slug": "cover", "title": "东岸文化中心更新方案", "section": "封面", "required_assets": ["hero-waterfront"], "required_labels": ["e2e.deck.page.01.cover"], "audit_expectations": ["project_title", "hero_image"]},
+    {"page": 2, "slug": "toc", "title": "汇报目录", "section": "目录", "required_assets": ["hero-waterfront"], "required_labels": ["e2e.deck.page.02.toc"], "audit_expectations": ["toc_items", "page_number"]},
+    {"page": 3, "slug": "location", "title": "城市区位", "section": "背景", "required_assets": ["location-map"], "required_labels": ["e2e.deck.page.03.location"], "audit_expectations": ["location_map", "arrows"]},
+    {"page": 4, "slug": "site-photos", "title": "场地现状", "section": "背景", "required_assets": ["industrial-site", "urban-site", "architecture-facade", "hero-waterfront"], "required_labels": ["e2e.deck.page.04.site-photos"], "audit_expectations": ["photo_grid", "captions"]},
+    {"page": 5, "slug": "issues", "title": "问题诊断", "section": "背景", "required_assets": ["industrial-site"], "required_labels": ["e2e.deck.page.05.issues"], "audit_expectations": ["issue_cards", "warning_swatch"]},
+    {"page": 6, "slug": "goals", "title": "设计目标", "section": "策略", "required_assets": ["material-icons"], "required_labels": ["e2e.deck.page.06.goals"], "audit_expectations": ["goal_icons", "paragraph_style"]},
+    {"page": 7, "slug": "strategy", "title": "总体策略", "section": "策略", "required_assets": ["material-icons"], "required_labels": ["e2e.deck.page.07.strategy"], "audit_expectations": ["process_arrows", "numbered_steps"]},
+    {"page": 8, "slug": "massing-a", "title": "体块生成 01", "section": "形体", "required_assets": [], "required_labels": ["e2e.deck.page.08.massing-a"], "audit_expectations": ["rectangles", "diagrams_layer"]},
+    {"page": 9, "slug": "massing-b", "title": "体块生成 02", "section": "形体", "required_assets": [], "required_labels": ["e2e.deck.page.09.massing-b"], "audit_expectations": ["duplicated_masses", "opacity"]},
+    {"page": 10, "slug": "massing-c", "title": "体块生成 03", "section": "形体", "required_assets": [], "required_labels": ["e2e.deck.page.10.massing-c"], "audit_expectations": ["polygons", "callouts"]},
+    {"page": 11, "slug": "masterplan", "title": "总平面", "section": "方案", "required_assets": ["masterplan"], "required_labels": ["e2e.deck.page.11.masterplan"], "audit_expectations": ["masterplan_svg", "color_swatch"]},
+    {"page": 12, "slug": "program", "title": "功能分区", "section": "方案", "required_assets": ["metrics"], "required_labels": ["e2e.deck.page.12.program"], "audit_expectations": ["program_table", "csv_data"]},
+    {"page": 13, "slug": "floor-01", "title": "首层平面", "section": "方案", "required_assets": ["floor-01"], "required_labels": ["e2e.deck.page.13.floor-01"], "audit_expectations": ["floor_svg", "legend"]},
+    {"page": 14, "slug": "floor-02", "title": "二层平面", "section": "方案", "required_assets": ["floor-02"], "required_labels": ["e2e.deck.page.14.floor-02"], "audit_expectations": ["floor_svg", "legend"]},
+    {"page": 15, "slug": "section", "title": "剖面关系", "section": "方案", "required_assets": ["section"], "required_labels": ["e2e.deck.page.15.section"], "audit_expectations": ["section_svg", "level_text"]},
+    {"page": 16, "slug": "facade", "title": "立面策略", "section": "方案", "required_assets": ["architecture-facade"], "required_labels": ["e2e.deck.page.16.facade"], "audit_expectations": ["facade_image", "overlay"]},
+    {"page": 17, "slug": "circulation", "title": "公共流线", "section": "分析", "required_assets": ["circulation"], "required_labels": ["e2e.deck.page.17.circulation"], "audit_expectations": ["route_lines", "legend"]},
+    {"page": 18, "slug": "landscape", "title": "景观系统", "section": "分析", "required_assets": ["green-roof"], "required_labels": ["e2e.deck.page.18.landscape"], "audit_expectations": ["landscape_image", "green_swatch"]},
+    {"page": 19, "slug": "sun", "title": "日照与遮阳", "section": "分析", "required_assets": ["sun-path"], "required_labels": ["e2e.deck.page.19.sun"], "audit_expectations": ["sun_path", "shadow_shape"]},
+    {"page": 20, "slug": "views", "title": "视线分析", "section": "分析", "required_assets": ["circulation"], "required_labels": ["e2e.deck.page.20.views"], "audit_expectations": ["view_lines", "numbered_points"]},
+    {"page": 21, "slug": "materials", "title": "材料策略", "section": "技术", "required_assets": ["brick-material", "green-roof", "material-icons"], "required_labels": ["e2e.deck.page.21.materials"], "audit_expectations": ["material_photos", "material_table"]},
+    {"page": 22, "slug": "structure", "title": "结构与更新", "section": "技术", "required_assets": ["section"], "required_labels": ["e2e.deck.page.22.structure"], "audit_expectations": ["node_svg", "body_text"]},
+    {"page": 23, "slug": "sustainability", "title": "低碳策略", "section": "技术", "required_assets": ["green-roof", "material-icons"], "required_labels": ["e2e.deck.page.23.sustainability"], "audit_expectations": ["metric_cards", "emphasis_style"]},
+    {"page": 24, "slug": "metrics", "title": "技术指标", "section": "技术", "required_assets": ["metrics"], "required_labels": ["e2e.deck.page.24.metrics"], "audit_expectations": ["metrics_table", "csv_values"]},
+    {"page": 25, "slug": "phasing", "title": "实施分期", "section": "实施", "required_assets": [], "required_labels": ["e2e.deck.page.25.phasing"], "audit_expectations": ["timeline", "phase_labels"]},
+    {"page": 26, "slug": "template", "title": "模板槽位页", "section": "模板", "required_assets": ["architecture-facade"], "required_labels": ["e2e.deck.page.26.template"], "audit_expectations": ["template_slots", "slot_content"]},
+    {"page": 27, "slug": "audit-summary", "title": "导出检查页", "section": "审计", "required_assets": [], "required_labels": ["e2e.deck.page.27.audit-summary"], "audit_expectations": ["audit_summary", "counts"]},
+    {"page": 28, "slug": "closing", "title": "结论", "section": "结论", "required_assets": ["hero-waterfront"], "required_labels": ["e2e.deck.page.28.closing"], "audit_expectations": ["closing_cards", "final_image"]}
+  ]
+}
