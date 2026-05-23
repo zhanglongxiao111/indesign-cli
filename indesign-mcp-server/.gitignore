@@ -105,6 +105,10 @@ temp_script.jsx
 *.backup
 .cache/
 temp-*.mjs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.indesign-cli/
 
 # Retired assistant workflow folders
 .augment/
