@@ -58,3 +58,25 @@ def test_failure_envelope_has_machine_fields():
     assert payload["schema_version"] == 1
     assert payload["error"]["code"] == "BAD_INPUT"
     assert payload["error"]["retryable"] is False
+
+
+def test_tool_domains_are_compact():
+    from cli_anything.indesign.core.catalog import Catalog
+
+    catalog = Catalog(repo_root=REPO_ROOT)
+    domains = catalog.domains()
+    names = {item["domain"] for item in domains}
+    assert {"template", "document", "export", "book", "presentation", "object"}.issubset(names)
+    export = next(item for item in domains if item["domain"] == "export")
+    assert "summary" in export
+    assert "top_tools" in export
+    assert "tools" not in export
+
+
+def test_hidden_handlers_are_listed_but_not_callable():
+    from cli_anything.indesign.core.catalog import Catalog
+
+    catalog = Catalog(repo_root=REPO_ROOT)
+    book_tools = catalog.list_tools(domain="book", callable_only=False)
+    assert any(item["availability"] == "hidden_handler" for item in book_tools)
+    assert all(item["callable"] is False for item in book_tools if item["availability"] == "hidden_handler")
