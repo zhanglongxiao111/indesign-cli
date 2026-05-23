@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
@@ -99,10 +98,13 @@ class Router:
 
     def _call_cli_primitive(self, tool_id: str, args: dict[str, Any]) -> dict[str, Any]:
         if tool_id == "export.verify":
-            from .artifacts import verify_artifact
+            from .artifacts import parse_timestamp, verify_artifact
 
             path = self._require_arg(args, "path")
-            created_after = datetime.fromisoformat(args["created_after"]) if args.get("created_after") else None
+            try:
+                created_after = parse_timestamp(args["created_after"]) if args.get("created_after") else None
+            except ValueError as exc:
+                raise CliError("created_after must be an ISO timestamp", code="BAD_TIMESTAMP") from exc
             return verify_artifact(Path(path), created_after=created_after, cwd=Path.cwd())
         if tool_id == "session.show":
             from .session import SessionStore
@@ -141,7 +143,7 @@ def load_args(path_value: str) -> dict[str, Any]:
         if path_value == "-":
             payload = json.loads(sys.stdin.read() or "{}")
         else:
-            payload = json.loads(Path(path_value).read_text(encoding="utf-8"))
+            payload = json.loads(Path(path_value).read_text(encoding="utf-8-sig"))
     except FileNotFoundError as exc:
         raise CliError("Arguments file not found", code="ARGS_FILE_NOT_FOUND") from exc
     except JSONDecodeError as exc:

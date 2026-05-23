@@ -156,6 +156,19 @@ def test_tool_call_missing_args_returns_json_failure(tmp_path):
     assert "Traceback" not in result.stderr
 
 
+def test_tool_call_accepts_utf8_bom_args_file(tmp_path):
+    args_file = tmp_path / "args-bom.json"
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    args_file.write_text(json.dumps({"path": str(pdf)}), encoding="utf-8-sig")
+
+    result = run_module("tool", "call", "export.verify", "--args", str(args_file))
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["kind"] == "pdf"
+
+
 def test_tool_call_updates_session(tmp_path):
     run_module("session", "clear")
     args_file = tmp_path / "args.json"
@@ -199,6 +212,21 @@ def test_pdf_verify_rejects_non_pdf(tmp_path):
         assert exc.code == "ARTIFACT_SIGNATURE_INVALID"
     else:
         raise AssertionError("invalid PDF should fail")
+
+
+def test_export_verify_accepts_powershell_roundtrip_timestamp(tmp_path):
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    result = run_module(
+        "export",
+        "verify",
+        str(pdf),
+        "--created-after",
+        "2999-01-01T00:00:00.0000000+00:00",
+    )
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["error"]["code"] == "ARTIFACT_TOO_OLD"
 
 
 def test_session_compact_does_not_store_args(tmp_path):

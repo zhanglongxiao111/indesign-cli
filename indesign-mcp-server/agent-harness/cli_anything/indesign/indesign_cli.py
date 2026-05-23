@@ -3,12 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .core.artifacts import verify_artifact
+from .core.artifacts import parse_timestamp, verify_artifact
 from .core.catalog import Catalog
 from .core.envelope import failure, now_ms, success
 from .core.errors import CliError
@@ -171,7 +170,7 @@ def run(argv: list[str] | None = None) -> int:
         return emit(success(command="script run", data=data, duration_ms=0, tool_id="script.run", domain="script", source="script", warnings=warnings))
     if args.group == "export" and args.export_command == "verify":
         try:
-            created_after = datetime.fromisoformat(args.created_after) if args.created_after else None
+            created_after = parse_timestamp(args.created_after) if args.created_after else None
         except ValueError as exc:
             raise CliError("created-after must be an ISO timestamp", code="BAD_TIMESTAMP") from exc
         data = verify_artifact(Path(args.path), created_after=created_after, cwd=Path.cwd())

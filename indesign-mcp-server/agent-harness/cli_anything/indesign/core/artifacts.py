@@ -3,10 +3,19 @@ from __future__ import annotations
 import zipfile
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any
 
 from .errors import CliError
 from .paths import scrub_path
+
+
+def parse_timestamp(value: str) -> datetime:
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    normalized = re.sub(r"(\.\d{6})\d+([+-]\d{2}:\d{2})$", r"\1\2", normalized)
+    return datetime.fromisoformat(normalized)
 
 
 def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path | None = None) -> dict[str, Any]:
