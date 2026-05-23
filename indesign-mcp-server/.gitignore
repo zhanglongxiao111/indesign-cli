@@ -108,6 +108,7 @@ temp-*.mjs
 __pycache__/
 *.py[cod]
 .pytest_cache/
+*.egg-info/
 .indesign-cli/
 
 # Retired assistant workflow folders

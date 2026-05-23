@@ -12,6 +12,7 @@ from .core.artifacts import verify_artifact
 from .core.catalog import Catalog
 from .core.envelope import failure, now_ms, success
 from .core.errors import CliError
+from .core.health import health
 from .core.mcp_backend import McpBackend
 from .core.router import Router, load_args
 from .core.scripts import run_script, run_stdin_script
@@ -75,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:
     show_parser = session_sub.add_parser("show")
     show_parser.add_argument("--verbose", action="store_true")
     session_sub.add_parser("clear")
+
+    server_parser = subparsers.add_parser("server")
+    server_sub = server_parser.add_subparsers(dest="server_command")
+    health_parser = server_sub.add_parser("health")
+    health_parser.add_argument("--deep", action="store_true")
     return parser
 
 
@@ -145,6 +151,9 @@ def run(argv: list[str] | None = None) -> int:
         if args.session_command == "clear":
             store.clear()
             return emit(success(command="session clear", data={"cleared": True}, duration_ms=0, tool_id="session.clear"))
+    if args.group == "server" and (args.server_command == "health" or args.server_command is None):
+        data = health(REPO_ROOT, deep=getattr(args, "deep", False))
+        return emit(success(command="server health", data=data, duration_ms=0, tool_id="server.health"))
     parser.print_help(sys.stderr)
     return 2
 

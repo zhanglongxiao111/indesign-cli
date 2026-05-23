@@ -24,3 +24,5 @@
 - `server health --deep`
 - `script run`
 - 导出 PDF 后执行 `export verify`
+
+真实 E2E 需要显式设置 `INDESIGN_E2E=1`。

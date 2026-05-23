@@ -96,6 +96,24 @@ def test_tool_call_rejects_hidden_handler():
         raise AssertionError("hidden handler should not be callable")
 
 
+def test_catalog_infers_expected_domains_from_tool_names():
+    from cli_anything.indesign.core.catalog import Catalog
+
+    catalog = Catalog(repo_root=REPO_ROOT).with_exposed_tools(
+        classic_tools=[
+            {"name": "add_page", "description": "Add a new page to the document", "inputSchema": {}},
+            {"name": "create_master_spread", "description": "Create a master spread", "inputSchema": {}},
+            {"name": "export_pdf", "description": "Export document to PDF", "inputSchema": {}},
+            {"name": "create_rectangle", "description": "Create rectangle", "inputSchema": {}},
+        ]
+    )
+    ids = {tool["id"] for tool in catalog.list_tools(callable_only=True)}
+    assert "page.add_page" in ids
+    assert "master.create_master_spread" in ids
+    assert "export.export_pdf" in ids
+    assert "graphics.create_rectangle" in ids
+
+
 def test_pdf_verify_rejects_non_pdf(tmp_path):
     from cli_anything.indesign.core.artifacts import verify_artifact
     from cli_anything.indesign.core.errors import CliError
@@ -118,3 +136,12 @@ def test_session_compact_does_not_store_args(tmp_path):
     payload = store.read(compact=True)
     assert "recent_calls" in payload
     assert "args" not in json.dumps(payload, ensure_ascii=False)
+
+
+def test_health_reports_project_files():
+    from cli_anything.indesign.core.health import health
+
+    payload = health(REPO_ROOT, deep=False)
+    assert payload["node_entry_advanced"]["exists"] is True
+    assert payload["node_entry_classic"]["exists"] is True
+    assert payload["deep"] is False
