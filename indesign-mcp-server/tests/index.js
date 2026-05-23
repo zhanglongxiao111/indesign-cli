@@ -15,7 +15,8 @@ const __dirname = dirname(__filename);
 const TEST_CONFIG = {
     serverPath: join(__dirname, '../src/index.js'),
     delay: 2000,
-    timeout: 30000
+    timeout: 30000,
+    testFileTimeout: 120000
 };
 
 // Progress bar utilities
@@ -322,6 +323,27 @@ async function runTestFile(testFile) {
 
         let output = '';
         let errorOutput = '';
+        let settled = false;
+
+        const finish = (result) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            clearTimeout(timeout);
+            resolve(result);
+        };
+
+        const timeout = setTimeout(() => {
+            testProcess.kill();
+            finish({
+                success: false,
+                output,
+                errorOutput,
+                code: 'timeout',
+                timedOut: true
+            });
+        }, TEST_CONFIG.testFileTimeout);
 
         testProcess.stdout.on('data', (data) => {
             output += data.toString();
@@ -333,9 +355,9 @@ async function runTestFile(testFile) {
 
         testProcess.on('close', (code) => {
             if (code === 0) {
-                resolve({ success: true, output, errorOutput });
+                finish({ success: true, output, errorOutput });
             } else {
-                resolve({ success: false, output, errorOutput, code });
+                finish({ success: false, output, errorOutput, code });
             }
         });
 
@@ -477,13 +499,45 @@ function generateCoverageReport(results) {
     return handlerCoverage;
 }
 
-async function runAllTests() {
+function selectTestSuites(args) {
+    let selectedSuites = TEST_SUITES;
+
+    if (args.includes('--required')) {
+        selectedSuites = selectedSuites.filter(suite => suite.required);
+    }
+
+    const suiteArgIndex = args.indexOf('--suite');
+    if (suiteArgIndex !== -1) {
+        const suiteName = args[suiteArgIndex + 1];
+        if (!suiteName) {
+            log('Missing value for --suite', 'error');
+            process.exit(1);
+        }
+
+        const normalizedSuiteName = suiteName.toLowerCase();
+        selectedSuites = selectedSuites.filter(suite =>
+            suite.name.toLowerCase() === normalizedSuiteName ||
+            suite.category.toLowerCase() === normalizedSuiteName
+        );
+
+        if (selectedSuites.length === 0) {
+            log(`Unknown test suite: ${suiteName}`, 'error');
+            log('Available suites:', 'info');
+            TEST_SUITES.forEach(suite => log(`  ${suite.name}`, 'info'));
+            process.exit(1);
+        }
+    }
+
+    return selectedSuites;
+}
+
+async function runAllTests(selectedSuites = TEST_SUITES) {
     log('InDesign MCP Server - Master Test Suite', 'header');
     log(`Server Path: ${TEST_CONFIG.serverPath}`, 'info');
-    log(`Total Test Suites: ${TEST_SUITES.length}`, 'info');
+    log(`Total Test Suites: ${selectedSuites.length}`, 'info');
 
     // Calculate total tests
-    const totalTests = TEST_SUITES.reduce((sum, suite) => sum + suite.tests.length, 0);
+    const totalTests = selectedSuites.reduce((sum, suite) => sum + suite.tests.length, 0);
     log(`Total Tests: ${totalTests}`, 'info');
 
     const results = {
@@ -499,9 +553,9 @@ async function runAllTests() {
     const progressBar = new ProgressBar(totalTests);
 
     try {
-        for (let i = 0; i < TEST_SUITES.length; i++) {
-            const suite = TEST_SUITES[i];
-            const suiteResult = await runTestSuite(suite, results, i, TEST_SUITES.length, progressBar);
+        for (let i = 0; i < selectedSuites.length; i++) {
+            const suite = selectedSuites[i];
+            const suiteResult = await runTestSuite(suite, results, i, selectedSuites.length, progressBar);
 
             // If this is a required suite and it failed, we might want to stop
             if (suite.required && suiteResult.failed > 0) {
@@ -594,7 +648,8 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 
 // Run the tests
-runAllTests().catch(error => {
+const selectedSuites = selectTestSuites(args);
+runAllTests(selectedSuites).catch(error => {
     log(`Master test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

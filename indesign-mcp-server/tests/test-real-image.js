@@ -13,7 +13,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SERVER_PATH = join(__dirname, 'src/index.js');
+const SERVER_PATH = join(__dirname, '../src/index.js');
 
 function log(message, level = 'info') {
     const timestamp = new Date().toISOString();
@@ -85,7 +85,7 @@ async function delay(ms) {
 function createRealTestImage() {
     log('🖼️ Creating a real test image...');
 
-    const imagesDir = './real-test-images';
+    const imagesDir = join(__dirname, 'real-test-images');
     if (!existsSync(imagesDir)) {
         mkdirSync(imagesDir);
     }
@@ -107,12 +107,13 @@ function createRealTestImage() {
 </svg>`;
 
     try {
-        writeFileSync(`${imagesDir}/real-test-image.svg`, svgContent);
-        log('✅ Created real test image: real-test-image.svg');
-        return true;
+        const imagePath = join(imagesDir, 'real-test-image.svg');
+        writeFileSync(imagePath, svgContent);
+        log(`✅ Created real test image: ${imagePath}`);
+        return imagePath;
     } catch (error) {
         log(`❌ Failed to create test image: ${error.message}`, 'error');
-        return false;
+        return null;
     }
 }
 
@@ -122,7 +123,8 @@ async function testRealImage() {
 
     try {
         // Step 1: Create real test image
-        if (!createRealTestImage()) {
+        const imagePath = createRealTestImage();
+        if (!imagePath) {
             throw new Error('Failed to create test image');
         }
         await delay(500);
@@ -185,7 +187,7 @@ async function testRealImage() {
         // Step 5: Place the real image
         log('🖼️ Placing real image...');
         const imageResult = await executeTool('place_image', {
-            filePath: './real-test-images/real-test-image.svg',
+            filePath: imagePath,
             x: 30,
             y: 50,
             width: 150,
@@ -196,7 +198,7 @@ async function testRealImage() {
         if (imageResult.success) {
             log(`✅ Image placed successfully: ${imageResult.result}`);
         } else {
-            log(`❌ Failed to place image: ${imageResult.result}`, 'error');
+            throw new Error(`Failed to place image: ${imageResult.result}`);
         }
         await delay(500);
 
@@ -222,8 +224,11 @@ async function testRealImage() {
             log('✅ Image information retrieved');
             log('📋 Image details:');
             console.log(imageInfoResult.result);
+            if (String(imageInfoResult.result).includes('No images found')) {
+                throw new Error('Image info did not find the placed image');
+            }
         } else {
-            log(`❌ Failed to get image info: ${imageInfoResult.result}`, 'error');
+            throw new Error(`Failed to get image info: ${imageInfoResult.result}`);
         }
         await delay(300);
 

@@ -321,7 +321,7 @@ async function testBoundsChecking() {
     }
 
     // This test should exit with code 0 if all bounds checking worked correctly
-    const expectedPasses = 8; // All 8 tests should pass
+    const expectedPasses = 9; // All 9 checks should pass
     if (testResults.passed === expectedPasses) {
         log('✅ All bounds checking tests passed correctly', 'success');
         log('✅ Content positioning is working properly within page boundaries', 'success');

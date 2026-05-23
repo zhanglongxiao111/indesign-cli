@@ -12,7 +12,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SERVER_PATH = join(__dirname, 'src/index.js');
+const SERVER_PATH = join(__dirname, '../src/index.js');
 
 function log(message, level = 'info') {
     const timestamp = new Date().toISOString();

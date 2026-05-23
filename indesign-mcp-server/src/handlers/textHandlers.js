@@ -24,6 +24,13 @@ export class TextHandlers {
             characterStyle = null
         } = args;
 
+        const numericInputs = { x, y, width, height, fontSize };
+        for (const [field, value] of Object.entries(numericInputs)) {
+            if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+                return formatErrorResponse(`${field} must be a valid number`, "Create Text Frame");
+            }
+        }
+
         // Use session manager for positioning if coordinates not provided
         const positioning = sessionManager.getCalculatedPositioning({ x, y, width, height });
 

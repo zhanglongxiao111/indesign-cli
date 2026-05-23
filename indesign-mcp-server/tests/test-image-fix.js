@@ -13,7 +13,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SERVER_PATH = join(__dirname, 'src/index.js');
+const SERVER_PATH = join(__dirname, '../src/index.js');
 
 function log(message, level = 'info') {
     const timestamp = new Date().toISOString();
@@ -85,7 +85,7 @@ async function delay(ms) {
 function createTestImage() {
     log('🖼️ Creating test image...');
 
-    const imagesDir = './test-images-fix';
+    const imagesDir = join(__dirname, 'test-images-fix');
     if (!existsSync(imagesDir)) {
         mkdirSync(imagesDir);
     }
@@ -99,12 +99,13 @@ function createTestImage() {
 </svg>`;
 
     try {
-        writeFileSync(`${imagesDir}/test.svg`, svgContent);
-        log('✅ Created test image: test.svg');
-        return true;
+        const imagePath = join(imagesDir, 'test.svg');
+        writeFileSync(imagePath, svgContent);
+        log(`✅ Created test image: ${imagePath}`);
+        return imagePath;
     } catch (error) {
         log(`❌ Failed to create test image: ${error.message}`, 'error');
-        return false;
+        return null;
     }
 }
 
@@ -114,7 +115,8 @@ async function testImageFix() {
 
     try {
         // Step 1: Create test image
-        if (!createTestImage()) {
+        const imagePath = createTestImage();
+        if (!imagePath) {
             throw new Error('Failed to create test image');
         }
         await delay(500);
@@ -142,7 +144,7 @@ async function testImageFix() {
         // Step 3: Test image placement with existing file
         log('🖼️ Testing image placement with existing file...');
         const imageResult = await executeTool('place_image', {
-            filePath: './test-images-fix/test.svg',
+            filePath: imagePath,
             x: 30,
             y: 50,
             width: 100,
@@ -153,14 +155,14 @@ async function testImageFix() {
         if (imageResult.success) {
             log(`✅ Image placed successfully: ${imageResult.result}`);
         } else {
-            log(`❌ Failed to place image: ${imageResult.result}`, 'error');
+            throw new Error(`Failed to place image: ${imageResult.result}`);
         }
         await delay(500);
 
         // Step 4: Test image placement with non-existent file
         log('🖼️ Testing image placement with non-existent file...');
         const badImageResult = await executeTool('place_image', {
-            filePath: './test-images-fix/non-existent.svg',
+            filePath: join(__dirname, 'test-images-fix', 'non-existent.svg'),
             x: 30,
             y: 150,
             width: 100,
@@ -171,7 +173,7 @@ async function testImageFix() {
         if (!badImageResult.success) {
             log(`✅ Correctly failed to place non-existent image: ${badImageResult.result}`);
         } else {
-            log(`❌ Should have failed but succeeded: ${badImageResult.result}`, 'error');
+            throw new Error(`Missing image should have failed but succeeded: ${badImageResult.result}`);
         }
         await delay(500);
 
@@ -182,8 +184,11 @@ async function testImageFix() {
             log('✅ Image information retrieved');
             log('📋 Image details:');
             console.log(imageInfoResult.result);
+            if (String(imageInfoResult.result).includes('No images found')) {
+                throw new Error('Image info did not find the placed image');
+            }
         } else {
-            log(`❌ Failed to get image info: ${imageInfoResult.result}`, 'error');
+            throw new Error(`Failed to get image info: ${imageInfoResult.result}`);
         }
         await delay(300);
 

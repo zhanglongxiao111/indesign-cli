@@ -13,7 +13,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SERVER_PATH = join(__dirname, 'src/index.js');
+const SERVER_PATH = join(__dirname, '../src/index.js');
 
 function log(message, level = 'info') {
     const timestamp = new Date().toISOString();
@@ -85,7 +85,7 @@ async function delay(ms) {
 function createTestImages() {
     log('🖼️ Creating test images for demonstration...');
 
-    const imagesDir = './test-images';
+    const imagesDir = join(__dirname, 'test-images');
     if (!existsSync(imagesDir)) {
         mkdirSync(imagesDir);
     }
@@ -98,45 +98,28 @@ function createTestImages() {
   <text x="100" y="85" text-anchor="middle" fill="white" font-family="Arial" font-size="16">Test Image</text>
 </svg>`;
 
-    // Create a simple HTML test image (will be converted to PNG)
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { margin: 0; padding: 20px; background: linear-gradient(45deg, #667eea 0%, #764ba2 100%); color: white; font-family: Arial, sans-serif; }
-        .container { text-align: center; }
-        .shape { width: 80px; height: 80px; background: #f093fb; border-radius: 50%; margin: 20px auto; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Test Image</h2>
-        <div class="shape"></div>
-        <p>Generated for MCP testing</p>
-    </div>
-</body>
-</html>`;
-
-    // Create a simple text-based "image" (simulating a placeholder)
-    const textImageContent = `This is a text-based placeholder image.
-It simulates an image file for testing purposes.
-Width: 300px, Height: 200px
-Created: ${new Date().toISOString()}`;
+    const altSvgContent = svgContent.replace('Test Image', 'Alt Image').replace('#4A90E2', '#7ED321');
+    const placeholderSvgContent = svgContent.replace('Test Image', 'Placeholder').replace('#4A90E2', '#9013FE');
 
     try {
-        writeFileSync(`${imagesDir}/test-image.svg`, svgContent);
-        writeFileSync(`${imagesDir}/test-image.html`, htmlContent);
-        writeFileSync(`${imagesDir}/test-placeholder.txt`, textImageContent);
+        const paths = {
+            main: join(imagesDir, 'test-image.svg'),
+            alt: join(imagesDir, 'test-image-alt.svg'),
+            placeholder: join(imagesDir, 'test-placeholder.svg')
+        };
+        writeFileSync(paths.main, svgContent);
+        writeFileSync(paths.alt, altSvgContent);
+        writeFileSync(paths.placeholder, placeholderSvgContent);
 
         log('✅ Created test images:');
         log('   • test-image.svg (SVG vector image)');
-        log('   • test-image.html (HTML test image)');
-        log('   • test-placeholder.txt (Text placeholder)');
+        log('   • test-image-alt.svg (SVG vector image)');
+        log('   • test-placeholder.svg (SVG placeholder)');
 
-        return true;
+        return paths;
     } catch (error) {
         log(`❌ Failed to create test images: ${error.message}`, 'error');
-        return false;
+        return null;
     }
 }
 
@@ -146,7 +129,8 @@ async function testImageAssets() {
 
     try {
         // Step 1: Create test images
-        if (!createTestImages()) {
+        const imagePaths = createTestImages();
+        if (!imagePaths) {
             throw new Error('Failed to create test images');
         }
         await delay(500);
@@ -257,7 +241,7 @@ async function testImageAssets() {
         const imagePlacements = [
             {
                 pageIndex: 0,
-                filePath: './test-images/test-image.svg',
+                filePath: imagePaths.main,
                 x: 30,
                 y: 50,
                 width: 80,
@@ -267,23 +251,23 @@ async function testImageAssets() {
             },
             {
                 pageIndex: 0,
-                filePath: './test-images/test-image.html',
+                filePath: imagePaths.alt,
                 x: 130,
                 y: 50,
                 width: 60,
                 height: 60,
                 linkImage: false,
-                description: 'HTML image with embedding enabled'
+                description: 'Second SVG image with embedding enabled'
             },
             {
                 pageIndex: 1,
-                filePath: './test-images/test-placeholder.txt',
+                filePath: imagePaths.placeholder,
                 x: 30,
                 y: 50,
                 width: 100,
                 height: 40,
                 linkImage: true,
-                description: 'Text placeholder image'
+                description: 'SVG placeholder image'
             }
         ];
 
@@ -312,7 +296,7 @@ async function testImageAssets() {
             if (imageResult.success) {
                 log(`✅ Image placed successfully: ${imageResult.result}`);
             } else {
-                log(`❌ Failed to place image: ${imageResult.result}`, 'error');
+                throw new Error(`Failed to place image: ${imageResult.result}`);
             }
             await delay(500);
         }
@@ -350,8 +334,14 @@ async function testImageAssets() {
                 log(`✅ Image ${i} information retrieved`);
                 log('📋 Image details:');
                 console.log(imageInfoResult.result);
+                if (
+                    String(imageInfoResult.result).includes('No images found') ||
+                    String(imageInfoResult.result).includes('not found')
+                ) {
+                    throw new Error(`Image info did not find placed image ${i}`);
+                }
             } else {
-                log(`❌ Failed to get image ${i} info: ${imageInfoResult.result}`, 'error');
+                throw new Error(`Failed to get image ${i} info: ${imageInfoResult.result}`);
             }
             await delay(300);
         }
@@ -408,7 +398,7 @@ async function testImageAssets() {
 
         log('🎉 Image assets test completed!');
         log('📋 Summary:');
-        log('   ✅ Created test images (SVG, HTML, text placeholder)');
+        log('   ✅ Created test SVG images');
         log('   ✅ Created color swatches for styling');
         log('   ✅ Created object styles for image frames');
         log('   ✅ Placed images with different configurations');
@@ -424,7 +414,7 @@ async function testImageAssets() {
         log('   3. **Linking**: Can link images (external) or embed them (internal)');
         log('   4. **Styling**: Object styles can be applied for consistent formatting');
         log('   5. **Information**: Detailed image metadata can be retrieved');
-        log('   6. **Formats**: Supports various image formats (SVG, PNG, JPG, etc.)');
+        log('   6. **Formats**: This test uses SVG assets with absolute paths');
 
     } catch (error) {
         log(`❌ Error during image assets test: ${error.message}`, 'error');
