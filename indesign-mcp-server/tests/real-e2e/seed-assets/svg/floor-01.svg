@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Floor 01 Plan</title>
+  <desc id="desc">Ground floor plan with lobby, gallery, studio, cafe, cores, grid lines, and room labels.</desc>
+  <rect width="1200" height="800" fill="#ffffff"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#111">Floor 01 Plan</text>
+  <g stroke="#dee2e6" stroke-width="2">
+    <line x1="140" y1="120" x2="140" y2="690"/><line x1="320" y1="120" x2="320" y2="690"/><line x1="500" y1="120" x2="500" y2="690"/><line x1="680" y1="120" x2="680" y2="690"/><line x1="860" y1="120" x2="860" y2="690"/>
+    <line x1="95" y1="170" x2="920" y2="170"/><line x1="95" y1="330" x2="920" y2="330"/><line x1="95" y1="490" x2="920" y2="490"/><line x1="95" y1="650" x2="920" y2="650"/>
+  </g>
+  <rect x="100" y="125" width="820" height="560" fill="none" stroke="#111" stroke-width="8"/>
+  <line x1="100" y1="330" x2="920" y2="330" stroke="#111" stroke-width="6"/>
+  <line x1="500" y1="125" x2="500" y2="685" stroke="#111" stroke-width="6"/>
+  <line x1="100" y1="500" x2="500" y2="500" stroke="#111" stroke-width="6"/>
+  <line x1="680" y1="330" x2="680" y2="685" stroke="#111" stroke-width="6"/>
+  <rect x="535" y="365" width="105" height="105" fill="#ffd166" stroke="#111" stroke-width="4"/>
+  <rect x="725" y="365" width="105" height="105" fill="#ffd166" stroke="#111" stroke-width="4"/>
+  <path d="M320 685 A90 90 0 0 1 410 595" fill="none" stroke="#0077b6" stroke-width="4"/>
+  <text x="300" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#111">Gallery</text>
+  <text x="710" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#111">Studio</text>
+  <text x="300" y="605" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#111">Lobby</text>
+  <text x="590" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#111">Core A</text>
+  <text x="780" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#111">Core B</text>
+  <text x="800" y="605" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#111">Cafe</text>
+  <g transform="translate(985 130)">
+    <rect width="135" height="135" fill="#f8f9fa" stroke="#111" stroke-width="3"/>
+    <path d="M68 18 L92 88 H44 Z" fill="#111"/>
+    <text x="68" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700">N</text>
+  </g>
+</svg>

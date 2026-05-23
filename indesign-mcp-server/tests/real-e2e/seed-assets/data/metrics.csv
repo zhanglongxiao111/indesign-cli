@@ -1,0 +1,11 @@
+metric,unit,baseline,proposed,target,notes
+gross_floor_area,sqm,18500,21400,22000,Area for schedule and KPI table placement
+site_area,sqm,9400,9400,9400,Fixed parcel test value
+plot_ratio,ratio,1.97,2.28,2.35,Calculated planning indicator
+open_space_percent,percent,18,32,30,Landscape and public realm improvement
+adaptive_reuse_area,sqm,2800,3600,3500,Existing industrial shell retained
+embodied_carbon_kgco2e_per_sqm,kgCO2e/sqm,620,455,500,High level sustainability metric
+stormwater_retention_percent,percent,12,48,45,Green roof and permeable paving assumption
+bicycle_parking,count,42,116,100,Mobility indicator
+public_program_area,sqm,900,1750,1600,Community and exhibition uses
+estimated_phase_months,months,30,26,24,Delivery scenario placeholder

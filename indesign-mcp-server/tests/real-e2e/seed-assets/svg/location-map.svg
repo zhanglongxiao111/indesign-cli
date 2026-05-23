@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Location Map</title>
+  <desc id="desc">Simple waterfront site location map with roads, river, blocks, north arrow, and legend.</desc>
+  <rect width="1200" height="800" fill="#f5f1e8"/>
+  <path d="M0 520 C190 480 310 585 485 535 C670 480 810 510 1200 430 L1200 800 L0 800 Z" fill="#8ecae6"/>
+  <path d="M70 130 H1090" stroke="#d6c9a8" stroke-width="36" stroke-linecap="round"/>
+  <path d="M210 70 V610" stroke="#d6c9a8" stroke-width="30" stroke-linecap="round"/>
+  <path d="M445 80 V500" stroke="#d6c9a8" stroke-width="24" stroke-linecap="round"/>
+  <path d="M700 95 V465" stroke="#d6c9a8" stroke-width="24" stroke-linecap="round"/>
+  <path d="M55 320 H1145" stroke="#d6c9a8" stroke-width="28" stroke-linecap="round"/>
+  <rect x="500" y="235" width="255" height="150" rx="8" fill="#ffb703" stroke="#1d3557" stroke-width="6"/>
+  <text x="628" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#1d3557">PROJECT SITE</text>
+  <circle cx="505" cy="548" r="18" fill="#023047"/>
+  <text x="536" y="562" font-family="Arial, sans-serif" font-size="28" fill="#023047">Waterfront edge</text>
+  <g transform="translate(985 92)">
+    <path d="M42 0 L72 92 H12 Z" fill="#1d3557"/>
+    <text x="42" y="135" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#1d3557">N</text>
+  </g>
+  <g transform="translate(75 635)">
+    <rect width="360" height="115" fill="#ffffff" stroke="#6b705c" stroke-width="3"/>
+    <rect x="22" y="22" width="42" height="28" fill="#ffb703" stroke="#1d3557" stroke-width="3"/>
+    <text x="82" y="46" font-family="Arial, sans-serif" font-size="24" fill="#222">Design parcel</text>
+    <line x1="24" y1="78" x2="66" y2="78" stroke="#d6c9a8" stroke-width="16" stroke-linecap="round"/>
+    <text x="82" y="86" font-family="Arial, sans-serif" font-size="24" fill="#222">Primary streets</text>
+  </g>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#1d3557">Location Map</text>
+</svg>

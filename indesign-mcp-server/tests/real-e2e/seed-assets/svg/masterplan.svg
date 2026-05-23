@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Masterplan Diagram</title>
+  <desc id="desc">Block masterplan with buildings, open space, plaza, service yard, and phase legend.</desc>
+  <rect width="1200" height="800" fill="#f7f7f2"/>
+  <text x="60" y="70" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#22333b">Masterplan</text>
+  <rect x="80" y="105" width="760" height="585" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="4"/>
+  <path d="M110 500 C250 430 420 455 565 385 C665 335 750 325 820 300" fill="none" stroke="#40916c" stroke-width="18" stroke-linecap="round"/>
+  <rect x="150" y="150" width="155" height="250" fill="#adb5bd" stroke="#343a40" stroke-width="4"/>
+  <rect x="345" y="145" width="195" height="180" fill="#ced4da" stroke="#343a40" stroke-width="4"/>
+  <rect x="580" y="145" width="200" height="250" fill="#adb5bd" stroke="#343a40" stroke-width="4"/>
+  <rect x="160" y="455" width="230" height="170" fill="#f4a261" stroke="#9c6644" stroke-width="4"/>
+  <rect x="455" y="460" width="295" height="150" fill="#e9c46a" stroke="#99582a" stroke-width="4"/>
+  <circle cx="440" cy="382" r="58" fill="#ffffff" stroke="#40916c" stroke-width="6"/>
+  <text x="440" y="391" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#1b4332">PLAZA</text>
+  <path d="M895 165 H1110 V675 H895 Z" fill="#ffffff" stroke="#adb5bd" stroke-width="3"/>
+  <text x="925" y="220" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#22333b">Legend</text>
+  <rect x="925" y="255" width="42" height="28" fill="#adb5bd" stroke="#343a40" stroke-width="3"/>
+  <text x="985" y="278" font-family="Arial, sans-serif" font-size="22" fill="#222">New massing</text>
+  <rect x="925" y="305" width="42" height="28" fill="#f4a261" stroke="#9c6644" stroke-width="3"/>
+  <text x="985" y="328" font-family="Arial, sans-serif" font-size="22" fill="#222">Adaptive reuse</text>
+  <rect x="925" y="355" width="42" height="28" fill="#e9c46a" stroke="#99582a" stroke-width="3"/>
+  <text x="985" y="378" font-family="Arial, sans-serif" font-size="22" fill="#222">Phase 2</text>
+  <line x1="925" y1="420" x2="967" y2="420" stroke="#40916c" stroke-width="12" stroke-linecap="round"/>
+  <text x="985" y="428" font-family="Arial, sans-serif" font-size="22" fill="#222">Green spine</text>
+  <text x="150" y="725" font-family="Arial, sans-serif" font-size="24" fill="#495057">Test SVG: colored fills, thick strokes, labels, and grouped legend.</text>
+</svg>

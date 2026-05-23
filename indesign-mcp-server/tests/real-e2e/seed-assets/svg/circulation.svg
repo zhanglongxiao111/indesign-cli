@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Circulation Diagram</title>
+  <desc id="desc">Circulation diagram showing pedestrian, service, bicycle, and emergency routes.</desc>
+  <rect width="1200" height="800" fill="#f8f9fa"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#1d3557">Circulation</text>
+  <rect x="120" y="140" width="700" height="510" fill="#ffffff" stroke="#495057" stroke-width="5"/>
+  <rect x="230" y="230" width="165" height="150" fill="#ced4da" stroke="#343a40" stroke-width="4"/>
+  <rect x="520" y="210" width="190" height="195" fill="#ced4da" stroke="#343a40" stroke-width="4"/>
+  <rect x="260" y="465" width="380" height="95" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="4"/>
+  <path d="M155 620 C250 470 335 420 450 400 C600 375 705 300 790 170" fill="none" stroke="#e63946" stroke-width="12" stroke-linecap="round"/>
+  <path d="M135 190 H775" fill="none" stroke="#0077b6" stroke-width="10" stroke-dasharray="22 16" stroke-linecap="round"/>
+  <path d="M805 605 C715 535 690 475 710 405" fill="none" stroke="#6a4c93" stroke-width="10" stroke-linecap="round"/>
+  <path d="M185 145 V640" fill="none" stroke="#2d6a4f" stroke-width="9" stroke-dasharray="12 14" stroke-linecap="round"/>
+  <g fill="#e63946"><path d="M790 170 l-36 5 22 28 Z"/></g>
+  <g fill="#0077b6"><path d="M775 190 l-30 -17 v34 Z"/></g>
+  <g fill="#6a4c93"><path d="M710 405 l-27 25 36 9 Z"/></g>
+  <text x="315" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#111">Block A</text>
+  <text x="615" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#111">Block B</text>
+  <text x="450" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#1b4332">Public Courtyard</text>
+  <g transform="translate(895 155)">
+    <rect width="235" height="250" fill="#ffffff" stroke="#adb5bd" stroke-width="3"/>
+    <text x="25" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#222">Legend</text>
+    <line x1="25" y1="85" x2="95" y2="85" stroke="#e63946" stroke-width="10"/><text x="112" y="94" font-family="Arial, sans-serif" font-size="22">Pedestrian</text>
+    <line x1="25" y1="130" x2="95" y2="130" stroke="#0077b6" stroke-width="9" stroke-dasharray="18 12"/><text x="112" y="139" font-family="Arial, sans-serif" font-size="22">Bicycle</text>
+    <line x1="25" y1="175" x2="95" y2="175" stroke="#6a4c93" stroke-width="9"/><text x="112" y="184" font-family="Arial, sans-serif" font-size="22">Service</text>
+    <line x1="25" y1="220" x2="95" y2="220" stroke="#2d6a4f" stroke-width="8" stroke-dasharray="10 10"/><text x="112" y="229" font-family="Arial, sans-serif" font-size="22">Emergency</text>
+  </g>
+</svg>

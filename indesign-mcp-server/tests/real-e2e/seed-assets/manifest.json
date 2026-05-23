@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Seed assets for real InDesign E2E placement tests simulating an architecture design report deck.",
+  "created": "2026-05-23",
+  "assets": [
+    {
+      "id": "hero-waterfront",
+      "type": "photo",
+      "relativePath": "photos/hero-waterfront.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jersey_City_skyline,_Exchange_Place_waterfront_at_sunset.jpg",
+      "license": "CC0",
+      "description": "Waterfront city skyline context image.",
+      "intendedDeckPages": [1, 2]
+    },
+    {
+      "id": "industrial-site",
+      "type": "photo",
+      "relativePath": "photos/industrial-site.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Industrial_Building_(54182239356).jpg",
+      "license": "CC BY 2.0",
+      "description": "Industrial building reference image for adaptive reuse pages.",
+      "intendedDeckPages": [1, 5]
+    },
+    {
+      "id": "architecture-facade",
+      "type": "photo",
+      "relativePath": "photos/architecture-facade.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Facade_of_St._John%27s_Co-Cathedral,_Valletta,_Malta.jpg",
+      "license": "CC0",
+      "description": "Architecture facade reference for elevation and facade layout tests.",
+      "intendedDeckPages": [3, 6]
+    },
+    {
+      "id": "urban-site",
+      "type": "photo",
+      "relativePath": "photos/urban-site.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Urban_Forestry_(20150916-OSEC-LSC-0268).jpg",
+      "license": "Public domain",
+      "description": "Urban skyline and green infrastructure context image.",
+      "intendedDeckPages": [2, 4]
+    },
+    {
+      "id": "brick-material",
+      "type": "photo",
+      "relativePath": "photos/brick-material.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brick_wall_texture_image.jpg",
+      "license": "CC0",
+      "description": "Brick material texture for material palette tests.",
+      "intendedDeckPages": [6, 7]
+    },
+    {
+      "id": "green-roof",
+      "type": "photo",
+      "relativePath": "photos/green-roof.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kingsland_Wildflowers_Green_Roof_top.jpg",
+      "license": "CC BY-SA 4.0",
+      "description": "Green roof and landscape image for sustainability pages.",
+      "intendedDeckPages": [7, 8]
+    },
+    {
+      "id": "location-map",
+      "type": "svg",
+      "relativePath": "svg/location-map.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Simplified location map with roads, river, site highlight, north arrow, and legend.",
+      "intendedDeckPages": [2]
+    },
+    {
+      "id": "masterplan",
+      "type": "svg",
+      "relativePath": "svg/masterplan.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Block masterplan with masses, open space, green spine, and legend.",
+      "intendedDeckPages": [4]
+    },
+    {
+      "id": "floor-01",
+      "type": "svg",
+      "relativePath": "svg/floor-01.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Ground floor plan with rooms, cores, grid lines, and north arrow.",
+      "intendedDeckPages": [5]
+    },
+    {
+      "id": "floor-02",
+      "type": "svg",
+      "relativePath": "svg/floor-02.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Upper floor plan with terrace, void, rooms, and egress arrows.",
+      "intendedDeckPages": [5]
+    },
+    {
+      "id": "section",
+      "type": "svg",
+      "relativePath": "svg/section.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Building section with slabs, atrium, masonry, green roof, and daylight arc.",
+      "intendedDeckPages": [6]
+    },
+    {
+      "id": "sun-path",
+      "type": "svg",
+      "relativePath": "svg/sun-path.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Sun path diagram testing arcs, fills, labels, and shadows.",
+      "intendedDeckPages": [7]
+    },
+    {
+      "id": "circulation",
+      "type": "svg",
+      "relativePath": "svg/circulation.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Route diagram with pedestrian, bicycle, service, and emergency circulation.",
+      "intendedDeckPages": [4, 8]
+    },
+    {
+      "id": "material-icons",
+      "type": "svg",
+      "relativePath": "svg/material-icons.svg",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Material palette icons testing patterns, labels, colors, and grouped symbols.",
+      "intendedDeckPages": [6, 7]
+    },
+    {
+      "id": "metrics",
+      "type": "csv",
+      "relativePath": "data/metrics.csv",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Architecture report metrics table for CSV import and table placement tests.",
+      "intendedDeckPages": [3, 8]
+    },
+    {
+      "id": "site-data",
+      "type": "xml",
+      "relativePath": "data/site-data.xml",
+      "sourceUrl": "generated",
+      "license": "generated test fixture",
+      "description": "Structured site report data for XML import and tagged text workflows.",
+      "intendedDeckPages": [3, 4, 8]
+    }
+  ]
+}

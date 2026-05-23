@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Material Icons</title>
+  <desc id="desc">Material palette icons for brick, glass, concrete, wood, metal, planted roof, paving, and water.</desc>
+  <rect width="1200" height="800" fill="#ffffff"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#222">Material Icons</text>
+  <g font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#222">
+    <g transform="translate(95 135)">
+      <rect width="210" height="180" fill="#b45f3c" stroke="#5c2e1f" stroke-width="4"/>
+      <g stroke="#f1d0bd" stroke-width="5"><line x1="0" y1="45" x2="210" y2="45"/><line x1="0" y1="90" x2="210" y2="90"/><line x1="0" y1="135" x2="210" y2="135"/><line x1="70" y1="0" x2="70" y2="45"/><line x1="140" y1="45" x2="140" y2="90"/><line x1="70" y1="90" x2="70" y2="135"/><line x1="140" y1="135" x2="140" y2="180"/></g>
+      <text x="105" y="225">Brick</text>
+    </g>
+    <g transform="translate(360 135)">
+      <rect width="210" height="180" fill="#caf0f8" stroke="#0077b6" stroke-width="4"/>
+      <path d="M20 160 L190 20" stroke="#ffffff" stroke-width="12" opacity="0.75"/>
+      <path d="M70 165 L200 35" stroke="#ffffff" stroke-width="6" opacity="0.75"/>
+      <text x="105" y="225">Glass</text>
+    </g>
+    <g transform="translate(625 135)">
+      <rect width="210" height="180" fill="#adb5bd" stroke="#495057" stroke-width="4"/>
+      <circle cx="45" cy="55" r="6" fill="#6c757d"/><circle cx="120" cy="80" r="5" fill="#6c757d"/><circle cx="170" cy="130" r="7" fill="#6c757d"/>
+      <text x="105" y="225">Concrete</text>
+    </g>
+    <g transform="translate(890 135)">
+      <rect width="210" height="180" fill="#c89f65" stroke="#7f5539" stroke-width="4"/>
+      <path d="M20 60 C75 25 120 90 190 45" fill="none" stroke="#7f5539" stroke-width="7"/>
+      <path d="M20 115 C80 85 130 150 190 105" fill="none" stroke="#7f5539" stroke-width="7"/>
+      <text x="105" y="225">Wood</text>
+    </g>
+    <g transform="translate(95 435)">
+      <rect width="210" height="180" fill="#d9dee2" stroke="#343a40" stroke-width="4"/>
+      <path d="M40 40 H170 V140 H40 Z" fill="none" stroke="#6c757d" stroke-width="12"/>
+      <text x="105" y="225">Metal</text>
+    </g>
+    <g transform="translate(360 435)">
+      <rect width="210" height="180" fill="#95d5b2" stroke="#2d6a4f" stroke-width="4"/>
+      <path d="M30 130 C65 60 120 90 160 35 C175 85 155 130 110 150 C75 165 50 155 30 130 Z" fill="#40916c"/>
+      <text x="105" y="225">Planted Roof</text>
+    </g>
+    <g transform="translate(625 435)">
+      <rect width="210" height="180" fill="#e9ecef" stroke="#6c757d" stroke-width="4"/>
+      <g stroke="#adb5bd" stroke-width="6"><line x1="0" y1="60" x2="210" y2="60"/><line x1="0" y1="120" x2="210" y2="120"/><line x1="70" y1="0" x2="70" y2="180"/><line x1="140" y1="0" x2="140" y2="180"/></g>
+      <text x="105" y="225">Paving</text>
+    </g>
+    <g transform="translate(890 435)">
+      <rect width="210" height="180" fill="#90e0ef" stroke="#0077b6" stroke-width="4"/>
+      <path d="M25 70 C65 40 100 100 140 70 C165 50 180 55 200 72" fill="none" stroke="#0077b6" stroke-width="9"/>
+      <path d="M20 120 C65 90 100 150 145 120 C165 106 185 110 205 126" fill="none" stroke="#0077b6" stroke-width="9"/>
+      <text x="105" y="225">Water</text>
+    </g>
+  </g>
+</svg>

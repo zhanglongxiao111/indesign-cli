@@ -15,9 +15,11 @@
 - 不改 MCP 工具定义作为本计划的前置条件；当前 CLI 已经有 146 个 `callable` 工具。
 - 不使用 mock InDesign；`--full` 必须连接真实 Adobe InDesign。
 - 不把 `tool schema` 当作工具执行覆盖；schema 只算合同检查，真正覆盖必须 `tool call` 或专用 CLI 子命令执行。
+- 不把 `--version` 计入 146 个工具覆盖分母；它只属于 CLI preflight。
+- 覆盖报告必须按唯一 `tool_id` 去重统计，不能按调用次数统计。
 - 不把错误场景算失败；预期错误必须记录为 `expected_failure_passed`，并验证 `error.code`。
 - 所有测试产物写入 `.indesign-e2e-runs/<run-id>/`，不进入 git。
-- 每个工具必须在 `coverage-map.json` 中有一条覆盖策略，并在 `coverage-report.json` 中有最终状态。
+- 每个工具必须由实时目录生成一条覆盖基线，并在 `coverage-report.json` 中有最终状态；人工策略只写入 `coverage-overrides.json`。
 
 ## 2. 文件结构
 
@@ -28,8 +30,9 @@
 | `tests/real-e2e/README.md` | 运行方式、环境要求、报告说明 |
 | `tests/real-e2e/run-architecture-presentation.mjs` | 真实 E2E 主入口，解析 `--full`、`--inventory`、`--phase`、`--tool`、`--offline`、`--keep-open` |
 | `tests/real-e2e/deck-brief.json` | 模拟建筑设计演示文稿的项目设定、28 页页纲、每页必需对象和审计 label |
-| `tests/real-e2e/coverage-map.json` | 146 个工具的场景、参数策略、验收方式、清理策略 |
+| `tests/real-e2e/coverage-overrides.json` | 少量人工覆盖策略：fixture、acceptance、cleanup；基础覆盖表由实时目录生成 |
 | `tests/real-e2e/asset-manifest.json` | 可下载素材和离线 fallback 素材定义 |
+| `tests/real-e2e/seed-assets/` | 预置测试素材：小图、SVG、CSV、XML |
 | `tests/real-e2e/lib/run-dir.mjs` | 创建运行目录、manifest、日志路径 |
 | `tests/real-e2e/lib/cli.mjs` | 调用 `python -m cli_anything.indesign`，记录 stdout/stderr/duration |
 | `tests/real-e2e/lib/catalog.mjs` | 拉取 `tool domains`、按 source 拉取工具、读取每个 schema |
@@ -70,6 +73,7 @@
 | `main_deck_setup` | 主文档 | 创建 28 页建筑汇报文稿、尺寸、保存、基础层级 | `.indd` 初稿、manifest |
 | `masters_layers_spreads` | 主文档 | 母版、图层、跨页、页面导航和页面属性 | 审计母版/图层/跨页 |
 | `content_text_table` | 主文档 | 文本框、样式、查找替换、表格、故事和章节 | 审计文本、表格、section |
+| `data_content` | 主文档 | CSV 指标表、XML 置入、结构化数据页 | 审计表格、XML 标记、数据文本 |
 | `asset_graphics` | 主文档 | 图片、SVG、形状、链接、颜色、对象样式 | 审计链接、bounds、swatch |
 | `template_flow` | 主文档第 26 页 | 高级模板扫描、建页、填槽、高级 JSX | 审计模板槽位 label |
 | `script_transport` | 主文档 | CLI 文件脚本、stdin、classic code、高级 JSX 文件 | 中文/路径/换行转义审计 |
@@ -138,15 +142,19 @@
 
 ## 5. 命令覆盖矩阵
 
-### 5.1 CLI / Server / Session / Utility
+### 5.0 CLI Preflight（不计入 146 工具分母）
 
 | 命令 | 场景 | 验收 |
 | ---- | ---- | ---- |
 | `--version` | `bootstrap_contract` | 返回 JSON，`data.name == cli-anything-indesign` |
+
+### 5.1 CLI / Server / Session / Utility
+
+| 命令 | 场景 | 验收 |
+| ---- | ---- | ---- |
 | `server.health` | `bootstrap_contract` | 基础项目文件存在；`--deep` 记录 `winax` 检查结果 |
 | `session.clear` | `bootstrap_contract` | 返回 `cleared: true`，后续 session 为空 |
 | `session.show` | `bootstrap_contract` | compact 输出包含 recent calls，不包含完整 args |
-| `export.verify` | `export_package` | 验证 PDF/IDML 魔术字节和创建时间 |
 | `utility.help` | `bootstrap_contract` | 返回可机读帮助信息或非空帮助文本 |
 
 ### 5.2 Script
@@ -338,7 +346,7 @@
 
 ## 6. 实施任务
 
-### Task 1：建立真实 E2E 骨架和运行目录
+### Task 1：建立真实 E2E 骨架、运行目录和状态恢复
 
 **文件：**
 - 创建：`tests/real-e2e/README.md`
@@ -348,12 +356,16 @@
 - 修改：`.gitignore`
 
 - [ ] 增加 `.indesign-e2e-runs/` 到 `.gitignore`。
-- [ ] runner 支持 `--inventory`、`--full`、`--phase <name>`、`--tool <tool_id>`、`--offline`、`--keep-open`、`--run-id <id>`。
+- [ ] runner 支持 `--inventory`、`--full`、`--phase <name>`、`--tool <tool_id>`、`--offline`、`--keep-open`、`--run-id <id>`、`--resume-from <phase>`。
 - [ ] 每次运行创建 `.indesign-e2e-runs/YYYYMMDD-HHMMSS-arch-presentation/`，包含 `assets/`、`scripts/`、`outputs/`、`reports/`、`logs/`。
+- [ ] 在运行目录内额外创建路径压力目录：`assets/路径 测试/`、`outputs/路径 测试/book docs/`、`outputs/路径 测试/package out/`，用于中文、空格和反斜杠路径参数覆盖。
 - [ ] 写入 `manifest.json`，记录开始时间、命令参数、仓库路径、Node/Python 版本。
-- [ ] 所有 CLI 调用写入 `logs/calls.jsonl`，字段包含 `sequence`、`tool_id`、`command`、`duration_ms`、`ok`、`stdout_path`、`stderr_path`。
+- [ ] 写入 `phase-checkpoint.json`，每个 phase 结束记录 `phase`、`status`、`open_documents_expected`、`main_document_path`、`scratch_paths`、`next_phase`。
+- [ ] 所有 CLI 调用写入 `logs/calls.jsonl`，字段包含 `sequence`、`tool_id`、`source`、`backend`、`command`、`args_digest`、`duration_ms`、`ok`、`stdout_path`、`stderr_path`。
+- [ ] hidden handler 调用的 `backend` 必须记录为 `hidden_handler_bridge`。
+- [ ] 每个 phase 结束强制执行状态检查：只允许主文档和当前 phase 声明的 scratch 文档保持打开；异常时关闭 scratch 文档、book、presentation，并重新打开主文档验证状态。
 - [ ] 验证命令：`node tests/real-e2e/run-architecture-presentation.mjs --inventory --offline`。
-- [ ] 验收：运行目录创建成功，`manifest.json` 和 `logs/calls.jsonl` 存在，不启动 InDesign。
+- [ ] 验收：运行目录创建成功，`manifest.json`、`phase-checkpoint.json` 和 `logs/calls.jsonl` 存在，不启动 InDesign。
 - [ ] 提交：`test: scaffold real indesign e2e runner`。
 
 ### Task 2：工具目录、schema 和覆盖基线
@@ -361,17 +373,21 @@
 **文件：**
 - 创建：`tests/real-e2e/lib/catalog.mjs`
 - 创建：`tests/real-e2e/lib/coverage.mjs`
-- 创建：`tests/real-e2e/coverage-map.json`
+- 创建：`tests/real-e2e/coverage-overrides.json`
 - 创建：`tests/real-e2e/validators/validate-coverage.mjs`
 
+- [ ] runner 执行 CLI preflight：`--version`，但不写入 146 工具覆盖分母。
 - [ ] runner 调用 `tool domains`。
 - [ ] runner 分别调用 `tool list --source cli`、`script`、`advanced`、`classic`、`hidden_handler`。
 - [ ] runner 对 146 个 `callable` 工具逐个调用 `tool schema <tool_id>`。
+- [ ] runner 执行 `session.show` 并验证 compact recent calls 结构。
+- [ ] runner 执行 `utility.help` 并验证返回非空帮助信息。
 - [ ] 写入 `reports/tool-catalog.json`，包含 `tool_id`、`source`、`domain`、`arg_names`、`schema`、`callable`、`side_effects`、`needs_indesign`、`produces_artifacts`。
 - [ ] 写入 `reports/tool-catalog-summary.json`，当前应显示 `total=146`、`hidden_handler=21`。
-- [ ] `coverage-map.json` 必须包含 146 个 tool id；缺少任何 tool 时 `--full` 直接失败。
+- [ ] 自动从实时目录生成 `reports/coverage-baseline.json`，包含 146 个唯一 `tool_id`；`coverage-overrides.json` 只保存少量人工策略，不复制完整目录。
+- [ ] `coverage-overrides.json` 中的 tool id 必须全部存在于实时目录；实时目录中任何 tool 没有默认策略或 override 时，`--full` 直接失败。
 - [ ] 验证命令：`node tests/real-e2e/run-architecture-presentation.mjs --inventory --offline`。
-- [ ] 验收：`tool-catalog.json` 有 146 项，`coverage-map.json` 和实时目录完全一致。
+- [ ] 验收：`tool-catalog.json` 有 146 项，`coverage-baseline.json` 和实时目录完全一致。
 - [ ] 提交：`test: capture full cli tool catalog for e2e`。
 
 ### Task 3：素材下载和离线素材生成
@@ -379,14 +395,19 @@
 **文件：**
 - 创建：`tests/real-e2e/deck-brief.json`
 - 创建：`tests/real-e2e/asset-manifest.json`
+- 使用：`tests/real-e2e/seed-assets/`
 - 创建：`tests/real-e2e/lib/assets.mjs`
 
 - [ ] 将 28 页页纲写入 `deck-brief.json`，字段包含 `page`、`title`、`section`、`required_assets`、`required_labels`、`audit_expectations`。
 - [ ] 定义建筑外观、城市区位、材料纹理、平面/剖面 SVG、图标 SVG、CSV、XML 素材，并与 `deck-brief.json` 的每页需求对应。
+- [ ] 默认 `--full --offline` 优先复制 `tests/real-e2e/seed-assets/` 到本次运行目录，避免每次联网下载。
+- [ ] 新增独立 phase `assets_online_smoke`，只验证在线下载/fallback 链路，不作为默认 full 的网络前置条件。
 - [ ] `--offline` 生成本地 SVG/PNG/CSV/XML，占位内容必须可被 InDesign 真实置入或读取。
 - [ ] 离线生成素材必须带可读标题或图形语义，例如 `东岸区位图`、`总平面`、`首层平面`、`材料-再生木`，避免人工查看时只有无意义色块。
 - [ ] 非 offline 模式先下载素材，失败时使用 fallback。
 - [ ] 素材全部写入本次 `assets/`，记录 `id`、`type`、`path`、`size`、`sha256`、`source`。
+- [ ] 至少复制一份图片到 `assets/路径 测试/滨水 图片.jpg`，供 `graphics.place_image` 路径转义测试。
+- [ ] 至少复制 XML 到 `assets/路径 测试/site data 中文.xml`，供 `page.place_xml_on_page` 路径转义测试。
 - [ ] 验证命令：`node tests/real-e2e/run-architecture-presentation.mjs --phase assets --offline`。
 - [ ] 验收：`assets/` 至少包含 6 张图片、8 个 SVG、1 个 CSV、1 个 XML；`deck-brief.json` 的 28 页都能解析到素材或明确不需要素材；`manifest.json` 记录完整。
 - [ ] 提交：`test: add e2e asset manifest and offline assets`。
@@ -410,15 +431,17 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
 - [ ] 执行 `session.clear`、`server.health --deep`。
 - [ ] 按 `deck-brief.json` 创建 28 页页面骨架，每页写入标题、章节标识和页面级 label。
 - [ ] 执行 document 组：`document.create_document`、`document.set_document_preferences`、`document.get_document_preferences`、`document.set_document_layout_preferences`、`document.get_document_layout_preferences`、`document.save_document`、`document.get_document_info`。
 - [ ] 执行 layer 组：`layer.create_layer`、`layer.set_active_layer`、`layer.list_layers`。
 - [ ] 执行 master 组非破坏性命令：`master.create_master_spread`、`master.duplicate_master_spread`、`master.apply_master_spread`、`master.create_master_text_frame`、`master.create_master_rectangle`、`master.create_master_guides`、`master.get_master_spread_info`。
+- [ ] 执行 `document.list_master_spreads`，验证返回刚创建的 `A-Cover/B-Content/C-Analysis`。
 - [ ] 执行 spread 组非破坏性命令：`spread.list_spreads`、`spread.get_spread_info`、`spread.set_spread_properties`、`spread.create_spread_guides`、`spread.select_spread`。
-- [ ] 执行 page 基础命令：`page.add_page`、`page.navigate_to_page`、`page.get_page_info`、`page.set_page_properties`、`page.create_page_guides`、`page.select_page`、`page.zoom_to_page`。
+- [ ] 执行 page 基础命令：`page.add_page`、`page.navigate_to_page`、`page.get_page_info`、`page.set_page_properties`、`page.adjust_page_layout`、`page.create_page_guides`、`page.select_page`、`page.zoom_to_page`。
+- [ ] `page.adjust_page_layout` 后必须审计关键对象 bounds 仍在页面内。
 - [ ] 验收：主文档页数为 28；28 个页面标题与 `deck-brief.json` 一致；母版、图层、guide、section label 可审计。
 - [ ] 提交：`test: cover document structure e2e commands`。
 
@@ -426,12 +449,14 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
 - [ ] 执行 text 组全部命令：`text.create_text_frame`、`text.edit_text_frame`、`text.find_replace_text`、`text.create_table`、`text.populate_table`、`text.find_text_in_document`。
 - [ ] 执行 style 组全部命令：`style.create_object_style`、`style.list_object_styles`、`style.apply_object_style`、`style.create_paragraph_style`、`style.create_character_style`、`style.apply_paragraph_style`、`style.apply_character_style`、`style.list_styles`、`style.create_color_swatch`、`style.list_color_swatches`、`style.apply_color`。
 - [ ] 执行 graphics 组全部命令：`graphics.place_image`、`graphics.create_rectangle`、`graphics.create_ellipse`、`graphics.create_polygon`、`graphics.get_image_info`。
+- [ ] `graphics.place_image` 至少一次使用 `assets/路径 测试/滨水 图片.jpg`。
 - [ ] 执行 page item 命令：`page.place_file_on_page`、`page.place_xml_on_page`、`page.set_page_background`、`page.get_page_item_info`、`page.select_page_item`、`page.move_page_item`、`page.resize_page_item`、`page.set_page_item_properties`、`page.duplicate_page_item`、`page.get_page_item_script_labels`、`page.set_page_item_script_label`、`page.list_page_items`。
+- [ ] `page.place_xml_on_page` 至少一次使用 `assets/路径 测试/site data 中文.xml`。
 - [ ] 执行 document 查询命令：`document.get_document_elements`、`document.get_document_styles`、`document.get_document_colors`、`document.get_document_stories`、`document.get_document_layers`、`document.get_document_hyperlinks`、`document.create_document_hyperlink`、`document.get_document_sections`、`document.create_document_section`、`document.get_document_grid_settings`、`document.set_document_grid_settings`、`document.view_document`。
 - [ ] 按 `deck-brief.json` 填充第 3-25 页的建筑汇报内容：区位、现状、策略、体块、总平、功能、平面、剖面、立面、流线、景观、日照、视线、材料、结构、低碳、指标和分期。
 - [ ] 验收：文字、表格、图片、SVG、样式、色板、链接、label 都能被 `audit-document.jsx` 找到；人工打开 PDF 时第 3-25 页能看出连续的建筑方案叙事。
@@ -441,7 +466,7 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 - 创建：`tests/real-e2e/scripts/README.md`
 
 - [ ] 执行 `template.list_template_blueprints`。
@@ -460,7 +485,7 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
 - [ ] 执行 `presentation.create_presentation_document`，创建 scratch presentation 文档。
 - [ ] 执行 `presentation.add_cover_page`，使用本次素材背景图。
@@ -469,6 +494,7 @@
 - [ ] 执行 `presentation.add_image_grid`。
 - [ ] 执行 `presentation.export_presentation_pdf`。
 - [ ] 执行 `export.verify` 验证 presentation PDF。
+- [ ] phase 结束时关闭 presentation scratch 文档，只保留主文档打开；写入 `phase-checkpoint.json`。
 - [ ] 验收：presentation 文档中标题、章节、图片、网格对象存在；PDF 输出在 `outputs/presentation/`。
 - [ ] 提交：`test: cover presentation hidden handlers e2e`。
 
@@ -476,12 +502,12 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
-- [ ] 准备两个 scratch `.indd`，保存到 `outputs/book/docs/`。
+- [ ] 准备两个 scratch `.indd`，保存到 `outputs/路径 测试/book docs/`，用于覆盖中文和空格路径。
 - [ ] 执行 `book.create_book`。
 - [ ] 执行 `book.open_book`。
-- [ ] 执行 `book.add_document_to_book` 两次。
+- [ ] 执行 `book.add_document_to_book` 两次，至少一次使用 `outputs/路径 测试/book docs/` 下的文档路径。
 - [ ] 执行 `book.get_book_info`，验证文档数量。
 - [ ] 执行 `book.list_books`。
 - [ ] 执行 `book.set_book_properties`。
@@ -494,6 +520,7 @@
 - [ ] 执行 `book.export_book`，输出 PDF 到 `outputs/book/book.pdf`。
 - [ ] 执行 `book.package_book`，输出到 `outputs/book/package/`。
 - [ ] 执行 `book.print_book` 的预期错误或无实际打印策略：不得向真实打印机发送作业；必须验证失败 envelope 或使用安全参数返回。
+- [ ] phase 结束时关闭所有 book 和 book scratch 文档，重新打开主文档；写入 `phase-checkpoint.json`。
 - [ ] 验收：`.indb`、book PDF、package/preflight 产物存在；所有 book 查询返回有效信息。
 - [ ] 提交：`test: cover book hidden handlers e2e`。
 
@@ -501,7 +528,7 @@
 
 **文件：**
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
 - [ ] 新建 scratch 文档，专门执行删除、移动、解组、关闭类命令。
 - [ ] 执行 page 破坏性命令：`page.delete_page`、`page.duplicate_page`、`page.move_page`、`page.resize_page`、`page.snapshot_page_layout`、`page.delete_page_layout_snapshot`、`page.delete_all_page_layout_snapshots`、`page.reframe_page`、`page.delete_page_item`、`page.add_item_to_group`、`page.remove_item_from_group`、`page.list_groups`。
@@ -509,6 +536,7 @@
 - [ ] 执行 master 破坏性命令：`master.delete_master_spread`、`master.detach_master_items`、`master.remove_master_override`。
 - [ ] 执行 object 组全部命令：`object.create_group`、`object.create_group_from_items`、`object.ungroup`、`object.get_group_info`、`object.set_group_properties`。
 - [ ] 执行 `document.organize_document_layers`、`document.clear_session`、`document.get_session_info`。
+- [ ] phase 结束时关闭 scratch 文档，重新打开主文档并执行一次轻量审计；写入 `phase-checkpoint.json`。
 - [ ] 验收：scratch 操作成功，主文档审计前后关键摘要一致。
 - [ ] 提交：`test: isolate destructive e2e command coverage`。
 
@@ -517,15 +545,18 @@
 **文件：**
 - 创建：`tests/real-e2e/lib/artifacts.mjs`
 - 修改：`tests/real-e2e/lib/scenarios.mjs`
-- 修改：`tests/real-e2e/coverage-map.json`
+- 修改：`tests/real-e2e/coverage-overrides.json`
 
 - [ ] 执行 `export.export_pdf`。
 - [ ] 执行 `export.export_images`。
 - [ ] 执行 `export.export_epub`。
 - [ ] 执行 `export.package_document`。
+- [ ] `export.package_document` 至少一次输出到 `outputs/路径 测试/package out/`。
+- [ ] 通过 `script.run` 或 `script.execute_indesign_code` 明确导出 `outputs/architecture-presentation.idml`，并记录该调用复用了脚本传输覆盖而不是新增工具分母。
 - [ ] 执行 `export.verify` 验证 PDF 和 IDML。
 - [ ] 执行 `document.save_document`、`document.close_document`、`document.open_document`。
 - [ ] 执行 `audit-document.jsx`，对比保存前和重开后的页数、label 数量、链接数量、样式和图层。
+- [ ] 执行 `page.get_page_content_summary`，验证最终审计页摘要包含文本、图像和对象统计。
 - [ ] 执行人工可读性抽检：导出前 3 页、11-15 页、21-24 页、26-28 页图片预览，并在 `final-report.md` 记录这些页的页纲验收结果。
 - [ ] 验收：`outputs/architecture-presentation.indd`、`.pdf`、`.idml`、`page-images/`、`package/` 全部存在且通过格式检查；PDF 打开后是一份完整的“东岸文化中心更新方案”建筑汇报。
 - [ ] 提交：`test: validate exported indesign e2e artifacts`。
@@ -538,12 +569,16 @@
 - 修改：`tests/real-e2e/README.md`
 - 修改：`agent-harness/cli_anything/indesign/tests/TEST.md`
 
-- [ ] 写入 `reports/coverage-report.json`，字段包含 `ability_total`、`current_callable_total`、`hidden_handler_total`、`passed`、`failed`、`blocked`、`expected_failure_passed`、`not_callable`。
+- [ ] 写入 `reports/coverage-report.json`，结构必须是 `summary + tools[]`。
+- [ ] `summary` 字段包含 `ability_total`、`current_callable_total`、`hidden_handler_total`、`passed`、`failed`、`blocked`、`expected_failure_passed`、`not_callable`。
+- [ ] `tools[]` 每项必须包含 `tool_id`、`source`、`backend`、`scenario`、`status`、`call_sequence[]`、`stdout_path`、`stderr_path`、`artifact_paths[]`、`audit_refs[]`；summary 只能由 `tools[]` 按唯一 `tool_id` 去重计算。
 - [ ] 写入 `reports/final-report.json`，包含运行目录、最终产物、失败列表、覆盖摘要、审计摘要。
-- [ ] 写入 `reports/final-report.md`，方便人工阅读。
+- [ ] 写入 `reports/final-report.md`，固定 4 段：`Summary`、`Failed/Blocked Tools`、`Artifacts`、`Page Audit`。
+- [ ] `Page Audit` 只列 28 页 `passed/failed`、preview path、key labels，不复制全文对象清单。
 - [ ] `--full` 规则：`failed == 0`、`blocked == 0`、`not_callable == 0`，且 `passed + expected_failure_passed == ability_total`。
 - [ ] `--tool <tool_id>` 允许单工具复现，但不更新 full 通过结论。
 - [ ] `--phase <name>` 允许阶段复现，但不更新 full 通过结论。
+- [ ] `--resume-from <phase>` 从 `phase-checkpoint.json` 恢复；恢复前必须确认主文档路径存在、InDesign 当前状态可控。
 - [ ] README 写清楚环境、运行命令、报告解释、失败排查路径。
 - [ ] 验证命令：`node tests/real-e2e/run-architecture-presentation.mjs --full --offline`。
 - [ ] 验收：full 模式在真实 InDesign 上通过；报告中 146 个工具都有状态。
@@ -569,7 +604,7 @@ node tests/real-e2e/run-architecture-presentation.mjs --full --offline
 
 - [ ] `reports/tool-catalog.json` 当前 146 项。
 - [ ] `reports/tool-catalog-summary.json` 当前 `hidden_handler == 21`。
-- [ ] `coverage-map.json` 与实时目录一致，无缺项、无多余项。
+- [ ] `coverage-baseline.json` 与实时目录一致，无缺项、无多余项；`coverage-overrides.json` 不含未知工具。
 - [ ] 146 个工具都有 `passed` 或 `expected_failure_passed`。
 - [ ] `failed == 0`。
 - [ ] `blocked == 0`。

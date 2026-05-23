@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Building Section</title>
+  <desc id="desc">Concept section showing floor slabs, atrium, green roof, existing masonry, and daylight.</desc>
+  <rect width="1200" height="800" fill="#f8f9fa"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#111">Section A-A</text>
+  <line x1="80" y1="675" x2="1120" y2="675" stroke="#6c757d" stroke-width="8"/>
+  <g fill="#adb5bd" stroke="#343a40" stroke-width="4">
+    <rect x="145" y="560" width="810" height="22"/>
+    <rect x="145" y="440" width="810" height="22"/>
+    <rect x="145" y="320" width="810" height="22"/>
+    <rect x="145" y="200" width="810" height="22"/>
+  </g>
+  <rect x="145" y="200" width="70" height="382" fill="#b08968" stroke="#343a40" stroke-width="4"/>
+  <rect x="885" y="200" width="70" height="382" fill="#ced4da" stroke="#343a40" stroke-width="4"/>
+  <path d="M215 200 H885 L820 125 H280 Z" fill="#74c69d" stroke="#2d6a4f" stroke-width="5"/>
+  <path d="M478 200 V582" stroke="#0077b6" stroke-width="6" stroke-dasharray="16 14"/>
+  <path d="M578 200 V582" stroke="#0077b6" stroke-width="6" stroke-dasharray="16 14"/>
+  <path d="M995 120 C890 170 830 250 780 350" fill="none" stroke="#f4a261" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="1015" cy="105" r="42" fill="#ffd166" stroke="#f4a261" stroke-width="5"/>
+  <text x="500" y="395" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="#023047">Atrium</text>
+  <text x="260" y="158" font-family="Arial, sans-serif" font-size="28" fill="#2d6a4f">Green roof build-up</text>
+  <text x="95" y="395" font-family="Arial, sans-serif" font-size="26" fill="#7f5539" transform="rotate(-90 95 395)">Existing masonry</text>
+  <text x="975" y="405" font-family="Arial, sans-serif" font-size="26" fill="#495057">New core</text>
+  <text x="70" y="730" font-family="Arial, sans-serif" font-size="24" fill="#495057">Tests strokes, dashed lines, rotated text, roof profile, and section labels.</text>
+</svg>

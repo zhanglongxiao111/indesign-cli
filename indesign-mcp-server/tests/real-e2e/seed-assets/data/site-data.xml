@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<siteReport id="demo-industrial-waterfront" generatedFor="real-indesign-e2e">
+  <project>
+    <name>Industrial Waterfront Renewal</name>
+    <location>Demo City Waterfront District</location>
+    <client>Test Fixture Only</client>
+    <status>Concept Design</status>
+  </project>
+  <site>
+    <area unit="sqm">9400</area>
+    <existingUse>Light industrial warehouse</existingUse>
+    <proposedUse>Mixed-use design hub and public waterfront</proposedUse>
+    <constraints>
+      <constraint type="heritage">Retain brick warehouse frontage</constraint>
+      <constraint type="flood">Raise occupied ground floor above design flood datum</constraint>
+      <constraint type="access">Keep service route separated from pedestrian promenade</constraint>
+    </constraints>
+  </site>
+  <program>
+    <item name="Gallery" areaSqm="2200"/>
+    <item name="Studio Workspace" areaSqm="7600"/>
+    <item name="Public Market" areaSqm="1800"/>
+    <item name="Green Roof" areaSqm="2600"/>
+    <item name="Back of House" areaSqm="1450"/>
+  </program>
+  <sustainability>
+    <target name="Stormwater Retention" value="48" unit="percent"/>
+    <target name="Embodied Carbon" value="455" unit="kgCO2e/sqm"/>
+    <target name="Tree Canopy" value="22" unit="percent"/>
+  </sustainability>
+  <deckUse>
+    <page number="1">Hero context and project overview</page>
+    <page number="4">Site strategy and metrics table</page>
+    <page number="8">Sustainability and phasing summary</page>
+  </deckUse>
+</siteReport>

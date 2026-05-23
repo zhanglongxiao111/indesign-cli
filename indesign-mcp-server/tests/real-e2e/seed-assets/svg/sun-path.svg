@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Sun Path Diagram</title>
+  <desc id="desc">Sun path diagram with seasonal arcs, shadow wedge, building footprint, and time labels.</desc>
+  <rect width="1200" height="800" fill="#fffaf0"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#222">Sun Path</text>
+  <circle cx="600" cy="430" r="245" fill="#ffffff" stroke="#adb5bd" stroke-width="4"/>
+  <line x1="600" y1="160" x2="600" y2="700" stroke="#adb5bd" stroke-width="3"/>
+  <line x1="330" y1="430" x2="870" y2="430" stroke="#adb5bd" stroke-width="3"/>
+  <path d="M360 520 Q600 150 840 520" fill="none" stroke="#ffb703" stroke-width="10"/>
+  <path d="M405 570 Q600 275 795 570" fill="none" stroke="#fb8500" stroke-width="9"/>
+  <path d="M455 610 Q600 410 745 610" fill="none" stroke="#e85d04" stroke-width="8"/>
+  <rect x="525" y="390" width="150" height="95" fill="#8d99ae" stroke="#2b2d42" stroke-width="5"/>
+  <path d="M525 485 L225 625 L365 690 L675 485 Z" fill="#2b2d42" opacity="0.18"/>
+  <circle cx="360" cy="520" r="18" fill="#ffb703"/>
+  <circle cx="600" cy="150" r="24" fill="#ffb703"/>
+  <circle cx="840" cy="520" r="18" fill="#ffb703"/>
+  <text x="320" y="555" font-family="Arial, sans-serif" font-size="24" fill="#222">08:00</text>
+  <text x="565" y="122" font-family="Arial, sans-serif" font-size="24" fill="#222">12:00</text>
+  <text x="845" y="555" font-family="Arial, sans-serif" font-size="24" fill="#222">16:00</text>
+  <text x="955" y="245" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#222">Legend</text>
+  <line x1="955" y1="290" x2="1030" y2="290" stroke="#ffb703" stroke-width="10"/>
+  <text x="1045" y="298" font-family="Arial, sans-serif" font-size="22" fill="#222">Summer</text>
+  <line x1="955" y1="330" x2="1030" y2="330" stroke="#fb8500" stroke-width="9"/>
+  <text x="1045" y="338" font-family="Arial, sans-serif" font-size="22" fill="#222">Equinox</text>
+  <line x1="955" y1="370" x2="1030" y2="370" stroke="#e85d04" stroke-width="8"/>
+  <text x="1045" y="378" font-family="Arial, sans-serif" font-size="22" fill="#222">Winter</text>
+</svg>

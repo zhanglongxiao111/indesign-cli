@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Floor 02 Plan</title>
+  <desc id="desc">Upper floor test plan with workspace, meeting rooms, terrace, void, and egress arrows.</desc>
+  <rect width="1200" height="800" fill="#fbfbfb"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#111">Floor 02 Plan</text>
+  <rect x="105" y="125" width="815" height="560" fill="#ffffff" stroke="#111" stroke-width="8"/>
+  <rect x="145" y="165" width="340" height="225" fill="#dbeafe" stroke="#111" stroke-width="5"/>
+  <rect x="525" y="165" width="350" height="225" fill="#dbeafe" stroke="#111" stroke-width="5"/>
+  <rect x="145" y="430" width="250" height="210" fill="#e9ecef" stroke="#111" stroke-width="5"/>
+  <rect x="430" y="430" width="190" height="210" fill="#ffe8d6" stroke="#111" stroke-width="5"/>
+  <rect x="655" y="430" width="220" height="210" fill="#caffbf" stroke="#111" stroke-width="5"/>
+  <rect x="970" y="165" width="135" height="355" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="5"/>
+  <text x="315" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="32">Open Office A</text>
+  <text x="700" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="32">Open Office B</text>
+  <text x="270" y="545" text-anchor="middle" font-family="Arial, sans-serif" font-size="30">Meeting</text>
+  <text x="525" y="545" text-anchor="middle" font-family="Arial, sans-serif" font-size="30">Void</text>
+  <text x="765" y="545" text-anchor="middle" font-family="Arial, sans-serif" font-size="30">Terrace</text>
+  <text x="1038" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" transform="rotate(-90 1038 340)">Green Roof Edge</text>
+  <g stroke="#e63946" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M255 645 C255 705 115 705 115 640"/>
+    <path d="M820 645 C820 715 930 715 930 625"/>
+  </g>
+  <g fill="#e63946">
+    <path d="M115 640 l-18 32 h36 Z"/>
+    <path d="M930 625 l-18 32 h36 Z"/>
+  </g>
+  <text x="105" y="735" font-family="Arial, sans-serif" font-size="24" fill="#495057">Egress arrows and terrace fill test placement scaling.</text>
+</svg>
