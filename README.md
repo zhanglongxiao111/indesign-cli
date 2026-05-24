@@ -1,39 +1,165 @@
-# indesign-cli
+# 🎨 indesign-cli
 
-面向 Agent 的 Adobe InDesign CLI。它把本仓库已有的 MCP server、Windows COM、ExtendScript/JSX 执行链路包装成按需命令，让 Agent 可以发现工具、调用 InDesign 能力、执行脚本、验证导出物，并把配套 skill 安装到其他项目。
+**中文** | [English](./README.en.md)
 
-这个项目不是给人类手敲排版命令用的，也不是重新实现一套 InDesign 自动化。它的重点是给 Agent 一个稳定、省上下文、可脚本化的入口。
+让 AI Agent 直接操作 Adobe InDesign 的命令行工具。
 
-## 能做什么
+`indesign-cli` 把 InDesign 的自动化能力包装成 Agent 友好的 CLI：Agent 可以查询工具、执行 JSX 脚本、调用排版能力、验证导出文件，还可以把配套 Skill 安装到其他项目中。
 
-- 发现工具域、搜索工具、读取工具 schema。
-- 调用已有 MCP/handler 能力。
-- 执行 `.jsx` 文件或短 stdin 探针。
-- 验证 PDF、IDML 等导出产物。
-- 安装 `indesign-cli` skill 到目标项目。
-- 使用高级模板能力读取母版槽位、创建模板页、填充文本和图片。
-- 暴露当前未作为 MCP 工具公开的 Book / Presentation handler 能力。
+如果你正在做 **AI 生成画册、建筑汇报、品牌手册、版式模板、HTML 转 InDesign** 这类项目，它可以让 Agent 不再靠“猜坐标”和“手搓脚本”工作，而是通过稳定的命令和结构化返回值操作真实 InDesign。
 
-## 环境要求
+## ✨ 这个项目解决什么问题？
 
-- Windows。
-- Adobe InDesign 已安装，并和 CLI 在同一用户会话中运行。
-- Node.js 18 及以上。
-- Python 3.10 及以上。
+Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
-## 安装
+- 工具能力多，Agent 不知道该调用哪个。
+- JSX 脚本可以执行，但调试、传参、返回值和错误处理都很散。
+- MCP 工具很多，直接塞进上下文会占用大量 token。
+- 真实导出物是否成功，不能只靠“命令没报错”判断。
 
-远程安装：
+`indesign-cli` 做的事情很简单：**把真实 InDesign 自动化能力变成 Agent 更容易使用的一组命令。**
+
+它不是一个给人类手动排版的 CLI，也不是一个新的排版引擎。它更像是 AI 项目和 InDesign 之间的稳定桥梁。
+
+## 🚀 快速安装
+
+### 1. 准备环境
+
+你需要：
+
+- Windows
+- Adobe InDesign 桌面版
+- Node.js 18+
+- Python 3.10+
+
+InDesign 需要和命令行运行在同一个 Windows 用户会话中。
+
+### 2. 从 GitHub 安装
 
 ```powershell
 pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"
-indesign-cli server setup
-indesign-cli server health
 ```
 
-`server setup` 会在 CLI 打包的 Node server 目录中执行 `npm install`，用于安装 `@modelcontextprotocol/sdk` 和 `winax` 等依赖。
+### 3. 安装 Node 依赖
 
-本地开发安装：
+```powershell
+indesign-cli server setup
+```
+
+这一步会安装 InDesign 自动化所需的 Node 依赖，包括 `winax`。
+
+### 4. 检查环境
+
+```powershell
+indesign-cli --json --pretty server health
+```
+
+如果返回 `ok: true`，CLI 基础环境就绪。
+
+## 🧠 给其他项目安装 Agent Skill
+
+如果你希望某个项目里的 Agent 自动知道如何使用 `indesign-cli`，可以在任意位置运行：
+
+```powershell
+indesign-cli skill install --target D:\AI\your-project
+```
+
+它会安装到：
+
+```text
+D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
+```
+
+之后，该项目中的 Agent 会自动获得这套 InDesign CLI 使用说明。
+
+## 🛠️ 常用能力
+
+### 🔎 查询可用工具
+
+```powershell
+indesign-cli tool domains
+indesign-cli tool search --query "pdf"
+indesign-cli tool list --domain template
+indesign-cli tool schema template.populate_template_slots
+```
+
+Agent 可以先查有哪些工具，再只读取需要的 schema，减少上下文浪费。
+
+### 📜 执行 JSX 脚本
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\probe.jsx
+```
+
+适合测试真实 InDesign 行为、创建文档、检查对象、执行复杂排版逻辑。
+
+短脚本也可以从 stdin 输入：
+
+```powershell
+Get-Content test\workspace\probe.jsx | indesign-cli --json --pretty script run --stdin
+```
+
+### 📦 验证导出物
+
+```powershell
+indesign-cli export verify output\deck.pdf
+```
+
+用于确认 PDF、IDML 等文件真的生成成功，而不是只看命令是否结束。
+
+### 🧩 使用模板槽位
+
+```powershell
+indesign-cli tool call template.list_template_blueprints --args args.json
+indesign-cli tool call template.inspect_template_blueprint --args args.json
+indesign-cli tool call template.create_page_with_template --args args.json
+indesign-cli tool call template.populate_template_slots --args args.json
+```
+
+适合让 Agent 基于母版、脚本标签和槽位名生成稳定页面。
+
+### 📚 Book / Presentation 工具
+
+`indesign-cli` 也包含 Book 和 Presentation 相关能力，例如：
+
+- 创建和管理 InDesign Book
+- 导出 Book
+- 创建演示型文档
+- 添加封面页、章节页、全幅图片页、图片网格页
+
+这些能力可以通过 `tool domains`、`tool list` 和 `tool schema` 查询。
+
+## 🧪 示例工作流
+
+一个典型 Agent 流程可能是：
+
+```powershell
+indesign-cli --json --pretty server health
+indesign-cli tool domains
+indesign-cli tool search --query "template"
+indesign-cli tool schema template.populate_template_slots
+indesign-cli --json --pretty script run test\workspace\build.jsx
+indesign-cli export verify output\presentation.pdf
+```
+
+Agent 负责生成脚本和参数，`indesign-cli` 负责把它们安全地送进真实 InDesign，并返回结构化结果。
+
+## 💡 适合谁使用？
+
+适合：
+
+- 想让 AI Agent 自动操作 InDesign 的开发者
+- 正在做 HTML / JSON / 模板到 InDesign 的转换项目
+- 需要自动生成设计汇报、画册、排版文档的团队
+- 希望用脚本验证真实 InDesign 输出的 Agent 工作流
+
+不适合：
+
+- 只想手动点按钮排版的普通 InDesign 用户
+- 不安装 Adobe InDesign 的纯后端环境
+- 希望用它替代浏览器、LaTeX 或其他排版引擎的场景
+
+## 🔧 本地开发
 
 ```powershell
 git clone https://github.com/zhanglongxiao111/indesign-cli.git
@@ -43,99 +169,7 @@ indesign-cli server setup
 indesign-cli server health
 ```
 
-旧命令 `cli-anything-indesign` 仍然保留为兼容别名，新项目统一使用 `indesign-cli`。
-
-## 给其他项目安装 skill
-
-在目标项目中执行：
-
-```powershell
-indesign-cli skill install --target D:\AI\html-indesign
-```
-
-它会写入：
-
-```text
-D:\AI\html-indesign\.codex\skills\indesign-cli\SKILL.md
-```
-
-目标项目的 Agent 之后会自动知道如何使用 `indesign-cli`。
-
-## 常用命令
-
-健康检查：
-
-```powershell
-indesign-cli --json --pretty server health
-```
-
-发现能力：
-
-```powershell
-indesign-cli tool domains
-indesign-cli tool search --query "pdf"
-indesign-cli tool list --domain template
-indesign-cli tool schema template.populate_template_slots
-```
-
-调用工具：
-
-```powershell
-indesign-cli --json --pretty tool call export.verify --args args.json
-```
-
-执行 JSX：
-
-```powershell
-indesign-cli --json --pretty script run test\workspace\probe.jsx
-```
-
-短探针可以走 stdin：
-
-```powershell
-Get-Content test\workspace\probe.jsx | indesign-cli --json --pretty script run --stdin
-```
-
-验证导出物：
-
-```powershell
-indesign-cli export verify output\deck.pdf
-```
-
-## 高级模板常用流程
-
-```powershell
-indesign-cli tool call template.list_template_blueprints --args args.json
-indesign-cli tool call template.inspect_template_blueprint --args args.json
-indesign-cli tool call template.create_page_with_template --args args.json
-indesign-cli tool call page.get_page_information --args args.json
-indesign-cli tool call template.populate_template_slots --args args.json
-```
-
-槽位名必须以 `inspect_template_blueprint` 或 `page.get_page_information` 返回结果为准，不要凭视觉猜。
-
-## 状态模型
-
-- CLI 不启动常驻服务；每次调用按需启动 Node MCP/bridge 子进程，调用完退出。
-- InDesign 进程和打开文档可以连续存在。
-- Node 子进程内存不会跨命令保留。
-- 连续操作要依赖 JSON 返回值、显式文件路径、InDesign 文档状态、脚本标签，或当前目录 `.indesign-cli/session.json`。
-- JSX 返回 `JSON.stringify(...)` 时，CLI 会额外解析为 `data.result_json`，Agent 应优先读取这个字段。
-
-## 仓库结构
-
-```text
-.
-├─ agent-harness/   # Python CLI、内置 skill、CLI 测试
-├─ src/             # MCP server、handler、ExtendScript/COM 执行链路
-├─ scripts/         # 维护脚本和轻量检查
-├─ tests/           # 单元、场景和真实 InDesign E2E
-├─ docs/            # 当前文档、方案、计划、审查和历史资料
-├─ pyproject.toml   # 远程 pip 安装入口
-└─ AGENTS.md        # 项目级 Agent 协作规则
-```
-
-## 验证
+运行测试：
 
 ```powershell
 python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
@@ -144,20 +178,28 @@ node scripts\check_duplicates.mjs
 node tests\index.js --required
 ```
 
-真实 InDesign E2E 依赖本机 InDesign 和 COM 会话：
+## 📁 项目结构
 
-```powershell
-node tests\real-e2e\run-architecture-presentation.mjs --full --offline
+```text
+.
+├─ agent-harness/   # Python CLI、内置 Skill、CLI 测试
+├─ src/             # MCP Server、InDesign handler、JSX/COM 执行链路
+├─ scripts/         # 维护脚本和检查脚本
+├─ tests/           # 测试和真实 InDesign E2E
+├─ docs/            # 设计文档、计划、协作记录
+├─ pyproject.toml   # pip 安装入口
+└─ AGENTS.md        # 项目级 Agent 协作规则
 ```
 
-## 文档
+## 🗺️ 下一步方向
 
-- `AGENTS.md`：项目级协作入口和硬规则。
-- `docs/README.md`：文档目录索引。
-- `docs/superpowers/specs/`：方案设计。
-- `docs/superpowers/plans/`：实施计划。
-- `docs/AI协作/`：Agent 协作过程材料。
+项目后续会重点完善：
 
-## 许可
+- 更稳定的 HTML / 语义模板到 InDesign 转换链路
+- 更好用的模板槽位协议
+- 更适合 Agent 的排版检查和导出验证
+- 更完善的示例项目和真实 E2E 场景
 
-MIT。详见 `LICENSE`。
+## 📄 License
+
+MIT
