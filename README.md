@@ -6,6 +6,8 @@
 
 `indesign-cli` 把 InDesign 的自动化能力包装成 Agent 友好的 CLI：Agent 可以查询工具、执行 JSX 脚本、调用排版能力、验证导出文件，还可以把配套 Skill 安装到其他项目中。
 
+当前 CLI 可发现 **148 个可调用能力**，覆盖 InDesign 绝大部分常用自动化功能：文档、页面、跨页、母版、图层、文本、图片、基础图形、样式、导出、Book、Presentation、模板槽位、脚本执行和环境检查。
+
 如果你正在做 **AI 生成画册、建筑汇报、品牌手册、版式模板、HTML 转 InDesign** 这类项目，它可以让 Agent 不再靠“猜坐标”和“手搓脚本”工作，而是通过稳定的命令和结构化返回值操作真实 InDesign。
 
 ## ✨ 这个项目解决什么问题？
@@ -19,6 +21,8 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 `indesign-cli` 做的事情很简单：**把真实 InDesign 自动化能力变成 Agent 更容易使用的一组命令。**
 
+它的关键价值之一是 **省 token**：Agent 不需要一次性读取 148 个工具的完整描述，可以先看 `tool domains` 的摘要，再用 `tool search`、`tool list`、`tool schema` 按需加载当前任务需要的工具说明。
+
 它不是一个给人类手动排版的 CLI，也不是一个新的排版引擎。它更像是 AI 项目和 InDesign 之间的稳定桥梁。
 
 ## 🚀 快速安装
@@ -28,7 +32,7 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 你需要：
 
 - Windows
-- Adobe InDesign 桌面版
+- Adobe InDesign 桌面版：推荐 2024-2026；CLI 会尝试连接 2022-2026、CC 版本和通用 `InDesign.Application` COM 入口，实际可用版本取决于本机 COM 注册
 - Node.js 18+
 - Python 3.10+
 
@@ -84,6 +88,19 @@ indesign-cli tool schema template.populate_template_slots
 ```
 
 Agent 可以先查有哪些工具，再只读取需要的 schema，减少上下文浪费。
+
+### 🧰 能力覆盖
+
+当前 `indesign-cli` 可发现 **148 个可调用能力**，覆盖 InDesign 绝大部分常用自动化功能，以及大多数 Agent 自动化场景：
+
+- 文档、页面、跨页、母版、图层
+- 文本框、表格、图片、基础图形、页面对象
+- 段落样式、字符样式、对象样式、色板
+- PDF / IDML / 图片导出与产物验证
+- Book、Presentation、模板槽位和高级模板填充
+- JSX 脚本执行、session 线索、环境检查和 Skill 安装
+
+这些能力通过 CLI 分域查询，不会一次性占满 Agent 上下文。
 
 ### 📜 执行 JSX 脚本
 

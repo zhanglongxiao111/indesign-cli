@@ -6,6 +6,8 @@ An Agent-friendly CLI for controlling Adobe InDesign.
 
 `indesign-cli` wraps real InDesign automation behind a stable command-line interface. AI agents can discover available tools, run JSX scripts, call layout operations, verify exported files, and install a project-level Skill for repeatable InDesign workflows.
 
+The CLI currently exposes **148 callable capabilities**, covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
+
 It is designed for projects such as **AI-generated design decks, architecture presentations, brand manuals, template-driven publishing, and HTML-to-InDesign pipelines**.
 
 ## ✨ What problem does it solve?
@@ -19,6 +21,8 @@ Adobe InDesign is powerful, but it is not easy for AI agents to use directly:
 
 `indesign-cli` provides a practical bridge between AI projects and real Adobe InDesign.
 
+One of its main benefits is **token efficiency**: agents do not need to load all 148 full tool descriptions into context. They can start with compact `tool domains` summaries, then load only the relevant details through `tool search`, `tool list`, and `tool schema`.
+
 It is not a manual layout CLI for humans, and it is not a new layout engine. It is an execution layer for agents that need to automate InDesign safely.
 
 ## 🚀 Quick install
@@ -26,7 +30,7 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 ### 1. Requirements
 
 - Windows
-- Adobe InDesign desktop
+- Adobe InDesign desktop: 2024-2026 recommended. The CLI probes 2022-2026, CC ProgIDs, and the generic `InDesign.Application` COM entry; actual availability depends on local COM registration.
 - Node.js 18+
 - Python 3.10+
 
@@ -78,6 +82,21 @@ indesign-cli tool search --query "pdf"
 indesign-cli tool list --domain template
 indesign-cli tool schema template.populate_template_slots
 ```
+
+Agents can inspect domains first, then load only the schema they need instead of spending context on every tool description.
+
+### 🧰 Capability coverage
+
+`indesign-cli` currently exposes **148 callable capabilities**, covering most commonly automated InDesign features and agent-facing workflows:
+
+- Documents, pages, spreads, masters, and layers
+- Text frames, tables, images, basic shapes, and page items
+- Paragraph styles, character styles, object styles, and swatches
+- PDF / IDML / image export and artifact verification
+- Book, Presentation, template slots, and advanced template filling
+- JSX execution, session hints, environment checks, and Skill installation
+
+These capabilities are discoverable by domain through the CLI, so they do not have to occupy the agent context all at once.
 
 ### 📜 Run JSX scripts
 
