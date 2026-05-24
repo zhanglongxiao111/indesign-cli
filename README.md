@@ -1,169 +1,163 @@
-# 📘 InDesign MCP Server
+# indesign-cli
 
-[English](#english) | [中文](#中文)
+面向 Agent 的 Adobe InDesign CLI。它把本仓库已有的 MCP server、Windows COM、ExtendScript/JSX 执行链路包装成按需命令，让 Agent 可以发现工具、调用 InDesign 能力、执行脚本、验证导出物，并把配套 skill 安装到其他项目。
 
----
+这个项目不是给人类手敲排版命令用的，也不是重新实现一套 InDesign 自动化。它的重点是给 Agent 一个稳定、省上下文、可脚本化的入口。
 
-## English
+## 能做什么
 
-### Prerequisites
-- **Adobe InDesign desktop** (2023–2025). On Windows the COM ProgIDs `InDesign.Application.2025/2024/...` are used; launch InDesign once so COM is registered.
-- **Node.js >= 18**.
-- **Windows (recommended)**. macOS is supported via AppleScript, but you may need to change the target app name in `src/core/scriptExecutor.js` if your InDesign version differs from `Adobe InDesign 2025`.
+- 发现工具域、搜索工具、读取工具 schema。
+- 调用已有 MCP/handler 能力。
+- 执行 `.jsx` 文件或短 stdin 探针。
+- 验证 PDF、IDML 等导出产物。
+- 安装 `indesign-cli` skill 到目标项目。
+- 使用高级模板能力读取母版槽位、创建模板页、填充文本和图片。
+- 暴露当前未作为 MCP 工具公开的 Book / Presentation handler 能力。
 
-### Overview
-InDesign MCP Server turns Adobe InDesign into a Model Context Protocol (MCP) provider with more than 135 production-grade tools. It gives AI agents and automation scripts fine-grained control over documents, pages, styles, graphics, exports, and the new advanced template workflows that power architecture and presentation projects.
+## 环境要求
 
-### Highlights
-- **Comprehensive Toolset:** 13 handler families covering document, page, style, graphics, export, book, and utility operations.
-- **Advanced Template Orchestration:** `indesign-mcp-advanced` server exposes high-level master-page operations that respect slot labels and metadata.
-- **AI-Friendly Design:** Responses are MCP-compliant, streaming-safe (stdout reserved for protocol), and include rich context for downstream reasoning.
-- **Robust Error Handling:** Every handler guards against missing documents, invalid selections, and COM/AppleScript failures with clear diagnostics.
-- **Session Intelligence:** Automatic page dimension tracking, smart placement defaults, and configurable overrides make agent workflows resilient.
+- Windows。
+- Adobe InDesign 已安装，并和 CLI 在同一用户会话中运行。
+- Node.js 18 及以上。
+- Python 3.10 及以上。
 
-### Quick Start
-1. **Install dependencies (from the project root)**
-   ```bash
-   cd indesign-mcp-server
-   npm install
-   ```
-   This pulls `winax` for Windows COM access; make sure you run it on Windows with InDesign installed.
-2. **Launch the classic server**
-   ```bash
-   npm run start
-   ```
-   This starts `src/index.js`, which exposes 130+ atomic tools over MCP.
-3. **Launch the advanced template server (optional)**
-   ```bash
-   node src/advanced/index.js
-   ```
-   The advanced server runs alongside the classic one and returns JSON payloads wrapped in MCP text responses for template orchestration.
-4. **Smoke check (optional)**
-   ```bash
-   node scripts/quick_check.mjs   # prints tool count
-   ```
-   Or use `temp-run.mjs` / `temp-send.mjs` to send sample MCP messages to the advanced server.
+## 安装
 
-### MCP Client Configuration (example)
-```json
-{
-  "mcpServers": {
-    "indesign-mcp-server": {
-      "command": "node",
-      "args": ["src/index.js"],
-      "cwd": "D:/AI/mcp-indesign/indesign-mcp-server",
-      "env": { "NODE_ENV": "production" }
-    },
-    "indesign-mcp-advanced": {
-      "command": "node",
-      "args": ["src/advanced/index.js"],
-      "cwd": "D:/AI/mcp-indesign/indesign-mcp-server",
-      "env": { "NODE_ENV": "production" }
-    }
-  }
-}
-```
-Adjust the paths to match your local directory layout.
+远程安装：
 
-### Repository Layout
-```
-indesign-mcp-server/
-├─ src/               # Core runtime, handlers, utilities, advanced template server
-├─ tests/             # Scenario-driven test suites (node tests/index.js --required)
-├─ scripts/           # Maintenance and automation helpers (e.g., build presentations)
-├─ docs/              # Onboarding guides, integration notes, system prompts
-└─ README.md          # Project-level documentation (see ./indesign-mcp-server/README.md)
+```powershell
+pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"
+indesign-cli server setup
+indesign-cli server health
 ```
 
-### Contributing & License
-- Follow the guidelines in `indesign-mcp-server/CONTRIBUTING.md` and existing conventional commit style (e.g., `feat: …`, `fix: …`).
-- Run the required scenarios via `node tests/index.js --required` before opening a PR.
-- Licensed under the terms listed in `indesign-mcp-server/LICENSE`.
+`server setup` 会在 CLI 打包的 Node server 目录中执行 `npm install`，用于安装 `@modelcontextprotocol/sdk` 和 `winax` 等依赖。
 
-### Support
-If you run into issues, consult the handler-level docs in `indesign-mcp-server/docs/`, review the tests for usage samples, or open a GitHub issue with reproduction steps.
+本地开发安装：
 
----
-
-## 中文
-
-### 前置条件
-- **Adobe InDesign 桌面版**（2023–2025）。在 Windows 通过 COM ProgID（如 `InDesign.Application.2025`）连接，首次安装后请先启动一次 InDesign 以完成注册。
-- **Node.js >= 18**。
-- **Windows（推荐）**。macOS 走 AppleScript，若版本号不同需在 `src/core/scriptExecutor.js` 中调整目标应用名（默认 `Adobe InDesign 2025`）。
-
-### 概览
-InDesign MCP Server 将 Adobe InDesign 打造成一个 MCP 服务端，提供 135+ 项专业工具，实现从文档、页面到样式、图形、导出、图书管理的全链路自动化。新增的 `indesign-mcp-advanced` 模块可以让智能体按照母版脚本标签的说明，批量创建页面并填充模板槽位，尤其适合建筑方案汇报、品牌手册等需要高质量版式的场景。
-
-### 核心亮点
-- **工具覆盖全面：** 13 组处理器，涵盖文档、页面、样式、图形、导出、图书及通用工具。
-- **高级模板编排：** 高级服务器会返回槽位名称、类型与脚本标签说明，智能体可严格遵循母版要求填充内容。
-- **对 AI 友好：** 所有响应均符合 MCP 协议并通过 stderr 输出日志，避免干扰协议数据流。
-- **健壮的错误处理：** 精准提示缺失文档、非法选择或 COM/AppleScript 异常，便于排查。
-- **会话智能：** 自动记录页面尺寸、提供智能定位和 override 逻辑，让连续操作更可靠。
-
-### 快速上手
-1. **安装依赖（从项目根目录进入子目录）**
-   ```bash
-   cd indesign-mcp-server
-   npm install
-   ```
-   需在已安装 InDesign 的 Windows 环境执行，以便正确安装 `winax`。
-2. **启动经典服务器**
-   ```bash
-   npm run start
-   ```
-   对应 `src/index.js`，暴露 130+ 原子化工具。
-3. **启动高级模板服务器（可选）**
-   ```bash
-   node src/advanced/index.js
-   ```
-   高级服务器与经典服务并行运行，返回 JSON 文本响应以支持模板编排。
-4. **快速自检（可选）**
-   ```bash
-   node scripts/quick_check.mjs   # 输出工具总数
-   ```
-   也可使用 `temp-run.mjs` / `temp-send.mjs` 向高级服务器发送示例 MCP 消息。
-
-### MCP 客户端配置示例
-```json
-{
-  "mcpServers": {
-    "indesign-mcp-server": {
-      "command": "node",
-      "args": ["src/index.js"],
-      "cwd": "D:/AI/mcp-indesign/indesign-mcp-server",
-      "env": { "NODE_ENV": "production" }
-    },
-    "indesign-mcp-advanced": {
-      "command": "node",
-      "args": ["src/advanced/index.js"],
-      "cwd": "D:/AI/mcp-indesign/indesign-mcp-server",
-      "env": { "NODE_ENV": "production" }
-    }
-  }
-}
-```
-根据本地部署路径调整 `cwd` 与参数。
-
-### 目录结构
-```
-indesign-mcp-server/
-├─ src/               # 主服务与高级模板模块
-├─ tests/             # 场景化测试（node tests/index.js --required）
-├─ scripts/           # 运维脚本与批处理工具
-├─ docs/              # 文档、集成说明、系统提示词
-└─ README.md          # 项目文档（详见 ./indesign-mcp-server/README.md）
+```powershell
+git clone https://github.com/zhanglongxiao111/indesign-cli.git
+cd indesign-cli
+pip install -e .
+indesign-cli server setup
+indesign-cli server health
 ```
 
-### 贡献与许可
-- 遵循 `indesign-mcp-server/CONTRIBUTING.md` 中的规范，使用项目现有的 Conventional Commit 风格提交。
-- 在提交 PR 前执行 `node tests/index.js --required`，确保核心流程通过。
-- 许可证信息见 `indesign-mcp-server/LICENSE`。
+旧命令 `cli-anything-indesign` 仍然保留为兼容别名，新项目统一使用 `indesign-cli`。
 
-### 支持方式
-如遇问题，可查阅 `indesign-mcp-server/docs/` 中的集成说明、测试用例或在 GitHub 上提交 Issue 并附复现步骤。
+## 给其他项目安装 skill
 
----
+在目标项目中执行：
 
-**Bring AI-driven precision to every InDesign project — 从智能母版到自动化版式，让创意与效率同步升级。**
+```powershell
+indesign-cli skill install --target D:\AI\html-indesign
+```
+
+它会写入：
+
+```text
+D:\AI\html-indesign\.codex\skills\indesign-cli\SKILL.md
+```
+
+目标项目的 Agent 之后会自动知道如何使用 `indesign-cli`。
+
+## 常用命令
+
+健康检查：
+
+```powershell
+indesign-cli --json --pretty server health
+```
+
+发现能力：
+
+```powershell
+indesign-cli tool domains
+indesign-cli tool search --query "pdf"
+indesign-cli tool list --domain template
+indesign-cli tool schema template.populate_template_slots
+```
+
+调用工具：
+
+```powershell
+indesign-cli --json --pretty tool call export.verify --args args.json
+```
+
+执行 JSX：
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\probe.jsx
+```
+
+短探针可以走 stdin：
+
+```powershell
+Get-Content test\workspace\probe.jsx | indesign-cli --json --pretty script run --stdin
+```
+
+验证导出物：
+
+```powershell
+indesign-cli export verify output\deck.pdf
+```
+
+## 高级模板常用流程
+
+```powershell
+indesign-cli tool call template.list_template_blueprints --args args.json
+indesign-cli tool call template.inspect_template_blueprint --args args.json
+indesign-cli tool call template.create_page_with_template --args args.json
+indesign-cli tool call page.get_page_information --args args.json
+indesign-cli tool call template.populate_template_slots --args args.json
+```
+
+槽位名必须以 `inspect_template_blueprint` 或 `page.get_page_information` 返回结果为准，不要凭视觉猜。
+
+## 状态模型
+
+- CLI 不启动常驻服务；每次调用按需启动 Node MCP/bridge 子进程，调用完退出。
+- InDesign 进程和打开文档可以连续存在。
+- Node 子进程内存不会跨命令保留。
+- 连续操作要依赖 JSON 返回值、显式文件路径、InDesign 文档状态、脚本标签，或当前目录 `.indesign-cli/session.json`。
+- JSX 返回 `JSON.stringify(...)` 时，CLI 会额外解析为 `data.result_json`，Agent 应优先读取这个字段。
+
+## 仓库结构
+
+```text
+.
+├─ agent-harness/   # Python CLI、内置 skill、CLI 测试
+├─ src/             # MCP server、handler、ExtendScript/COM 执行链路
+├─ scripts/         # 维护脚本和轻量检查
+├─ tests/           # 单元、场景和真实 InDesign E2E
+├─ docs/            # 当前文档、方案、计划、审查和历史资料
+├─ pyproject.toml   # 远程 pip 安装入口
+└─ AGENTS.md        # 项目级 Agent 协作规则
+```
+
+## 验证
+
+```powershell
+python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
+node scripts\validate_schemas.js
+node scripts\check_duplicates.mjs
+node tests\index.js --required
+```
+
+真实 InDesign E2E 依赖本机 InDesign 和 COM 会话：
+
+```powershell
+node tests\real-e2e\run-architecture-presentation.mjs --full --offline
+```
+
+## 文档
+
+- `AGENTS.md`：项目级协作入口和硬规则。
+- `docs/README.md`：文档目录索引。
+- `docs/superpowers/specs/`：方案设计。
+- `docs/superpowers/plans/`：实施计划。
+- `docs/AI协作/`：Agent 协作过程材料。
+
+## 许可
+
+MIT。详见 `LICENSE`。

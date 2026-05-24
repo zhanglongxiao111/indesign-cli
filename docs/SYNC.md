@@ -41,7 +41,7 @@
   - Adobe InDesign 2025（常规桌面版）已安装并能正常启动
   - Node.js 18+（建议 18 或 20 LTS）
 - 安装依赖
-  - 在项目根目录（indesign-mcp-server）执行：
+  - 在项目根目录执行：
     - npm install
     - npm install winax
 - 启动 MCP 服务器
@@ -62,7 +62,7 @@
   2) Node.js 18+
 - 项目拉取与依赖
   1) git clone <repo>
-  2) cd indesign-mcp-server && npm install && npm install winax
+  2) cd indesign-cli && npm install
 - 可能的系统依赖（仅在个别机器上需要）
   - 若安装 winax 失败：
     - 安装 Visual Studio Build Tools（含“Desktop development with C++”）或 Microsoft C++ 运行库

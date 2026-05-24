@@ -17,7 +17,7 @@ The InDesign MCP Server provides programmatic access to Adobe InDesign through M
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd indesign-mcp-server
+cd indesign-cli
 
 # Install dependencies
 npm install
@@ -34,7 +34,7 @@ Add to your MCP client configuration:
   "mcpServers": {
     "indesign": {
       "command": "node",
-      "args": ["/path/to/indesign-mcp-server/src/index.js"],
+      "args": ["/path/to/indesign-cli/src/index.js"],
       "env": {}
     }
   }
@@ -430,4 +430,4 @@ for (const doc of documents) {
 
 ---
 
-**Note**: This MCP server is designed for macOS with Adobe InDesign. Ensure all prerequisites are met before use. For production environments, consider implementing additional error handling and validation. 
+**Note**: This MCP server is designed for macOS with Adobe InDesign. Ensure all prerequisites are met before use. For production environments, consider implementing additional error handling and validation.
