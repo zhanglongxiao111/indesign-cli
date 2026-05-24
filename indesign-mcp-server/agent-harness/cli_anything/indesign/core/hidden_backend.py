@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 from .errors import CliError, TimeoutError
 from .hidden_handler_schemas import HIDDEN_HANDLER_SCHEMAS
 from .paths import scrub_text_paths
+from .runtime import hidden_handler_bridge_path
 
 
 class HiddenHandlerBackend:
@@ -25,9 +27,7 @@ class HiddenHandlerBackend:
         schema = self.schema(tool["id"])
         self._validate_required(schema, arguments)
 
-        bridge = self.repo_root / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
-        if not bridge.exists():
-            raise CliError("Hidden handler bridge not found", code="HIDDEN_HANDLER_BRIDGE_NOT_FOUND")
+        bridge = hidden_handler_bridge_path()
 
         request = {
             "domain": tool["domain"],
@@ -38,6 +38,7 @@ class HiddenHandlerBackend:
             proc = subprocess.run(
                 ["node", str(bridge)],
                 cwd=self.repo_root,
+                env={**os.environ, "INDESIGN_CLI_SERVER_ROOT": str(self.repo_root)},
                 input=json.dumps(request, ensure_ascii=False),
                 text=True,
                 encoding="utf-8",

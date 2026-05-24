@@ -30,8 +30,70 @@ def test_version_returns_json():
     assert result.returncode == 0
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
-    assert payload["data"]["name"] == "cli-anything-indesign"
-    assert payload["data"]["version"] == "0.1.1"
+    assert payload["data"]["name"] == "indesign-cli"
+    assert "cli-anything-indesign" in payload["data"]["aliases"]
+    assert payload["data"]["version"]
+
+
+def test_pyproject_exposes_remote_installable_package_and_console_aliases():
+    pyproject_path = REPO_ROOT / "pyproject.toml"
+    assert pyproject_path.exists()
+    payload = pyproject_path.read_text(encoding="utf-8")
+    assert 'name = "indesign-cli"' in payload
+    assert 'Repository = "https://github.com/zhanglongxiao111/indesign-cli"' in payload
+    assert 'indesign-cli = "cli_anything.indesign.indesign_cli:main"' in payload
+    assert 'cli-anything-indesign = "cli_anything.indesign.indesign_cli:main"' in payload
+
+
+def test_runtime_resolves_server_root_and_packaged_skill():
+    from cli_anything.indesign.core.runtime import resolve_server_root, skill_source_path
+
+    server_root = resolve_server_root()
+    assert (server_root / "src" / "index.js").exists()
+    assert (server_root / "src" / "advanced" / "index.js").exists()
+    assert (server_root / "package.json").exists()
+
+    skill_path = skill_source_path()
+    assert skill_path.name == "SKILL.md"
+    assert "name: indesign-cli" in skill_path.read_text(encoding="utf-8")
+
+
+def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.node_setup import setup_node_dependencies
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+
+        class Result:
+            returncode = 0
+            stdout = "installed"
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    payload = setup_node_dependencies(tmp_path)
+
+    assert calls[0][0] == ["npm", "install"]
+    assert calls[0][1]["cwd"] == tmp_path
+    assert payload["ok"] is True
+    assert payload["server_root"] == str(tmp_path)
+
+
+def test_skill_install_copies_packaged_skill_to_target(tmp_path):
+    result = run_module("skill", "install", "--target", str(tmp_path))
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["tool_id"] == "skill.install"
+
+    installed = tmp_path / ".codex" / "skills" / "indesign-cli" / "SKILL.md"
+    assert installed.exists()
+    assert installed == Path(payload["data"]["installed_path"])
+    assert "name: indesign-cli" in installed.read_text(encoding="utf-8")
 
 
 def test_external_path_is_scrubbed():

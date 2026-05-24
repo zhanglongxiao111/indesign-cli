@@ -35,6 +35,7 @@ PRIMITIVE_SCHEMAS = {
             "deep": {"type": "boolean", "description": "是否执行较深的依赖检查"},
         },
     },
+    "server.setup": {"type": "object", "additionalProperties": False, "properties": {}},
     "session.show": {
         "type": "object",
         "additionalProperties": False,
@@ -49,6 +50,13 @@ PRIMITIVE_SCHEMAS = {
         "properties": {
             "file": {"type": "string", "description": "要执行的 JSX 文件路径"},
             "stdin": {"type": "boolean", "description": "从 stdin 读取临时 JSX"},
+        },
+    },
+    "skill.install": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "target": {"type": "string", "description": "目标项目根目录；默认使用当前工作目录"},
         },
     },
 }
@@ -124,6 +132,14 @@ class Router:
             from .health import health
 
             return health(self.repo_root, deep=bool(args.get("deep")))
+        if tool_id == "server.setup":
+            from .node_setup import setup_node_dependencies
+
+            return setup_node_dependencies(self.repo_root)
+        if tool_id == "skill.install":
+            from .runtime import install_skill
+
+            return install_skill(Path(args.get("target") or "."))
         raise CliError(f"Unsupported CLI primitive: {tool_id}", code="CLI_PRIMITIVE_UNSUPPORTED")
 
     def _call_script_primitive(self, args: dict[str, Any]) -> dict[str, Any]:

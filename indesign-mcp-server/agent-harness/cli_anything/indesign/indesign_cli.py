@@ -13,12 +13,15 @@ from .core.envelope import failure, now_ms, success
 from .core.errors import CliError
 from .core.health import health
 from .core.mcp_backend import McpBackend
+from .core.node_setup import setup_node_dependencies
 from .core.router import Router, load_args
+from .core.runtime import install_skill, resolve_server_root
 from .core.scripts import run_script, run_stdin_script
 from .core.session import SessionStore
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+SERVER_ROOT = resolve_server_root()
+REPO_ROOT = SERVER_ROOT
 
 
 def emit(payload: dict[str, Any]) -> int:
@@ -29,13 +32,17 @@ def emit(payload: dict[str, Any]) -> int:
 def version_payload() -> dict[str, Any]:
     return success(
         command="version",
-        data={"name": "cli-anything-indesign", "version": __version__},
+        data={
+            "name": "indesign-cli",
+            "version": __version__,
+            "aliases": ["cli-anything-indesign"],
+        },
         duration_ms=0,
     )
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="cli-anything-indesign")
+    parser = argparse.ArgumentParser(prog="indesign-cli")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--pretty", action="store_true")
@@ -80,6 +87,12 @@ def build_parser() -> argparse.ArgumentParser:
     server_sub = server_parser.add_subparsers(dest="server_command")
     health_parser = server_sub.add_parser("health")
     health_parser.add_argument("--deep", action="store_true")
+    server_sub.add_parser("setup")
+
+    skill_parser = subparsers.add_parser("skill")
+    skill_sub = skill_parser.add_subparsers(dest="skill_command")
+    install_parser = skill_sub.add_parser("install")
+    install_parser.add_argument("--target", default=".")
     return parser
 
 
@@ -192,10 +205,16 @@ def run(argv: list[str] | None = None) -> int:
     if args.group == "server" and (args.server_command == "health" or args.server_command is None):
         data = health(REPO_ROOT, deep=getattr(args, "deep", False))
         return emit(success(command="server health", data=data, duration_ms=0, tool_id="server.health"))
+    if args.group == "server" and args.server_command == "setup":
+        data = setup_node_dependencies(REPO_ROOT)
+        return emit(success(command="server setup", data=data, duration_ms=0, tool_id="server.setup", domain="server", source="cli"))
+    if args.group == "skill" and args.skill_command == "install":
+        data = install_skill(Path(args.target))
+        return emit(success(command="skill install", data=data, duration_ms=0, tool_id="skill.install", domain="skill", source="cli"))
     raise CliError(
         "Command is required",
         code="COMMAND_REQUIRED",
-        details={"groups": ["tool", "script", "export", "session", "server"]},
+        details={"groups": ["tool", "script", "export", "session", "server", "skill"]},
         hint="先用 tool domains 查看工具域，或用 tool search --query <关键词> 查找工具。",
     )
 
@@ -208,7 +227,7 @@ def safe_command(argv: list[str] | None) -> str:
         return "cli"
     if parts[0] == "tool" and len(parts) > 1:
         return f"tool {parts[1]}"
-    if parts[0] in {"script", "export", "session"} and len(parts) > 1:
+    if parts[0] in {"script", "export", "session", "skill"} and len(parts) > 1:
         return f"{parts[0]} {parts[1]}"
     return parts[0]
 

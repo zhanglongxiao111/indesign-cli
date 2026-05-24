@@ -1,8 +1,35 @@
 #!/usr/bin/env node
-import { stdin, stdout } from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { env, stdin, stdout } from 'node:process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { BookHandlers } from '../../../../src/handlers/bookHandlers.js';
-import { PresentationHandlers } from '../../../../src/handlers/presentationHandlers.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function resolveServerRoot() {
+  const candidates = [
+    env.INDESIGN_CLI_SERVER_ROOT,
+    path.resolve(__dirname, '../../../../'),
+    path.resolve(__dirname, '../server'),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (
+      fs.existsSync(path.join(candidate, 'src', 'handlers', 'bookHandlers.js')) &&
+      fs.existsSync(path.join(candidate, 'src', 'handlers', 'presentationHandlers.js'))
+    ) {
+      return candidate;
+    }
+  }
+
+  throw new Error('Unable to resolve InDesign CLI server root');
+}
+
+const serverRoot = resolveServerRoot();
+const { BookHandlers } = await import(pathToFileURL(path.join(serverRoot, 'src', 'handlers', 'bookHandlers.js')).href);
+const { PresentationHandlers } = await import(
+  pathToFileURL(path.join(serverRoot, 'src', 'handlers', 'presentationHandlers.js')).href
+);
 
 const HANDLERS = {
   book: BookHandlers,

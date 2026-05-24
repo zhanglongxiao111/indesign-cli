@@ -1,38 +1,173 @@
 ---
-name: cli-anything-indesign
-description: 当 Agent 需要通过本项目 CLI 操作 Adobe InDesign、发现工具、调用 MCP 能力、执行 JSX 或验证导出产物时使用。
+name: indesign-cli
+description: 当 Agent 需要通过 indesign-cli 操作真实 Adobe InDesign、执行 JSX、调用现有工具、验证导出物，或在其他项目中接入 InDesign 自动化能力时使用。
 ---
 
-# cli-anything-indesign
+# InDesign CLI
 
-## 使用入口
+## 定位
 
-优先使用：
+使用 `indesign-cli` 连接真实 Adobe InDesign。CLI 是工具目录、schema、参数、可调用性、健康检查和 session 输出的真相来源；不要把这些可发现信息硬编码进任务上下文。
 
-```powershell
-cli-anything-indesign tool domains
-cli-anything-indesign tool list --domain template
-cli-anything-indesign tool schema template.run_jsx_file
-cli-anything-indesign tool call template.run_jsx_file --args args.json
-```
+本 skill 只补 CLI 自己无法判断的 Agent 行为约束：什么时候查目录、什么时候写 JSX、状态如何跨命令传递、临时文件放哪里，以及失败时如何处理。
 
-多步骤或工具选择不明确时，优先生成 `.jsx` 文件并执行：
+## 使用顺序
 
-```powershell
-cli-anything-indesign script run path/to/script.jsx
-```
+从目标项目根目录运行命令，让 `.indesign-cli/session.json`、相对资源路径和测试产物都落在当前项目内。
 
-导出后必须验证产物：
+如果命令不存在，默认从远程仓库安装：
 
 ```powershell
-cli-anything-indesign export verify path/to/output.pdf
+pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git#subdirectory=indesign-mcp-server"
+indesign-cli server setup
 ```
 
-## 规则
+旧命令 `cli-anything-indesign` 保留为兼容别名；新项目只写 `indesign-cli`。
 
-- 默认读取 domain 摘要，不默认拉全量 schema。
-- 只对明确候选执行 `tool schema`。
-- `hidden_handler` 来源的 Book / Presentation 工具已经可通过 `tool schema` 和 `tool call` 直接调用。
-- 需要连续状态时，依赖 JSON 返回值、脚本标签、显式路径或 `.indesign-cli/session.json`。
-- 不记录客户文档内容、客户名称或外部完整路径。
-- 真实 InDesign 行为必须走现有 MCP/COM/JSX 链路，不做模拟成功。
+真实操作前先检查环境：
+
+```powershell
+indesign-cli --json --pretty server health
+```
+
+工具选择不明确时，按需渐进发现：
+
+```powershell
+indesign-cli tool domains
+indesign-cli tool search --query "<关键词>"
+indesign-cli tool list --domain <domain>
+indesign-cli tool schema <tool_id>
+```
+
+单个明确工具用 `tool call`。多步骤排版、复杂状态检查、E2E 验证、HTML/JSON 构建指令落地、或需要稳定复现的问题，优先写成 `.jsx` 文件再执行：
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\probe.jsx
+```
+
+`script run --stdin` 只用于很短的临时探针；需要复跑、引用文件、相对 `#include`、保存证据或多人协作时，用文件模式。
+
+导出 PDF、IDML 或图片后，用 CLI 验证产物，不要只看文件是否存在：
+
+```powershell
+indesign-cli export verify path/to/output.pdf
+```
+
+## 高级模板常用能力
+
+高级模板工具数量少、使用频率高，可以直接优先考虑。完整参数仍以 `tool schema <tool_id>` 为准。
+
+推荐流程：
+
+1. 打开或指定模板 INDD。
+2. `template.list_template_blueprints` 快速看当前文档有哪些母版模板。
+3. `template.inspect_template_blueprint` 读取槽位名、说明和 PageNotes。
+4. `template.create_page_with_template` 新建页面并套用母版。
+5. `page.get_page_information` 复核页面、母版和 override 后的槽位。
+6. `template.populate_template_slots` 用 inspect/page info 返回的槽位名填文字和图片。
+
+常用调用样例：
+
+```powershell
+indesign-cli --json --pretty tool call template.list_template_blueprints --args test\workspace\args.json
+```
+
+`args.json`：
+
+```json
+{}
+```
+
+```powershell
+indesign-cli --json --pretty tool call template.inspect_template_blueprint --args test\workspace\args.json
+```
+
+`args.json`，省略 `templatePath` 时使用当前打开文档：
+
+```json
+{
+  "templatePath": "D:\\path\\template.indd"
+}
+```
+
+```powershell
+indesign-cli --json --pretty tool call template.create_page_with_template --args test\workspace\args.json
+```
+
+`args.json`：
+
+```json
+{
+  "templateName": "A-封面",
+  "position": "AT_END",
+  "label": "cover-01"
+}
+```
+
+```powershell
+indesign-cli --json --pretty tool call page.get_page_information --args test\workspace\args.json
+```
+
+`args.json`：
+
+```json
+{
+  "pageIndex": 0
+}
+```
+
+```powershell
+indesign-cli --json --pretty tool call template.populate_template_slots --args test\workspace\args.json
+```
+
+`args.json`：
+
+```json
+{
+  "templatePath": "D:\\path\\template.indd",
+  "pageIndex": 0,
+  "outputPath": "D:\\path\\output.indd",
+  "values": {
+    "title": {
+      "text": "项目汇报标题"
+    },
+    "heroImage": {
+      "imagePath": "D:\\path\\image.jpg",
+      "fit": "FILL_FRAME",
+      "clearExisting": true
+    }
+  }
+}
+```
+
+槽位名必须以 `inspect_template_blueprint` 或 `get_page_information` 返回值为准，不要凭视觉猜。图片填充常用 `FILL_FRAME` 或 `PROPORTIONALLY`；保留整图优先用 `PROPORTIONALLY`，铺满画面优先用 `FILL_FRAME`。
+
+`template.run_jsx_file` 是高级模板服务器的兼容入口，参数是绝对 `filePath`。普通 Agent 调试优先用 CLI 原生命令 `script run <file.jsx>`，除非需要复用高级模板工具链。
+
+## 读取结果
+
+- 给测试脚本或后续 Agent 判断使用时，加 `--json --pretty`。
+- 判断执行结果时看 `ok`、`exit_code`、`tool_success`、`warnings` 和 `data`，不要只看自然语言输出。
+- JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)`。
+- JSX 返回 JSON 字符串时，优先读取 `data.result_json`，不要让后续步骤重复解析 `data.parsed.result`。
+
+## 状态模型
+
+- CLI 不是常驻服务；每次命令会按需启动并关闭 Node MCP/bridge 子进程。
+- InDesign 进程、打开的文档和文档内对象可以延续；Node 子进程内存状态不会跨命令延续。
+- 跨步骤状态必须显式落到 JSON 返回值、文件路径、InDesign 文档状态、脚本标签，或当前目录 `.indesign-cli/session.json`。
+- 不要假设上一次命令里创建的 JS 变量、缓存对象或临时内存还能被下一次命令读取。
+
+## 上层项目边界
+
+- 上层项目负责自己的语义、schema、validator、compiler output 和测试断言。
+- CLI 只负责把能力发现、工具调用、JSX 传输、COM 执行和导出验证做稳。
+- 如果上层项目是 HTML-to-InDesign 或模板编译器，不要把 HTML 解析、语义推理、大段校验逻辑塞进 JSX；JSX 应尽量接收已校验的构建指令。
+- 不要为了 InDesign 实现细节让 HTML 或源数据变得反常；翻译层负责把自然输入转换成 InDesign 合适的样式、页面对象和资源置入。
+
+## 测试卫生
+
+- 临时真实测试放到目标项目已忽略的工作目录；没有约定时使用 `test/workspace/<日期时间>/`，并确认它不进 git。
+- 不记录客户文档内容、客户名称或私有资产完整路径；必须引用外部文件时，用临时副本或脱敏路径。
+- 创建临时 InDesign 文档后，测试结束要保存到工作目录或关闭，避免堆积标签页。
+- `server health`、COM 或 InDesign 环境失败时，报告环境阻塞；不要绕过 CLI 写模拟成功。

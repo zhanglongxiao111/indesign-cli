@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "indesign-cli"
+version = "0.2.0"
+description = "Agent-native CLI for Adobe InDesign automation"
+readme = "agent-harness/cli_anything/indesign/README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "indesign-cli maintainers" }]
+keywords = ["indesign", "cli", "agent", "automation", "mcp", "adobe"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Win32 (MS Windows)",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: JavaScript",
+  "Topic :: Multimedia :: Graphics",
+  "Topic :: Software Development :: Build Tools",
+]
+
+[project.scripts]
+indesign-cli = "cli_anything.indesign.indesign_cli:main"
+cli-anything-indesign = "cli_anything.indesign.indesign_cli:main"
+
+[project.urls]
+Repository = "https://github.com/zhanglongxiao111/indesign-cli"
+Issues = "https://github.com/zhanglongxiao111/indesign-cli/issues"
+Homepage = "https://github.com/zhanglongxiao111/indesign-cli#readme"
+
+[tool.setuptools]
+package-dir = { "" = "agent-harness" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["agent-harness"]
+include = ["cli_anything.*"]
+
+[tool.setuptools.package-data]
+"cli_anything.indesign" = ["skills/*.md", "node/*.mjs"]

@@ -1,21 +1,25 @@
-# cli-anything-indesign
+# indesign-cli
 
 Agent 专用 InDesign CLI harness。
 
 常用命令：
 
 ```powershell
-cli-anything-indesign --version
-cli-anything-indesign tool domains
-cli-anything-indesign tool list --domain template
-cli-anything-indesign tool schema template.run_jsx_file
-cli-anything-indesign tool call template.run_jsx_file --args args.json
-cli-anything-indesign script run scripts/check.jsx
-cli-anything-indesign script run --stdin
-cli-anything-indesign export verify output/result.pdf
-cli-anything-indesign server health
-cli-anything-indesign session show
+indesign-cli --version
+indesign-cli tool domains
+indesign-cli tool list --domain template
+indesign-cli tool schema template.run_jsx_file
+indesign-cli tool call template.run_jsx_file --args args.json
+indesign-cli script run scripts/check.jsx
+indesign-cli script run --stdin
+indesign-cli export verify output/result.pdf
+indesign-cli server setup
+indesign-cli server health
+indesign-cli session show
+indesign-cli skill install --target D:\AI\html-indesign
 ```
+
+`cli-anything-indesign` 仍可作为旧项目兼容别名使用。
 
 `script run` 是 Agent 做真实 InDesign 验证的主入口：
 

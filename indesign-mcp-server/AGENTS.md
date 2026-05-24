@@ -79,7 +79,8 @@
 本项目已提供 Agent 专用 CLI harness：
 
 - 位置：`agent-harness/`
-- 命令入口：`cli-anything-indesign`
+- 命令入口：`indesign-cli`
+- 兼容入口：`cli-anything-indesign`
 - Python 包名：`cli_anything.indesign`
 - 本地 session：当前工作目录下的 `.indesign-cli/session.json`
 
@@ -157,15 +158,18 @@
 | 动作 | 命令 / 规则 |
 | ---- | ----------- |
 | 安装依赖 | `npm install` |
-| 安装 CLI harness | `cd agent-harness && pip install -e .` |
-| CLI 健康检查 | `cli-anything-indesign server health` |
-| CLI 工具域 | `cli-anything-indesign tool domains` |
-| CLI 工具列表 | `cli-anything-indesign tool list --domain <domain>` |
-| CLI Schema | `cli-anything-indesign tool schema <tool_id>` |
-| CLI 调用工具 | `cli-anything-indesign tool call <tool_id> --args args.json` |
-| CLI 执行 JSX | `cli-anything-indesign script run <file.jsx>` |
-| CLI 执行 stdin JSX | `cli-anything-indesign script run --stdin` |
-| CLI 验证产物 | `cli-anything-indesign export verify <path>` |
+| 安装 CLI harness | `pip install -e .` |
+| 远程安装 CLI | `pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git#subdirectory=indesign-mcp-server"` |
+| 安装 Node 依赖 | `indesign-cli server setup` |
+| 安装项目 skill | `indesign-cli skill install --target <project-root>` |
+| CLI 健康检查 | `indesign-cli server health` |
+| CLI 工具域 | `indesign-cli tool domains` |
+| CLI 工具列表 | `indesign-cli tool list --domain <domain>` |
+| CLI Schema | `indesign-cli tool schema <tool_id>` |
+| CLI 调用工具 | `indesign-cli tool call <tool_id> --args args.json` |
+| CLI 执行 JSX | `indesign-cli script run <file.jsx>` |
+| CLI 执行 stdin JSX | `indesign-cli script run --stdin` |
+| CLI 验证产物 | `indesign-cli export verify <path>` |
 | 启动经典服务器 | `npm run start` 或 `node src/index.js` |
 | 调试经典服务器 | `npm run dev` |
 | 启动高级模板服务器 | `node src/advanced/index.js` |

@@ -1,6 +1,8 @@
-# InDesign Agent CLI
+# InDesign CLI
 
-`cli-anything-indesign` 是给 Agent 使用的 InDesign CLI。默认输出 JSON，主要用于发现工具、调用现有 MCP 能力、执行 JSX、验证产物和读取最小 session 线索。
+`indesign-cli` 是给 Agent 使用的 InDesign CLI。默认输出 JSON，主要用于发现工具、调用现有 MCP 能力、执行 JSX、验证产物和读取最小 session 线索。
+
+旧命令 `cli-anything-indesign` 保留为兼容别名；新项目统一使用 `indesign-cli`。
 
 推荐顺序：
 
