@@ -72,6 +72,21 @@ D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
 
 Agents working in that project can then use the InDesign CLI with the right workflow guidance.
 
+## 🧩 Plugin integration
+
+`indesign-cli` supports project-level plugins, so higher-level projects can expose their own capabilities through the same tool catalog. For example, an HTML-to-InDesign project can register the `html` domain and let agents use it through `tool list/schema/call`.
+
+Local plugin example:
+
+```powershell
+indesign-cli plugin install D:\AI\html-indesign
+indesign-cli plugin validate D:\AI\html-indesign
+indesign-cli plugin doctor html-indesign
+indesign-cli tool list --domain html
+```
+
+Plugin tools do not have to occupy the agent context by default. Agents can still inspect compact domain summaries first, then load schemas only when needed.
+
 ## 🛠️ Common capabilities
 
 ### 🔎 Discover tools

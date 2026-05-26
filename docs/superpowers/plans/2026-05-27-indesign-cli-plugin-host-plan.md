@@ -57,10 +57,10 @@ indesign-cli tool call html.authoring_lint --args args.json
 
 ## Task 0：基线确认
 
-- [ ] 确认工作区状态，记录已有未跟踪文件，不清理无关目录。
-- [ ] 跑当前 CLI 单元测试，确认插件改造前基线可用。
-- [ ] 用当前 catalog 统计工具数，作为插件接入前基线。
-- [ ] 确认 `indesign-cli --version`、`tool domains`、`tool schema script.run` 正常。
+- [x] 确认工作区状态，记录已有未跟踪文件，不清理无关目录。
+- [x] 跑当前 CLI 单元测试，确认插件改造前基线可用。
+- [x] 用当前 catalog 统计工具数，作为插件接入前基线。
+- [x] 确认 `indesign-cli --version`、`tool domains`、`tool schema script.run` 正常。
 
 验收命令：
 
@@ -74,17 +74,17 @@ $env:PYTHONPATH='agent-harness'; python -m cli_anything.indesign --json --pretty
 
 目标：先有一个极小插件，用来验证宿主协议，不依赖 `html-indesign` 真实代码。
 
-- [ ] 新增 `agent-harness/cli_anything/indesign/tests/fixtures/plugins/fake-html-plugin/manifest.json`。
-- [ ] 新增 fake plugin Node 入口 `index.js`。
-- [ ] fake plugin 支持 `plugin/handshake`。
-- [ ] fake plugin 支持 `tools/list`，返回至少三个工具：
+- [x] 新增 `agent-harness/cli_anything/indesign/tests/fixtures/plugins/fake-html-plugin/manifest.json`。
+- [x] 新增 fake plugin Node 入口 `index.js`。
+- [x] fake plugin 支持 `plugin/handshake`。
+- [x] fake plugin 支持 `tools/list`，返回至少三个工具：
   - `html.authoring_lint`：不需要 InDesign，无副作用。
   - `html.compile_instructions`：不需要 InDesign，生成 JSON artifact。
   - `html.build_indesign`：需要 InDesign，返回 host action。
-- [ ] fake plugin 支持 `tools/schema`。
-- [ ] fake plugin 支持 `tools/call`。
-- [ ] fake plugin 支持 `tools/resume`。
-- [ ] fake plugin 提供可控失败模式，用于测试错误响应、stdout 噪声、非法 host action。
+- [x] fake plugin 支持 `tools/schema`。
+- [x] fake plugin 支持 `tools/call`。
+- [x] fake plugin 支持 `tools/resume`。
+- [x] fake plugin 提供可控失败模式，用于测试错误响应、stdout 噪声、非法 host action。
 
 验收标准：
 
@@ -96,11 +96,11 @@ $env:PYTHONPATH='agent-harness'; python -m cli_anything.indesign --json --pretty
 
 目标：宿主可以读取插件安装记录和插件自身 manifest，并给出稳定错误。
 
-- [ ] 实现 manifest JSON 读取。
-- [ ] 支持两类输入：
+- [x] 实现 manifest JSON 读取。
+- [x] 支持两类输入：
   - 插件 root：自动寻找 `src/indesign-cli-plugin/manifest.json`。
   - manifest 文件：直接读取。
-- [ ] 校验必填字段：
+- [x] 校验必填字段：
   - `schema_version`
   - `protocol`
   - `id`
@@ -113,12 +113,12 @@ $env:PYTHONPATH='agent-harness'; python -m cli_anything.indesign --json --pretty
   - `requires`
   - `capabilities`
   - `permissions`
-- [ ] 校验 `id`、`domain`、`version` 格式。
-- [ ] 校验 `entry` 存在且不越出插件 root。
-- [ ] 校验 `kind` 第一版只接受 `node-plugin`。
-- [ ] 校验 `protocol` 第一版只接受 `indesign-cli-plugin.v1`。
-- [ ] 校验 `permissions.indesign` 必须是 `host_only`。
-- [ ] 错误统一抛 `CliError`，错误码使用 spec 中的 `PLUGIN_*`。
+- [x] 校验 `id`、`domain`、`version` 格式。
+- [x] 校验 `entry` 存在且不越出插件 root。
+- [x] 校验 `kind` 第一版只接受 `node-plugin`。
+- [x] 校验 `protocol` 第一版只接受 `indesign-cli-plugin.v1`。
+- [x] 校验 `permissions.indesign` 必须是 `host_only`。
+- [x] 错误统一抛 `CliError`，错误码使用 spec 中的 `PLUGIN_*`。
 
 验收标准：
 
@@ -132,12 +132,12 @@ $env:PYTHONPATH='agent-harness'; python -m cli_anything.indesign --json --pretty
 
 目标：完成第一版本地插件安装机制。
 
-- [ ] 实现项目级插件目录 `<cwd>/.indesign-cli/plugins/`。
-- [ ] `plugin install <path>` 写入 `<cwd>/.indesign-cli/plugins/<id>.json`。
-- [ ] 安装记录使用绝对 `root`，不复制插件源码。
-- [ ] 重复安装同 ID 时默认覆盖同一项目级记录。
-- [ ] `plugin remove <id>` 删除项目级安装记录，不删除插件源码。
-- [ ] `plugin list` 展示：
+- [x] 实现项目级插件目录 `<cwd>/.indesign-cli/plugins/`。
+- [x] `plugin install <path>` 写入 `<cwd>/.indesign-cli/plugins/<id>.json`。
+- [x] 安装记录使用绝对 `root`，不复制插件源码。
+- [x] 重复安装同 ID 时默认覆盖同一项目级记录。
+- [x] `plugin remove <id>` 删除项目级安装记录，不删除插件源码。
+- [x] `plugin list` 展示：
   - 插件 ID
   - domain
   - version
@@ -165,14 +165,14 @@ indesign-cli plugin remove html-indesign
 
 目标：把插件发现做成独立模块，为后续用户级、entry point、内置插件留口。
 
-- [ ] 实现项目级插件发现。
+- [x] 实现项目级插件发现。
 - [ ] 预留用户级插件发现接口。
 - [ ] 预留 Python entry point `indesign_cli.plugins` 发现接口。
 - [ ] 预留包内置插件目录发现接口。
-- [ ] 实现同 ID 优先级合并。
-- [ ] 高优先级覆盖低优先级时生成 warning。
-- [ ] 同一优先级重复 ID 报错。
-- [ ] 发现失败的插件不应让整个 CLI 崩掉；应进入 warnings，除非用户正在显式操作该插件。
+- [x] 实现同 ID 优先级合并。
+- [x] 高优先级覆盖低优先级时生成 warning。
+- [x] 同一优先级重复 ID 报错。
+- [x] 发现失败的插件不应让整个 CLI 崩掉；应进入 warnings，除非用户正在显式操作该插件。
 
 验收标准：
 
@@ -185,18 +185,18 @@ indesign-cli plugin remove html-indesign
 
 目标：实现一次性 Node 插件进程调用。
 
-- [ ] 实现插件入口启动：`node <entry>`。
-- [ ] 使用 UTF-8 JSON stdin/stdout。
-- [ ] `stderr` 收集为诊断信息，不进入协议 JSON。
-- [ ] 禁止协议外 stdout；发现后 `plugin validate` 报错。
-- [ ] 实现请求 ID。
-- [ ] 实现超时，默认 30 秒。
-- [ ] 实现 `plugin/handshake`。
-- [ ] 实现 `tools/list`。
-- [ ] 实现 `tools/schema`。
-- [ ] 实现 `tools/call`。
-- [ ] 实现 `tools/resume`。
-- [ ] 插件错误转换为 `CliError`，并保留 `code/message/details`。
+- [x] 实现插件入口启动：`node <entry>`。
+- [x] 使用 UTF-8 JSON stdin/stdout。
+- [x] `stderr` 收集为诊断信息，不进入协议 JSON。
+- [x] 禁止协议外 stdout；发现后 `plugin validate` 报错。
+- [x] 实现请求 ID。
+- [x] 实现超时，默认 30 秒。
+- [x] 实现 `plugin/handshake`。
+- [x] 实现 `tools/list`。
+- [x] 实现 `tools/schema`。
+- [x] 实现 `tools/call`。
+- [x] 实现 `tools/resume`。
+- [x] 插件错误转换为 `CliError`，并保留 `code/message/details`。
 
 验收标准：
 
@@ -211,18 +211,18 @@ indesign-cli plugin remove html-indesign
 
 目标：插件工具进入 Agent 可见的统一目录。
 
-- [ ] `VALID_SOURCES` 增加 `plugin`。
-- [ ] `Catalog` 支持接收 plugin tools。
-- [ ] `domains()` 合并核心 domain 和插件 domain。
-- [ ] `list_tools(domain='html')` 支持插件 domain。
-- [ ] `list_tools(source='plugin')` 支持插件来源。
-- [ ] `search` 能搜索插件工具 ID、name、purpose。
-- [ ] 插件工具由宿主补齐：
+- [x] `VALID_SOURCES` 增加 `plugin`。
+- [x] `Catalog` 支持接收 plugin tools。
+- [x] `domains()` 合并核心 domain 和插件 domain。
+- [x] `list_tools(domain='html')` 支持插件 domain。
+- [x] `list_tools(source='plugin')` 支持插件来源。
+- [x] `search` 能搜索插件工具 ID、name、purpose。
+- [x] 插件工具由宿主补齐：
   - `source: plugin`
   - `plugin`
   - `availability: exposed`
 - [ ] 插件工具字段缺失时，`plugin validate` 失败，catalog 只加载合格工具。
-- [ ] 核心工具和插件工具 ID 冲突时，插件加载失败。
+- [x] 核心工具和插件工具 ID 冲突时，插件加载失败。
 
 验收命令：
 
@@ -244,14 +244,14 @@ indesign-cli tool search --domain html --query lint
 
 目标：让 Agent 稳定入口真正能调用插件工具。
 
-- [ ] `Router.schema()` 支持 `source: plugin`。
-- [ ] `Router.call()` 支持 `source: plugin`。
-- [ ] 插件 schema 返回值包装成现有 `tool schema` envelope。
-- [ ] 插件 call 返回值包装成现有 `tool call` envelope。
-- [ ] 插件调用失败时记录 session 失败。
-- [ ] 插件调用成功时记录 session 成功。
-- [ ] 插件返回 artifact 时，session 只记录允许展示的相对路径。
-- [ ] 插件错误不能直接穿透为非结构化异常。
+- [x] `Router.schema()` 支持 `source: plugin`。
+- [x] `Router.call()` 支持 `source: plugin`。
+- [x] 插件 schema 返回值包装成现有 `tool schema` envelope。
+- [x] 插件 call 返回值包装成现有 `tool call` envelope。
+- [x] 插件调用失败时记录 session 失败。
+- [x] 插件调用成功时记录 session 成功。
+- [x] 插件返回 artifact 时，session 只记录允许展示的相对路径。
+- [x] 插件错误不能直接穿透为非结构化异常。
 
 验收命令：
 
@@ -271,18 +271,18 @@ indesign-cli session show
 
 目标：需要真实 InDesign 的插件工具通过宿主受控执行。
 
-- [ ] 插件 call 返回 `status: requires_host_actions` 时进入 host action 执行流程。
-- [ ] 第一版只允许：
+- [x] 插件 call 返回 `status: requires_host_actions` 时进入 host action 执行流程。
+- [x] 第一版只允许：
   - `script.run`
   - `export.verify`
   - `session.show`
-- [ ] `script.run` host action 只允许执行当前项目目录或插件输出目录下的 JSX。
-- [ ] 拒绝任意 shell、任意 Node、任意 Python host action。
-- [ ] 每个 host action 使用现有 Router 调用。
-- [ ] host action 失败后仍调用插件 `tools/resume`，让插件生成最终错误报告。
-- [ ] 限制 resume 最大轮数，默认 3。
-- [ ] 超过 resume 轮数报 `PLUGIN_HOST_ACTION_LIMIT_EXCEEDED`。
-- [ ] host action 结果进入最终返回数据的诊断区，但不能泄露客户私有路径。
+- [x] `script.run` host action 只允许执行当前项目目录或插件输出目录下的 JSX。
+- [x] 拒绝任意 shell、任意 Node、任意 Python host action。
+- [x] 每个 host action 使用现有 Router 调用。
+- [x] host action 失败后仍调用插件 `tools/resume`，让插件生成最终错误报告。
+- [x] 限制 resume 最大轮数，默认 3。
+- [x] 超过 resume 轮数报 `PLUGIN_HOST_ACTION_LIMIT_EXCEEDED`。
+- [x] host action 结果进入最终返回数据的诊断区，但不能泄露客户私有路径。
 
 验收标准：
 
@@ -295,25 +295,25 @@ indesign-cli session show
 
 目标：提供给 `html-indesign` 开发者的标准检测工具。
 
-- [ ] `plugin validate <path-or-manifest>` 支持插件 root。
-- [ ] `plugin validate <path-or-manifest>` 支持 manifest 文件。
-- [ ] 检查 manifest 必填字段。
-- [ ] 检查协议版本。
-- [ ] 检查 ID、domain、version。
-- [ ] 检查 entry 路径。
-- [ ] 检查 host-only InDesign 权限。
-- [ ] 执行 handshake。
-- [ ] 执行 tools/list。
-- [ ] 对每个工具执行 tools/schema。
-- [ ] 校验工具 ID 格式。
-- [ ] 校验 tool domain 与 manifest domain 一致。
-- [ ] 校验 `arg_names` 与 schema properties 一致。
-- [ ] 校验 schema object 子集。
-- [ ] 校验工具必须声明 `needs_indesign`、`side_effects`、`artifact_kinds`。
-- [ ] 检查 stdout 噪声。
+- [x] `plugin validate <path-or-manifest>` 支持插件 root。
+- [x] `plugin validate <path-or-manifest>` 支持 manifest 文件。
+- [x] 检查 manifest 必填字段。
+- [x] 检查协议版本。
+- [x] 检查 ID、domain、version。
+- [x] 检查 entry 路径。
+- [x] 检查 host-only InDesign 权限。
+- [x] 执行 handshake。
+- [x] 执行 tools/list。
+- [x] 对每个工具执行 tools/schema。
+- [x] 校验工具 ID 格式。
+- [x] 校验 tool domain 与 manifest domain 一致。
+- [x] 校验 `arg_names` 与 schema properties 一致。
+- [x] 校验 schema object 子集。
+- [x] 校验工具必须声明 `needs_indesign`、`side_effects`、`artifact_kinds`。
+- [x] 检查 stdout 噪声。
 - [ ] 检查错误响应格式。
-- [ ] 输出 JSON envelope。
-- [ ] 有错误时退出码为 1。
+- [x] 输出 JSON envelope。
+- [x] 有错误时退出码为 1。
 
 验收命令：
 
@@ -331,17 +331,17 @@ indesign-cli plugin validate agent-harness\cli_anything\indesign\tests\fixtures\
 
 目标：安装后排查插件在当前项目是否真的可用。
 
-- [ ] `plugin doctor <id>` 先执行已安装插件解析。
-- [ ] 显示插件来自哪个发现来源。
+- [x] `plugin doctor <id>` 先执行已安装插件解析。
+- [x] 显示插件来自哪个发现来源。
 - [ ] 显示是否被更高优先级覆盖。
-- [ ] 检查当前 `.indesign-cli/session.json` 是否可写。
+- [x] 检查当前 `.indesign-cli/session.json` 是否可写。
 - [ ] 检查插件输出目录是否可写。
-- [ ] 检查 Node 版本是否满足。
+- [x] 检查 Node 版本是否满足。
 - [ ] 检查宿主是否提供插件声明的 host action。
-- [ ] 如果插件实现 `plugin/doctor`，调用并合并结果。
+- [x] 如果插件实现 `plugin/doctor`，调用并合并结果。
 - [ ] 对支持 dry run 的工具执行 dry run。
-- [ ] 默认不执行真实 InDesign mutation。
-- [ ] `--deep` 才允许执行真实 InDesign 相关检测。
+- [x] 默认不执行真实 InDesign mutation。
+- [x] `--deep` 才允许执行真实 InDesign 相关检测。
 
 验收命令：
 
@@ -361,16 +361,16 @@ indesign-cli plugin doctor html-indesign --deep
 
 目标：把插件命令接进现有 `argparse` CLI。
 
-- [ ] 增加 `plugin` 命令组。
-- [ ] 增加 `plugin list`。
-- [ ] 增加 `plugin install <path>`。
-- [ ] 增加 `plugin remove <id>`。
-- [ ] 增加 `plugin validate <path-or-manifest>`。
-- [ ] 增加 `plugin doctor <id>`。
-- [ ] `safe_command()` 支持插件命令，避免错误 envelope command 混乱。
-- [ ] 构建 catalog 时合并插件 warnings。
-- [ ] 非插件命令不因为坏插件完全不可用。
-- [ ] 第一版不实现 `indesign-cli html ...`，只在 plan 后续阶段保留。
+- [x] 增加 `plugin` 命令组。
+- [x] 增加 `plugin list`。
+- [x] 增加 `plugin install <path>`。
+- [x] 增加 `plugin remove <id>`。
+- [x] 增加 `plugin validate <path-or-manifest>`。
+- [x] 增加 `plugin doctor <id>`。
+- [x] `safe_command()` 支持插件命令，避免错误 envelope command 混乱。
+- [x] 构建 catalog 时合并插件 warnings。
+- [x] 非插件命令不因为坏插件完全不可用。
+- [x] 第一版不实现 `indesign-cli html ...`，只在 plan 后续阶段保留。
 
 验收标准：
 
@@ -382,25 +382,25 @@ indesign-cli plugin doctor html-indesign --deep
 
 目标：不依赖真实 InDesign 的宿主行为必须被单元测试覆盖。
 
-- [ ] 测试合法 manifest。
-- [ ] 测试缺字段 manifest。
+- [x] 测试合法 manifest。
+- [x] 测试缺字段 manifest。
 - [ ] 测试 entry 缺失。
 - [ ] 测试 entry 越界。
-- [ ] 测试项目级 install/list/remove。
+- [x] 测试项目级 install/list/remove。
 - [ ] 测试发现优先级。
 - [ ] 测试重复 ID。
-- [ ] 测试 plugin validate 成功。
-- [ ] 测试 plugin validate 失败。
-- [ ] 测试 plugin doctor 成功。
-- [ ] 测试 catalog 动态 html domain。
-- [ ] 测试 `tool list --domain html`。
-- [ ] 测试 `tool schema html.authoring_lint`。
-- [ ] 测试 `tool call html.authoring_lint`。
-- [ ] 测试非法 host action。
-- [ ] 测试 host action resume。
+- [x] 测试 plugin validate 成功。
+- [x] 测试 plugin validate 失败。
+- [x] 测试 plugin doctor 成功。
+- [x] 测试 catalog 动态 html domain。
+- [x] 测试 `tool list --domain html`。
+- [x] 测试 `tool schema html.authoring_lint`。
+- [x] 测试 `tool call html.authoring_lint`。
+- [x] 测试非法 host action。
+- [x] 测试 host action resume。
 - [ ] 测试插件 stdout 噪声。
 - [ ] 测试插件超时。
-- [ ] 测试 session 记录插件调用。
+- [x] 测试 session 记录插件调用。
 
 验收命令：
 
@@ -434,9 +434,9 @@ python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
 
 目标：把长期入口写清楚，但不把插件细节塞满 Agent 上下文。
 
-- [ ] 更新 `README.md`，增加插件能力概览和本地安装示例。
-- [ ] 更新 `README.en.md`。
-- [ ] 更新内置 Skill，只补 CLI 内无法发现的信息：
+- [x] 更新 `README.md`，增加插件能力概览和本地安装示例。
+- [x] 更新 `README.en.md`。
+- [x] 更新内置 Skill，只补 CLI 内无法发现的信息：
   - 插件机制存在。
   - 优先用 `tool domains/list/schema/call` 发现插件工具。
   - 需要 HTML 能力时先检查 `tool list --domain html`。
@@ -464,17 +464,16 @@ python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
 
 ## 最终验收清单
 
-- [ ] 当前 CLI 原有测试通过。
-- [ ] fake plugin 通过 `plugin validate`。
-- [ ] fake plugin 通过 `plugin doctor`。
-- [ ] `tool domains` 出现 `html`。
-- [ ] `tool list --domain html` 出现 fake plugin 工具。
-- [ ] `tool schema html.authoring_lint` 返回 schema。
-- [ ] `tool call html.authoring_lint --args args.json` 成功。
-- [ ] `html.build_indesign` 的 host action/resume 链路可跑通 fake 场景。
-- [ ] 非法 host action 被拒绝。
-- [ ] session 记录插件调用。
+- [x] 当前 CLI 原有测试通过。
+- [x] fake plugin 通过 `plugin validate`。
+- [x] fake plugin 通过 `plugin doctor`。
+- [x] `tool domains` 出现 `html`。
+- [x] `tool list --domain html` 出现 fake plugin 工具。
+- [x] `tool schema html.authoring_lint` 返回 schema。
+- [x] `tool call html.authoring_lint --args args.json` 成功。
+- [x] `html.build_indesign` 的 host action/resume 链路可跑通 fake 场景。
+- [x] 非法 host action 被拒绝。
+- [x] session 记录插件调用。
 - [ ] `html-indesign` 本地插件可以安装并通过 validate。
 - [ ] 不安装插件时，基础 `indesign-cli` 仍可正常使用。
-- [ ] 文档更新完成。
-
+- [x] 文档更新完成。

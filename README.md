@@ -76,6 +76,21 @@ D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
 
 之后，该项目中的 Agent 会自动获得这套 InDesign CLI 使用说明。
 
+## 🧩 插件接入
+
+`indesign-cli` 支持项目级插件，让上层项目把自己的高层能力接入统一工具目录。比如 HTML-to-InDesign 项目可以注册 `html` 域，Agent 再通过同一套 `tool list/schema/call` 使用它。
+
+本地插件接入示例：
+
+```powershell
+indesign-cli plugin install D:\AI\html-indesign
+indesign-cli plugin validate D:\AI\html-indesign
+indesign-cli plugin doctor html-indesign
+indesign-cli tool list --domain html
+```
+
+插件工具不会默认挤进 Agent 上下文。Agent 仍然先看 domain 摘要，再按需读取具体 schema。
+
 ## 🛠️ 常用能力
 
 ### 🔎 查询可用工具

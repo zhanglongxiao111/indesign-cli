@@ -9,11 +9,16 @@ from typing import Any
 from . import __version__
 from .core.artifacts import parse_timestamp, verify_artifact
 from .core.catalog import Catalog
+from .core.catalog import plugin_tool_entries
 from .core.envelope import failure, now_ms, success
 from .core.errors import CliError
 from .core.health import health
 from .core.mcp_backend import McpBackend
 from .core.node_setup import setup_node_dependencies
+from .core.plugins.backend import PluginBackend
+from .core.plugins.discovery import discover_plugins
+from .core.plugins.install import install_plugin, list_plugins, remove_plugin
+from .core.plugins.validate import doctor_plugin, validate_plugin_path
 from .core.router import Router, load_args
 from .core.runtime import install_skill, resolve_server_root
 from .core.scripts import run_script, run_stdin_script
@@ -93,6 +98,19 @@ def build_parser() -> argparse.ArgumentParser:
     skill_sub = skill_parser.add_subparsers(dest="skill_command")
     install_parser = skill_sub.add_parser("install")
     install_parser.add_argument("--target", default=".")
+
+    plugin_parser = subparsers.add_parser("plugin")
+    plugin_sub = plugin_parser.add_subparsers(dest="plugin_command")
+    plugin_sub.add_parser("list")
+    plugin_install = plugin_sub.add_parser("install")
+    plugin_install.add_argument("path")
+    plugin_remove = plugin_sub.add_parser("remove")
+    plugin_remove.add_argument("id")
+    plugin_validate = plugin_sub.add_parser("validate")
+    plugin_validate.add_argument("path")
+    plugin_doctor = plugin_sub.add_parser("doctor")
+    plugin_doctor.add_argument("id")
+    plugin_doctor.add_argument("--deep", action="store_true")
     return parser
 
 
@@ -101,6 +119,9 @@ def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
     warnings: list[str] = []
     advanced_tools: list[dict[str, Any]] = []
     classic_tools: list[dict[str, Any]] = []
+    plugin_tools: list[dict[str, Any]] = []
+    plugin_domain_summaries: dict[str, str] = {}
+    plugin_records = {}
     for source, entry, sink in (
         ("advanced", "src/advanced/index.js", advanced_tools),
         ("classic", "src/index.js", classic_tools),
@@ -109,7 +130,40 @@ def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
             sink.extend(McpBackend(repo_root=REPO_ROOT, entry=entry).list_tools())
         except CliError as exc:
             warnings.append(f"{source} backend unavailable: {exc.code}")
-    return base.with_exposed_tools(advanced_tools=advanced_tools, classic_tools=classic_tools), warnings
+    try:
+        discovered, plugin_warnings = discover_plugins(Path.cwd(), host_version=__version__)
+        warnings.extend(plugin_warnings)
+    except CliError as exc:
+        discovered = []
+        warnings.append(f"plugin discovery unavailable: {exc.code}")
+    for record in discovered:
+        try:
+            backend = PluginBackend(record)
+            backend.handshake({"name": "indesign-cli", "version": __version__, "protocol": record.manifest["protocol"]})
+            plugin_tools.extend(plugin_tool_entries(record, backend.list_tools()))
+            plugin_domain_summaries[record.domain] = str(record.manifest.get("description") or f"{record.id} plugin tools")
+            plugin_records[record.id] = record
+        except CliError as exc:
+            warnings.append(f"plugin {record.id} unavailable: {exc.code}")
+    return (
+        base.with_exposed_tools(
+            advanced_tools=advanced_tools,
+            classic_tools=classic_tools,
+            plugin_tools=plugin_tools,
+            plugin_domain_summaries=plugin_domain_summaries,
+            plugin_records=plugin_records,
+        ),
+        warnings,
+    )
+
+
+def emit_check(command: str, data: dict[str, Any], *, tool_id: str | None = None) -> int:
+    payload = success(command=command, data=data, duration_ms=0, tool_id=tool_id)
+    if data.get("ok") is False:
+        payload["ok"] = False
+        payload["exit_code"] = 1
+        payload["tool_success"] = False
+    return emit(payload)
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -150,6 +204,7 @@ def run(argv: list[str] | None = None) -> int:
                     source=tool["source"],
                     ok=False,
                     duration_ms=0,
+                    plugin=tool.get("plugin"),
                 )
                 raise
             store.record_call(
@@ -158,6 +213,8 @@ def run(argv: list[str] | None = None) -> int:
                 source=tool["source"],
                 ok=True,
                 duration_ms=0,
+                plugin=tool.get("plugin"),
+                artifacts=data.get("artifacts") if isinstance(data, dict) else None,
             )
             return emit(
                 success(
@@ -170,6 +227,22 @@ def run(argv: list[str] | None = None) -> int:
                     warnings=warnings,
                 )
             )
+    if args.group == "plugin":
+        if args.plugin_command == "list" or args.plugin_command is None:
+            data = list_plugins(cwd=Path.cwd(), host_version=__version__)
+            return emit(success(command="plugin list", data=data, duration_ms=0, tool_id="plugin.list", domain="plugin", source="cli", warnings=data.get("warnings", [])))
+        if args.plugin_command == "install":
+            data = install_plugin(args.path, cwd=Path.cwd(), host_version=__version__)
+            return emit(success(command="plugin install", data=data, duration_ms=0, tool_id="plugin.install", domain="plugin", source="cli"))
+        if args.plugin_command == "remove":
+            data = remove_plugin(args.id, cwd=Path.cwd())
+            return emit(success(command="plugin remove", data=data, duration_ms=0, tool_id="plugin.remove", domain="plugin", source="cli"))
+        if args.plugin_command == "validate":
+            data = validate_plugin_path(args.path, host_version=__version__)
+            return emit_check("plugin validate", data, tool_id="plugin.validate")
+        if args.plugin_command == "doctor":
+            data = doctor_plugin(args.id, cwd=Path.cwd(), host_version=__version__, deep=bool(args.deep))
+            return emit_check("plugin doctor", data, tool_id="plugin.doctor")
     if args.group == "script" and args.script_command == "run":
         catalog, warnings = build_catalog_with_backends()
         router = Router(catalog=catalog, repo_root=REPO_ROOT)
@@ -214,7 +287,7 @@ def run(argv: list[str] | None = None) -> int:
     raise CliError(
         "Command is required",
         code="COMMAND_REQUIRED",
-        details={"groups": ["tool", "script", "export", "session", "server", "skill"]},
+        details={"groups": ["tool", "script", "export", "session", "server", "skill", "plugin"]},
         hint="先用 tool domains 查看工具域，或用 tool search --query <关键词> 查找工具。",
     )
 
@@ -227,7 +300,7 @@ def safe_command(argv: list[str] | None) -> str:
         return "cli"
     if parts[0] == "tool" and len(parts) > 1:
         return f"tool {parts[1]}"
-    if parts[0] in {"script", "export", "session", "skill"} and len(parts) > 1:
+    if parts[0] in {"script", "export", "session", "skill", "plugin"} and len(parts) > 1:
         return f"{parts[0]} {parts[1]}"
     return parts[0]
 

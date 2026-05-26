@@ -10,6 +10,8 @@ from .catalog import Catalog
 from .errors import CliError
 from .hidden_backend import HiddenHandlerBackend
 from .mcp_backend import McpBackend
+from .plugins.backend import PluginBackend
+from .plugins.host_actions import ALLOWED_HOST_ACTIONS, HostActionExecutor
 
 
 BACKENDS = {
@@ -81,6 +83,10 @@ class Router:
             return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})}
         if tool["source"] == "hidden_handler":
             return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id)}
+        if tool["source"] == "plugin":
+            backend = self._plugin_backend(tool)
+            payload = backend.schema(tool_id)
+            return {"tool": tool, "inputSchema": payload.get("inputSchema", {})}
         backend = self._backend(tool["source"])
         for item in backend.list_tools():
             if item["name"] == tool["name"]:
@@ -97,6 +103,10 @@ class Router:
             return self._call_script_primitive(args)
         if tool["source"] == "hidden_handler":
             return HiddenHandlerBackend(self.repo_root).call_tool(tool, args)
+        if tool["source"] == "plugin":
+            backend = self._plugin_backend(tool)
+            result = backend.call_tool(tool_id, args, self._plugin_context())
+            return HostActionExecutor(self, Path.cwd()).complete(backend, tool_id, result)
         if tool["source"] not in BACKENDS:
             raise CliError(f"Tool is handled by a CLI command: {tool_id}", code="CLI_PRIMITIVE_ROUTE")
         backend = self._backend(tool["source"])
@@ -108,6 +118,21 @@ class Router:
         except KeyError as exc:
             raise CliError(f"Unsupported backend source: {source}", code="BACKEND_NOT_SUPPORTED") from exc
         return McpBackend(repo_root=self.repo_root, entry=entry)
+
+    def _plugin_backend(self, tool: dict[str, Any]) -> PluginBackend:
+        plugin_id = tool.get("plugin")
+        if not isinstance(plugin_id, str) or not plugin_id:
+            raise CliError("Plugin tool is missing plugin id", code="PLUGIN_RECORD_NOT_FOUND", details={"tool_id": tool.get("id")})
+        return PluginBackend(self.catalog.plugin_record(plugin_id))
+
+    @staticmethod
+    def _plugin_context() -> dict[str, Any]:
+        cwd = Path.cwd()
+        return {
+            "cwd": str(cwd),
+            "session_path": str(cwd / ".indesign-cli" / "session.json"),
+            "host_tools": sorted(ALLOWED_HOST_ACTIONS),
+        }
 
     def _call_cli_primitive(self, tool_id: str, args: dict[str, Any]) -> dict[str, Any]:
         if tool_id == "export.verify":

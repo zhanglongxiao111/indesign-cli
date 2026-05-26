@@ -53,6 +53,25 @@ indesign-cli --json --pretty script run test\workspace\probe.jsx
 indesign-cli export verify path/to/output.pdf
 ```
 
+## 插件工具
+
+上层项目可以通过 `indesign-cli` 插件把自己的高层能力接入统一工具目录。需要 HTML-to-InDesign、语义模板、回环验证等能力时，先检查插件是否存在，不要假设它已经安装：
+
+```powershell
+indesign-cli plugin list
+indesign-cli tool list --domain html
+```
+
+本地插件接入或排查时使用：
+
+```powershell
+indesign-cli plugin install D:\AI\html-indesign
+indesign-cli plugin validate D:\AI\html-indesign
+indesign-cli plugin doctor html-indesign
+```
+
+插件工具仍然优先通过 `tool schema <tool_id>` 和 `tool call <tool_id>` 使用。不要绕过宿主直接调用插件内部脚本；需要真实 InDesign 的插件能力应由宿主执行 `script.run`、`export.verify` 等受控动作。
+
 ## 高级模板常用能力
 
 高级模板工具数量少、使用频率高，可以直接优先考虑。完整参数仍以 `tool schema <tool_id>` 为准。

@@ -8,15 +8,16 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 HARNESS_ROOT = REPO_ROOT / "agent-harness"
+FAKE_PLUGIN_ROOT = HARNESS_ROOT / "cli_anything" / "indesign" / "tests" / "fixtures" / "plugins" / "fake-html-plugin"
 sys.path.insert(0, str(HARNESS_ROOT))
 
 
-def run_module(*args: str) -> subprocess.CompletedProcess[str]:
+def run_module(*args: str, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
     return subprocess.run(
         [sys.executable, "-m", "cli_anything.indesign", *args],
-        cwd=REPO_ROOT,
+        cwd=cwd,
         env=env,
         text=True,
         stdout=subprocess.PIPE,
@@ -150,6 +151,7 @@ def test_safe_command_ignores_global_flags():
 
     assert safe_command(["--json", "--pretty", "script", "run"]) == "script run"
     assert safe_command(["--pretty", "tool", "domains"]) == "tool domains"
+    assert safe_command(["plugin", "validate"]) == "plugin validate"
 
 
 def test_invalid_domain_is_actionable():
@@ -233,6 +235,130 @@ def test_cli_action_commands_return_agent_useful_payloads(tmp_path):
     assert script_result.returncode == 1
     script_payload = json.loads(script_result.stdout)
     assert script_payload["error"]["code"] == "SCRIPT_INPUT_REQUIRED"
+
+
+def test_plugin_validate_accepts_fake_plugin():
+    result = run_module("plugin", "validate", str(FAKE_PLUGIN_ROOT))
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["data"]["ok"] is True
+    assert payload["data"]["plugin"] == "fake-html-plugin"
+    assert payload["data"]["summary"]["tools"] == 3
+
+    manifest_result = run_module("plugin", "validate", str(FAKE_PLUGIN_ROOT / "manifest.json"))
+    assert manifest_result.returncode == 0
+    assert json.loads(manifest_result.stdout)["data"]["plugin"] == "fake-html-plugin"
+
+
+def test_plugin_validate_rejects_bad_manifest(tmp_path):
+    bad = tmp_path / "bad-plugin"
+    bad.mkdir()
+    (bad / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "protocol": "indesign-cli-plugin.v1",
+                "id": "bad-plugin",
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = run_module("plugin", "validate", str(bad))
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["data"]["ok"] is False
+    assert any(item["code"] == "PLUGIN_MANIFEST_INVALID" for item in payload["data"]["errors"])
+
+
+def test_plugin_install_list_remove_project_plugin(tmp_path):
+    install = run_module("plugin", "install", str(FAKE_PLUGIN_ROOT), cwd=tmp_path)
+    assert install.returncode == 0
+    install_payload = json.loads(install.stdout)
+    assert install_payload["data"]["id"] == "fake-html-plugin"
+
+    record = tmp_path / ".indesign-cli" / "plugins" / "fake-html-plugin.json"
+    assert record.exists()
+
+    listed = run_module("plugin", "list", cwd=tmp_path)
+    listed_payload = json.loads(listed.stdout)
+    assert listed.returncode == 0
+    assert listed_payload["data"]["plugins"][0]["id"] == "fake-html-plugin"
+    assert listed_payload["data"]["plugins"][0]["domain"] == "html"
+
+    removed = run_module("plugin", "remove", "fake-html-plugin", cwd=tmp_path)
+    assert removed.returncode == 0
+    assert not record.exists()
+
+
+def test_plugin_tools_enter_catalog_and_router(tmp_path):
+    run_module("plugin", "install", str(FAKE_PLUGIN_ROOT), cwd=tmp_path)
+
+    domains = json.loads(run_module("tool", "domains", cwd=tmp_path).stdout)["data"]
+    html_domain = next(item for item in domains if item["domain"] == "html")
+    assert html_domain["count_by_source"]["plugin"] == 3
+
+    listed = json.loads(run_module("tool", "list", "--domain", "html", cwd=tmp_path).stdout)["data"]
+    assert {item["id"] for item in listed} == {
+        "html.authoring_lint",
+        "html.compile_instructions",
+        "html.build_indesign",
+    }
+    assert all(item["source"] == "plugin" for item in listed)
+
+    schema = json.loads(run_module("tool", "schema", "html.authoring_lint", cwd=tmp_path).stdout)["data"]
+    assert schema["tool"]["plugin"] == "fake-html-plugin"
+    assert schema["inputSchema"]["required"] == ["package"]
+
+
+def test_plugin_tool_call_updates_session(tmp_path):
+    run_module("plugin", "install", str(FAKE_PLUGIN_ROOT), cwd=tmp_path)
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps({"package": "deck.config.json", "strict": True}), encoding="utf-8")
+
+    result = run_module("tool", "call", "html.authoring_lint", "--args", str(args_file), cwd=tmp_path)
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["source"] == "plugin"
+    assert payload["data"]["status"] == "complete"
+
+    session = json.loads(run_module("session", "show", cwd=tmp_path).stdout)["data"]
+    recent = session["recent_calls"][0]
+    assert recent["tool_id"] == "html.authoring_lint"
+    assert recent["source"] == "plugin"
+    assert recent["plugin"] == "fake-html-plugin"
+    assert recent["artifacts"][0]["path"] == "test/workspace/lint-report.json"
+
+
+def test_plugin_host_action_resume_and_denial(tmp_path):
+    run_module("plugin", "install", str(FAKE_PLUGIN_ROOT), cwd=tmp_path)
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps({"package": "deck.config.json"}), encoding="utf-8")
+
+    ok_result = run_module("tool", "call", "html.build_indesign", "--args", str(args_file), cwd=tmp_path)
+    assert ok_result.returncode == 0
+    ok_payload = json.loads(ok_result.stdout)
+    assert ok_payload["data"]["data"]["resumed"] is True
+    assert ok_payload["data"]["data"]["host_results"][0]["tool_id"] == "session.show"
+
+    bad_args = tmp_path / "bad-args.json"
+    bad_args.write_text(json.dumps({"package": "deck.config.json", "mode": "illegal-host-action"}), encoding="utf-8")
+    bad_result = run_module("tool", "call", "html.build_indesign", "--args", str(bad_args), cwd=tmp_path)
+    assert bad_result.returncode == 1
+    bad_payload = json.loads(bad_result.stdout)
+    assert bad_payload["error"]["code"] == "PLUGIN_HOST_ACTION_FAILED"
+    assert bad_payload["error"]["details"]["host_results"][0]["error"]["code"] == "PLUGIN_HOST_ACTION_DENIED"
+
+
+def test_plugin_doctor_reports_installed_plugin(tmp_path):
+    run_module("plugin", "install", str(FAKE_PLUGIN_ROOT), cwd=tmp_path)
+    result = run_module("plugin", "doctor", "fake-html-plugin", cwd=tmp_path)
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["data"]["ok"] is True
+    assert payload["data"]["plugin"] == "fake-html-plugin"
+    assert any(check["name"] == "validate" for check in payload["data"]["checks"])
 
 
 def test_run_stdin_script_reads_utf8_bytes(tmp_path, monkeypatch):
@@ -449,6 +575,8 @@ def test_every_callable_tool_schema_covers_catalog_args():
         if tool["source"] in {"cli", "script"}:
             schema = PRIMITIVE_SCHEMAS[tool["id"]]
         elif tool["source"] == "hidden_handler":
+            schema = router.schema(tool["id"])["inputSchema"]
+        elif tool["source"] == "plugin":
             schema = router.schema(tool["id"])["inputSchema"]
         else:
             schema = backend_schemas[(tool["source"], tool["name"])]

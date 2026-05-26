@@ -23,19 +23,41 @@ class SessionStore:
         self.root.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def record_call(self, *, tool_id: str, domain: str, source: str, ok: bool, duration_ms: int) -> None:
+    def record_call(
+        self,
+        *,
+        tool_id: str,
+        domain: str,
+        source: str,
+        ok: bool,
+        duration_ms: int,
+        plugin: str | None = None,
+        artifacts: list[dict[str, Any]] | None = None,
+    ) -> None:
         payload = self.read(compact=False)
         calls = payload.setdefault("recent_calls", [])
+        item: dict[str, Any] = {
+            "tool_id": tool_id,
+            "domain": domain,
+            "source": source,
+            "ok": ok,
+            "duration_ms": duration_ms,
+            "time": datetime.now(timezone.utc).isoformat(),
+        }
+        if plugin:
+            item["plugin"] = plugin
+        if artifacts:
+            item["artifacts"] = [
+                {
+                    "kind": artifact.get("kind"),
+                    "path": artifact.get("path"),
+                }
+                for artifact in artifacts
+                if isinstance(artifact, dict) and artifact.get("path")
+            ][:10]
         calls.insert(
             0,
-            {
-                "tool_id": tool_id,
-                "domain": domain,
-                "source": source,
-                "ok": ok,
-                "duration_ms": duration_ms,
-                "time": datetime.now(timezone.utc).isoformat(),
-            },
+            item,
         )
         payload["version"] = 1
         payload["recent_calls"] = calls[:20]

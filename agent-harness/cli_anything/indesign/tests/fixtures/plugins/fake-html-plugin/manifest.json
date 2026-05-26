@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "protocol": "indesign-cli-plugin.v1",
+  "id": "fake-html-plugin",
+  "name": "fake-html-plugin",
+  "version": "0.1.0",
+  "kind": "node-plugin",
+  "domain": "html",
+  "entry": "index.js",
+  "description": "Fake HTML plugin for indesign-cli host tests",
+  "requires": {
+    "indesign_cli": ">=0.2.0",
+    "node": ">=18.0.0"
+  },
+  "capabilities": {
+    "tools": true,
+    "host_actions": ["script.run", "export.verify", "session.show"]
+  },
+  "permissions": {
+    "filesystem": ["read_project", "write_project"],
+    "indesign": "host_only",
+    "network": false
+  }
+}
