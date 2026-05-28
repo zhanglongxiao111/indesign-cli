@@ -52,6 +52,7 @@ PRIMITIVE_SCHEMAS = {
         "properties": {
             "file": {"type": "string", "description": "要执行的 JSX 文件路径"},
             "stdin": {"type": "boolean", "description": "从 stdin 读取临时 JSX"},
+            "timeout": {"type": "integer", "description": "脚本通道超时秒数，范围 1-3600"},
         },
     },
     "skill.install": {
@@ -65,9 +66,10 @@ PRIMITIVE_SCHEMAS = {
 
 
 class Router:
-    def __init__(self, catalog: Catalog, repo_root: Path) -> None:
+    def __init__(self, catalog: Catalog, repo_root: Path, backend_timeout_seconds: int | None = None) -> None:
         self.catalog = catalog
         self.repo_root = repo_root
+        self.backend_timeout_seconds = backend_timeout_seconds
 
     def _find(self, tool_id: str) -> dict[str, Any]:
         matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
@@ -117,7 +119,7 @@ class Router:
             entry = BACKENDS[source]
         except KeyError as exc:
             raise CliError(f"Unsupported backend source: {source}", code="BACKEND_NOT_SUPPORTED") from exc
-        return McpBackend(repo_root=self.repo_root, entry=entry)
+        return McpBackend(repo_root=self.repo_root, entry=entry, timeout_seconds=self.backend_timeout_seconds or 30)
 
     def _plugin_backend(self, tool: dict[str, Any]) -> PluginBackend:
         plugin_id = tool.get("plugin")
@@ -170,11 +172,17 @@ class Router:
     def _call_script_primitive(self, args: dict[str, Any]) -> dict[str, Any]:
         from .scripts import run_script, run_stdin_script
 
-        if args.get("stdin"):
-            return run_stdin_script(self, Path.cwd())
-        if args.get("file"):
-            return run_script(self, Path(args["file"]))
-        raise CliError("script.run requires file or stdin", code="SCRIPT_INPUT_REQUIRED")
+        old_timeout = self.backend_timeout_seconds
+        if args.get("timeout") is not None:
+            self.backend_timeout_seconds = self._parse_timeout(args.get("timeout"))
+        try:
+            if args.get("stdin"):
+                return run_stdin_script(self, Path.cwd())
+            if args.get("file"):
+                return run_script(self, Path(args["file"]))
+            raise CliError("script.run requires file or stdin", code="SCRIPT_INPUT_REQUIRED")
+        finally:
+            self.backend_timeout_seconds = old_timeout
 
     @staticmethod
     def _require_arg(args: dict[str, Any], key: str) -> Any:
@@ -182,6 +190,16 @@ class Router:
         if value in (None, ""):
             raise CliError(f"Missing required argument: {key}", code="MISSING_ARGUMENT", details={"argument": key})
         return value
+
+    @staticmethod
+    def _parse_timeout(value: Any) -> int:
+        try:
+            timeout = int(value)
+        except (TypeError, ValueError) as exc:
+            raise CliError("timeout must be an integer number of seconds", code="BAD_TIMEOUT") from exc
+        if timeout < 1 or timeout > 3600:
+            raise CliError("timeout must be between 1 and 3600 seconds", code="BAD_TIMEOUT", details={"timeout": timeout})
+        return timeout
 
 
 def load_args(path_value: str) -> dict[str, Any]:

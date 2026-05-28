@@ -119,6 +119,12 @@ These capabilities are discoverable by domain through the CLI, so they do not ha
 indesign-cli --json --pretty script run test\workspace\probe.jsx
 ```
 
+Long builds or exports can use a longer script-channel timeout:
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+```
+
 Short probes can also be passed through stdin:
 
 ```powershell

@@ -45,6 +45,12 @@ indesign-cli tool schema <tool_id>
 indesign-cli --json --pretty script run test\workspace\probe.jsx
 ```
 
+直接 `script run` 的默认脚本通道超时是 300 秒。复杂构建、导出或回环测试预计更久时，显式加 `--timeout <秒>`，最大 3600：
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+```
+
 `script run --stdin` 只用于很短的临时探针；需要复跑、引用文件、相对 `#include`、保存证据或多人协作时，用文件模式。
 
 导出 PDF、IDML 或图片后，用 CLI 验证产物，不要只看文件是否存在：

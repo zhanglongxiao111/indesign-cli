@@ -69,12 +69,14 @@ def build_parser() -> argparse.ArgumentParser:
     call_parser = tool_sub.add_parser("call")
     call_parser.add_argument("tool_id")
     call_parser.add_argument("--args", required=True)
+    call_parser.add_argument("--timeout", type=int, help="MCP/script backend timeout in seconds")
 
     script_parser = subparsers.add_parser("script")
     script_sub = script_parser.add_subparsers(dest="script_command")
     run_parser = script_sub.add_parser("run")
     run_parser.add_argument("file", nargs="?")
     run_parser.add_argument("--stdin", action="store_true")
+    run_parser.add_argument("--timeout", type=int, default=300, help="Script backend timeout in seconds")
 
     export_parser = subparsers.add_parser("export")
     export_sub = export_parser.add_subparsers(dest="export_command")
@@ -187,7 +189,7 @@ def run(argv: list[str] | None = None) -> int:
         if args.tool_command == "search":
             data = catalog.list_tools(domain=args.domain, source=args.source, query=args.query)
             return emit(success(command="tool search", data=data, duration_ms=0, warnings=warnings))
-        router = Router(catalog=catalog, repo_root=REPO_ROOT)
+        router = Router(catalog=catalog, repo_root=REPO_ROOT, backend_timeout_seconds=getattr(args, "timeout", None))
         if args.tool_command == "schema":
             data = router.schema(args.tool_id)
             return emit(success(command="tool schema", data=data, duration_ms=0, tool_id=args.tool_id, warnings=warnings))
@@ -245,7 +247,7 @@ def run(argv: list[str] | None = None) -> int:
             return emit_check("plugin doctor", data, tool_id="plugin.doctor")
     if args.group == "script" and args.script_command == "run":
         catalog, warnings = build_catalog_with_backends()
-        router = Router(catalog=catalog, repo_root=REPO_ROOT)
+        router = Router(catalog=catalog, repo_root=REPO_ROOT, backend_timeout_seconds=args.timeout)
         store = SessionStore(Path.cwd())
         try:
             if args.stdin:

@@ -112,7 +112,7 @@ CLI_PRIMITIVES = [
         "domain": "script",
         "name": "run",
         "one_line_purpose": "执行 JSX 文件或 stdin 临时脚本",
-        "arg_names": ["file", "stdin"],
+        "arg_names": ["file", "stdin", "timeout"],
         "source": "script",
         "rank": 1,
         "schema_size": "small",

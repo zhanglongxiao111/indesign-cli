@@ -125,6 +125,12 @@ indesign-cli --json --pretty script run test\workspace\probe.jsx
 
 适合测试真实 InDesign 行为、创建文档、检查对象、执行复杂排版逻辑。
 
+复杂构建或导出可能超过默认等待时间，可以显式加长脚本通道超时：
+
+```powershell
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+```
+
 短脚本也可以从 stdin 输入：
 
 ```powershell

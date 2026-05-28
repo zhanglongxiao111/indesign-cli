@@ -154,6 +154,20 @@ def test_safe_command_ignores_global_flags():
     assert safe_command(["plugin", "validate"]) == "plugin validate"
 
 
+def test_script_run_parser_uses_longer_default_timeout():
+    from cli_anything.indesign.indesign_cli import build_parser
+
+    parser = build_parser()
+    script_args = parser.parse_args(["script", "run", "probe.jsx"])
+    assert script_args.timeout == 300
+
+    custom_script_args = parser.parse_args(["script", "run", "probe.jsx", "--timeout", "900"])
+    assert custom_script_args.timeout == 900
+
+    tool_args = parser.parse_args(["tool", "call", "script.run", "--args", "args.json", "--timeout", "600"])
+    assert tool_args.timeout == 600
+
+
 def test_invalid_domain_is_actionable():
     result = run_module("tool", "list", "--domain", "not-a-domain")
     assert result.returncode == 1
@@ -523,6 +537,26 @@ def test_cli_primitive_schema_exposes_required_args():
     payload = router.schema("export.verify")
     assert payload["inputSchema"]["required"] == ["path"]
     assert "path" in payload["inputSchema"]["properties"]
+
+    script_payload = router.schema("script.run")
+    assert "timeout" in script_payload["inputSchema"]["properties"]
+    assert "timeout" in script_payload["tool"]["arg_names"]
+
+
+def test_router_passes_timeout_to_mcp_backend():
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.router import Router
+
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT, backend_timeout_seconds=123)
+    assert router._backend("advanced").timeout_seconds == 123
+
+    try:
+        Router._parse_timeout(0)
+    except CliError as exc:
+        assert exc.code == "BAD_TIMEOUT"
+    else:
+        raise AssertionError("invalid timeout should fail")
 
 
 def test_every_listed_callable_tool_has_agent_contract_fields():
