@@ -1,6 +1,6 @@
 {
   "name": "indesign-cli",
-  "version": "1.1.0",
+  "version": "0.2.0",
   "description": "Agent-native CLI and MCP runtime for Adobe InDesign automation",
   "main": "src/index.js",
   "type": "module",
@@ -25,7 +25,7 @@
     "document-creation",
     "layout-automation"
   ],
-  "author": "indesign-cli maintainers",
+  "author": "Sa",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",

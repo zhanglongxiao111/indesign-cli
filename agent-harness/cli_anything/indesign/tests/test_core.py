@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,13 +38,39 @@ def test_version_returns_json():
 
 
 def test_pyproject_exposes_remote_installable_package_and_console_aliases():
+    from cli_anything.indesign import __version__
+
     pyproject_path = REPO_ROOT / "pyproject.toml"
     assert pyproject_path.exists()
     payload = pyproject_path.read_text(encoding="utf-8")
     assert 'name = "indesign-cli"' in payload
+    assert 'authors = [{ name = "Sa" }]' in payload
     assert 'Repository = "https://github.com/zhanglongxiao111/indesign-cli"' in payload
     assert 'indesign-cli = "cli_anything.indesign.indesign_cli:main"' in payload
     assert 'cli-anything-indesign = "cli_anything.indesign.indesign_cli:main"' in payload
+    pyproject_version = re.search(r'^version = "([^"]+)"$', payload, flags=re.MULTILINE)
+    assert pyproject_version
+    assert pyproject_version.group(1) == __version__
+
+    package_json = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    assert package_json["name"] == "indesign-cli"
+    assert package_json["version"] == __version__
+    assert package_json["author"] == "Sa"
+
+
+def test_pypi_source_distribution_includes_node_server_assets():
+    manifest_path = REPO_ROOT / "MANIFEST.in"
+    assert manifest_path.exists()
+    manifest = manifest_path.read_text(encoding="utf-8")
+    assert "include package.json" in manifest
+    assert "include package-lock.json" in manifest
+    assert "recursive-include src *" in manifest
+    assert "prune agent-harness/cli_anything/indesign/tests" in manifest
+
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'requires = ["setuptools>=77", "wheel"]' in pyproject
+    assert 'license = "MIT"' in pyproject
+    assert 'exclude = ["cli_anything.indesign.tests*"]' in pyproject
 
 
 def test_runtime_resolves_server_root_and_packaged_skill():
