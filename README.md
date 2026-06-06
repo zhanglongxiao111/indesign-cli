@@ -38,7 +38,13 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 InDesign 需要和命令行运行在同一个 Windows 用户会话中。
 
-### 2. 从 GitHub 安装
+### 2. 从 PyPI 安装
+
+```powershell
+pip install indesign-cli
+```
+
+如果需要安装 GitHub 上的最新开发版：
 
 ```powershell
 pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"

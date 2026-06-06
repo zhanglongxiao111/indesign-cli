@@ -159,7 +159,8 @@
 | ---- | ----------- |
 | 安装依赖 | `npm install` |
 | 安装 CLI harness | `pip install -e .` |
-| 远程安装 CLI | `pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"` |
+| PyPI 安装 CLI | `pip install indesign-cli` |
+| GitHub 开发版安装 CLI | `pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"` |
 | 安装 Node 依赖 | `indesign-cli server setup` |
 | 安装项目 skill | `indesign-cli skill install --target <project-root>` |
 | CLI 健康检查 | `indesign-cli server health` |

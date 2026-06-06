@@ -36,7 +36,13 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 
 InDesign must run in the same Windows user session as the CLI.
 
-### 2. Install from GitHub
+### 2. Install from PyPI
+
+```powershell
+pip install indesign-cli
+```
+
+To install the latest development version from GitHub:
 
 ```powershell
 pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"
