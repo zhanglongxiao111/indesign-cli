@@ -83,7 +83,9 @@ def test_runtime_resolves_server_root_and_packaged_skill():
 
     skill_path = skill_source_path()
     assert skill_path.name == "SKILL.md"
-    assert "name: indesign-cli" in skill_path.read_text(encoding="utf-8")
+    skill_text = skill_path.read_text(encoding="utf-8")
+    assert "name: indesign-cli" in skill_text
+    assert "pip install indesign-cli" in skill_text
 
 
 def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch, tmp_path):
