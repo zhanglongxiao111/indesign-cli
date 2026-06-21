@@ -91,6 +91,10 @@ def test_runtime_resolves_server_root_and_packaged_skill():
     assert "name: indesign-cli" in skill_text
     assert "pip install indesign-cli" in skill_text
     assert "server health --deep" in skill_text
+    assert "打开或连接 InDesign" in skill_text
+    assert "script run --stdin" in skill_text
+    assert "不得关闭用户已经打开的 InDesign 文档" in skill_text
+    assert "正式成果文件保持打开" in skill_text
     assert "D:\\AI\\html-indesign" not in skill_text
     assert '"templatePath"' not in skill_text
     assert '"values"' not in skill_text

@@ -28,6 +28,23 @@ indesign-cli server setup
 indesign-cli --json --pretty server health --deep
 ```
 
+## 打开与文件保护
+
+打开或连接 InDesign 的推荐方式是运行只读 JSX 探针；如果 InDesign 未启动，COM 会启动它，如果已启动，则连接现有进程：
+
+```powershell
+@'
+JSON.stringify({ ok: true, appName: app.name, version: app.version, documentsCount: app.documents.length });
+'@ | indesign-cli --json --pretty script run --stdin --timeout 60
+```
+
+公司内部使用时必须保护用户现场：
+
+- 不得关闭用户已经打开的 InDesign 文档，也不要运行 `app.quit()`、`documents.everyItem().close()` 或批量关闭逻辑。
+- 脚本只能关闭本轮明确创建且标记为临时测试用途的文档；不确定归属时保持打开。
+- 正式成果文件保持打开，方便用户直接在 InDesign 中检查；导出 PDF/IDML 后也不要自动关闭对应 INDD。
+- 状态检查只记录文档数量、输出路径和脱敏信息，不记录客户文档名称或私有路径。
+
 工具选择不明确时，按需渐进发现：
 
 ```powershell
