@@ -42,12 +42,6 @@ InDesign must run in the same Windows user session as the CLI.
 pip install indesign-cli
 ```
 
-To install the latest development version from GitHub:
-
-```powershell
-pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"
-```
-
 ### 3. Install Node dependencies
 
 ```powershell
@@ -219,6 +213,7 @@ node tests\index.js --required
 ├─ scripts/         # Maintenance and validation scripts
 ├─ tests/           # Tests and real InDesign E2E scenarios
 ├─ docs/            # Design notes, plans, collaboration records
+├─ skills/          # Agent Skill source installable into other projects
 ├─ pyproject.toml   # pip installation entry
 └─ AGENTS.md        # Project-level agent collaboration rules
 ```

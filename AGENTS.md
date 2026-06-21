@@ -80,7 +80,6 @@
 
 - 位置：`agent-harness/`
 - 命令入口：`indesign-cli`
-- 兼容入口：`cli-anything-indesign`
 - Python 包名：`cli_anything.indesign`
 - 本地 session：当前工作目录下的 `.indesign-cli/session.json`
 
@@ -160,7 +159,6 @@
 | 安装依赖 | `npm install` |
 | 安装 CLI harness | `pip install -e .` |
 | PyPI 安装 CLI | `pip install indesign-cli` |
-| GitHub 开发版安装 CLI | `pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"` |
 | 安装 Node 依赖 | `indesign-cli server setup` |
 | 安装项目 skill | `indesign-cli skill install --target <project-root>` |
 | CLI 健康检查 | `indesign-cli server health` |
@@ -211,6 +209,7 @@
 | `src/types/` | MCP 工具定义和输入 Schema |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
+| `skills/indesign-cli/` | 随 CLI 安装到其他项目的 Agent skill 源文件 |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |

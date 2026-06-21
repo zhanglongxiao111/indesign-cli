@@ -44,12 +44,6 @@ InDesign 需要和命令行运行在同一个 Windows 用户会话中。
 pip install indesign-cli
 ```
 
-如果需要安装 GitHub 上的最新开发版：
-
-```powershell
-pip install "git+https://github.com/zhanglongxiao111/indesign-cli.git"
-```
-
 ### 3. 安装 Node 依赖
 
 ```powershell
@@ -231,6 +225,7 @@ node tests\index.js --required
 ├─ scripts/         # 维护脚本和检查脚本
 ├─ tests/           # 测试和真实 InDesign E2E
 ├─ docs/            # 设计文档、计划、协作记录
+├─ skills/          # 可安装到其他项目的 Agent Skill
 ├─ pyproject.toml   # pip 安装入口
 └─ AGENTS.md        # 项目级 Agent 协作规则
 ```

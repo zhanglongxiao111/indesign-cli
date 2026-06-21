@@ -1,4 +1,5 @@
 include package.json
 include package-lock.json
 recursive-include src *
+recursive-include skills *
 prune agent-harness/cli_anything/indesign/tests

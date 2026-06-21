@@ -4,7 +4,7 @@
 
 **目标：**建立一个可重复运行的真实 InDesign E2E 测试体系，制作一份可人工打开核对的模拟建筑设计汇报演示文稿，覆盖当前 CLI 目录中的 146 个可调用能力，并生成可核对的覆盖报告和真实 `.indd` / `.pdf` / `.idml` / package 产物。
 
-**架构：**新增 `tests/real-e2e/` 作为独立真实 E2E runner，所有操作通过 `cli-anything-indesign` 或 `python -m cli_anything.indesign` 调用现有 CLI，再由 CLI 复用 MCP/handler/COM/JSX 链路。runner 负责运行目录、素材、调用日志、覆盖状态、文档审计和产物验收，不在仓库根目录写临时产物。
+**架构：**新增 `tests/real-e2e/` 作为独立真实 E2E runner，所有操作通过 `indesign-cli` 或 `python -m cli_anything.indesign` 调用现有 CLI，再由 CLI 复用 MCP/handler/COM/JSX 链路。runner 负责运行目录、素材、调用日志、覆盖状态、文档审计和产物验收，不在仓库根目录写临时产物。
 
 **技术栈：**Node.js ESM runner、PowerShell/Windows、Adobe InDesign COM、现有 Python CLI harness、ExtendScript/JSX、JSON/JSONL 报告。
 
@@ -146,7 +146,7 @@
 
 | 命令 | 场景 | 验收 |
 | ---- | ---- | ---- |
-| `--version` | `bootstrap_contract` | 返回 JSON，`data.name == cli-anything-indesign` |
+| `--version` | `bootstrap_contract` | 返回 JSON，`data.name == indesign-cli` |
 
 ### 5.1 CLI / Server / Session / Utility
 

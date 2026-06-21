@@ -124,7 +124,7 @@ node tests/real-e2e/run-architecture-presentation.mjs --tool document.create_doc
 
 - 新建时间戳运行目录。
 - 下载或生成测试素材。
-- 从 `cli-anything-indesign tool domains` 和 `tool list --source ...` 获取实时工具目录。
+- 从 `indesign-cli tool domains` 和 `tool list --source ...` 获取实时工具目录。
 - 对每个当前可调用工具执行 `tool schema`。
 - 对每个隐藏 handler 生成或补齐等价 schema，供 full 覆盖调用使用。
 - 按 `coverage-map.json` 运行全部工具。

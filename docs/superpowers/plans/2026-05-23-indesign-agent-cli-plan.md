@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 构建第一版 Agent 专用 `cli-anything-indesign`，提供统一功能域目录、MCP 工具路由、JSX 执行、session 线索、产物验证和健康检查。
+**Goal:** 构建第一版 Agent 专用 `indesign-cli`，提供统一功能域目录、MCP 工具路由、JSX 执行、session 线索、产物验证和健康检查。
 
 **Architecture:** Python CLI 使用标准库 `argparse` 暴露命令，默认输出 JSON envelope。CLI 每次命令按需启动 `node src/advanced/index.js` 或 `node src/index.js`，通过 stdio JSON-RPC 调 MCP 工具，执行后关闭子进程。工具目录按 InDesign 功能域组织，`advanced`、`classic`、`hidden_handler`、`cli`、`script` 都作为条目来源，而不是主导航。
 
@@ -14,7 +14,7 @@
 
 ### 新增文件
 
-- `agent-harness/setup.py`：本地可编辑安装，注册 `cli-anything-indesign`。
+- `agent-harness/setup.py`：本地可编辑安装，注册 `indesign-cli`。
 - `agent-harness/INDESIGN.md`：Agent 使用 SOP 和限制。
 - `agent-harness/cli_anything/indesign/__init__.py`：版本号。
 - `agent-harness/cli_anything/indesign/__main__.py`：`python -m cli_anything.indesign` 入口。
@@ -83,7 +83,7 @@ def test_version_returns_json():
     assert result.returncode == 0
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
-    assert payload["data"]["name"] == "cli-anything-indesign"
+    assert payload["data"]["name"] == "indesign-cli"
     assert payload["data"]["version"] == "0.1.0"
 ```
 
@@ -106,14 +106,14 @@ from setuptools import find_namespace_packages, setup
 
 
 setup(
-    name="cli-anything-indesign",
+    name="indesign-cli",
     version="0.1.0",
     description="Agent-native CLI harness for Adobe InDesign automation",
     packages=find_namespace_packages(include=["cli_anything.*"]),
     python_requires=">=3.10",
     entry_points={
         "console_scripts": [
-            "cli-anything-indesign=cli_anything.indesign.indesign_cli:main",
+            "indesign-cli=cli_anything.indesign.indesign_cli:main",
         ],
     },
 )
@@ -158,7 +158,7 @@ def version_payload() -> dict[str, Any]:
         "exit_code": 0,
         "command": "version",
         "data": {
-            "name": "cli-anything-indesign",
+            "name": "indesign-cli",
             "version": __version__,
         },
         "warnings": [],
@@ -166,7 +166,7 @@ def version_payload() -> dict[str, Any]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="cli-anything-indesign")
+    parser = argparse.ArgumentParser(prog="indesign-cli")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--pretty", action="store_true")
@@ -411,13 +411,13 @@ def emit(payload: dict[str, Any]) -> int:
 def version_payload() -> dict[str, Any]:
     return success(
         command="version",
-        data={"name": "cli-anything-indesign", "version": __version__},
+        data={"name": "indesign-cli", "version": __version__},
         duration_ms=0,
     )
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="cli-anything-indesign")
+    parser = argparse.ArgumentParser(prog="indesign-cli")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--pretty", action="store_true")
@@ -769,7 +769,7 @@ def emit(payload: dict[str, Any]) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="cli-anything-indesign")
+    parser = argparse.ArgumentParser(prog="indesign-cli")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--pretty", action="store_true")
@@ -790,7 +790,7 @@ def build_parser() -> argparse.ArgumentParser:
 def version_payload() -> dict[str, Any]:
     return success(
         command="version",
-        data={"name": "cli-anything-indesign", "version": __version__},
+        data={"name": "indesign-cli", "version": __version__},
         duration_ms=0,
     )
 
@@ -924,7 +924,7 @@ class McpBackend:
             self._request(proc, "initialize", {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "cli-anything-indesign", "version": "0.1.0"},
+                "clientInfo": {"name": "indesign-cli", "version": "0.1.0"},
             })
             self._notify(proc, "notifications/initialized", {})
             result = action(proc)
@@ -1330,7 +1330,7 @@ def health(repo_root: Path, deep: bool = False) -> dict[str, Any]:
 ```markdown
 # InDesign Agent CLI
 
-`cli-anything-indesign` 是给 Agent 使用的 InDesign CLI。默认输出 JSON。
+`indesign-cli` 是给 Agent 使用的 InDesign CLI。默认输出 JSON。
 
 推荐顺序：
 
@@ -1346,19 +1346,19 @@ def health(repo_root: Path, deep: bool = False) -> dict[str, Any]:
 创建 `agent-harness/cli_anything/indesign/README.md`：
 
 ```markdown
-# cli-anything-indesign
+# indesign-cli
 
 Agent 专用 InDesign CLI harness。
 
 常用命令：
 
 ```powershell
-cli-anything-indesign tool domains
-cli-anything-indesign tool list --domain template
-cli-anything-indesign tool schema template.run_jsx_file
-cli-anything-indesign script run scripts/check.jsx
-cli-anything-indesign export verify output/result.pdf
-cli-anything-indesign server health
+indesign-cli tool domains
+indesign-cli tool list --domain template
+indesign-cli tool schema template.run_jsx_file
+indesign-cli script run scripts/check.jsx
+indesign-cli export verify output/result.pdf
+indesign-cli server health
 ```
 ```
 
@@ -1429,8 +1429,8 @@ Run:
 
 ```powershell
 pip install -e agent-harness
-cli-anything-indesign --version
-cli-anything-indesign tool domains
+indesign-cli --version
+indesign-cli tool domains
 ```
 
 Expected: 两条 CLI 命令都返回 JSON，`tool domains` 中包含 `template`、`document`、`export`、`book`、`presentation`。

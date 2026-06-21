@@ -19,8 +19,6 @@ indesign-cli session show
 indesign-cli skill install --target D:\AI\html-indesign
 ```
 
-`cli-anything-indesign` 仍可作为旧项目兼容别名使用。
-
 `script run` 是 Agent 做真实 InDesign 验证的主入口：
 
 - 文件模式保留 `$.fileName` 和相对 `#include` 行为。

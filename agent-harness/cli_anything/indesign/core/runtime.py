@@ -41,10 +41,16 @@ def hidden_handler_bridge_path() -> Path:
 
 
 def skill_source_path() -> Path:
-    path = package_root() / "skills" / "SKILL.md"
-    if not path.exists():
-        raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND")
-    return path
+    packaged = package_root() / "skills" / "SKILL.md"
+    if packaged.exists():
+        return packaged
+    try:
+        source = resolve_server_root() / "skills" / "indesign-cli" / "SKILL.md"
+    except CliError as exc:
+        raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND") from exc
+    if source.exists():
+        return source
+    raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND")
 
 
 def install_skill(target: Path) -> dict[str, str]:

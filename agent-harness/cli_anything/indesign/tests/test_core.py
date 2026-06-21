@@ -65,6 +65,7 @@ def test_pypi_source_distribution_includes_node_server_assets():
     assert "include package.json" in manifest
     assert "include package-lock.json" in manifest
     assert "recursive-include src *" in manifest
+    assert "recursive-include skills *" in manifest
     assert "prune agent-harness/cli_anything/indesign/tests" in manifest
 
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -83,9 +84,12 @@ def test_runtime_resolves_server_root_and_packaged_skill():
 
     skill_path = skill_source_path()
     assert skill_path.name == "SKILL.md"
+    assert skill_path == REPO_ROOT / "skills" / "indesign-cli" / "SKILL.md"
     skill_text = skill_path.read_text(encoding="utf-8")
     assert "name: indesign-cli" in skill_text
     assert "pip install indesign-cli" in skill_text
+    assert "git+https://github.com" not in skill_text
+    assert "cli-anything-indesign" not in skill_text
 
 
 def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch, tmp_path):
