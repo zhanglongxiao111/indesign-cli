@@ -16,7 +16,18 @@ indesign-cli export verify output/result.pdf
 indesign-cli server setup
 indesign-cli server health
 indesign-cli session show
-indesign-cli skill install --target D:\AI\html-indesign
+```
+
+配套 Skill 文档需要手动复制：
+
+```text
+skills/indesign-cli/SKILL.md
+```
+
+目标项目路径：
+
+```text
+<project-root>\.codex\skills\indesign-cli\SKILL.md
 ```
 
 `script run` 是 Agent 做真实 InDesign 验证的主入口：

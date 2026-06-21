@@ -126,25 +126,6 @@ CLI_PRIMITIVES = [
         "needs_indesign": True,
         "produces_artifacts": False,
     },
-    {
-        "id": "skill.install",
-        "domain": "skill",
-        "name": "install",
-        "one_line_purpose": "把内置 indesign-cli skill 安装到目标项目",
-        "arg_names": ["target"],
-        "source": "cli",
-        "rank": 1,
-        "schema_size": "small",
-        "availability": "exposed",
-        "callable": True,
-        "requires": [],
-        "side_effects": ["filesystem_write"],
-        "artifact_kinds": [],
-        "destructive": False,
-        "target_scope": "workspace",
-        "needs_indesign": False,
-        "produces_artifacts": True,
-    },
 ]
 
 

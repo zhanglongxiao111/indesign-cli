@@ -56,13 +56,6 @@ PRIMITIVE_SCHEMAS = {
             "timeout": {"type": "integer", "description": "脚本通道超时秒数，范围 1-3600"},
         },
     },
-    "skill.install": {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "target": {"type": "string", "description": "目标项目根目录；默认使用当前工作目录"},
-        },
-    },
 }
 
 
@@ -169,10 +162,6 @@ class Router:
             from .node_setup import setup_node_dependencies
 
             return setup_node_dependencies(self.repo_root)
-        if tool_id == "skill.install":
-            from .runtime import install_skill
-
-            return install_skill(Path(args.get("target") or "."))
         raise CliError(f"Unsupported CLI primitive: {tool_id}", code="CLI_PRIMITIVE_UNSUPPORTED")
 
     def _call_script_primitive(self, args: dict[str, Any]) -> dict[str, Any]:

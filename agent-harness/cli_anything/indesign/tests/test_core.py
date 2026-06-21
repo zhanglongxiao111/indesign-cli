@@ -76,6 +76,26 @@ def test_pypi_source_distribution_includes_node_server_assets():
     assert 'exclude = ["cli_anything.indesign.tests*"]' in pyproject
 
 
+def test_readmes_describe_manual_skill_install_only():
+    readme_zh = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
+    harness_readme = (REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "README.md").read_text(encoding="utf-8")
+
+    for text in (readme_zh, readme_en, harness_readme):
+        assert "indesign-cli skill install" not in text
+
+    assert "skills/indesign-cli/SKILL.md" in readme_zh
+    assert ".codex\\skills\\indesign-cli\\SKILL.md" in readme_zh
+    assert "手动" in readme_zh
+
+    assert "skills/indesign-cli/SKILL.md" in readme_en
+    assert ".codex\\skills\\indesign-cli\\SKILL.md" in readme_en
+    assert "manually" in readme_en.lower()
+
+    assert "skills/indesign-cli/SKILL.md" in harness_readme
+    assert ".codex\\skills\\indesign-cli\\SKILL.md" in harness_readme
+
+
 def test_runtime_resolves_server_root_and_packaged_skill():
     from cli_anything.indesign.core.runtime import resolve_server_root, skill_source_path
 
@@ -127,17 +147,21 @@ def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch,
     assert payload["server_root"] == str(tmp_path)
 
 
-def test_skill_install_copies_packaged_skill_to_target(tmp_path):
-    result = run_module("skill", "install", "--target", str(tmp_path))
-    assert result.returncode == 0
-    payload = json.loads(result.stdout)
-    assert payload["ok"] is True
-    assert payload["tool_id"] == "skill.install"
+def test_skill_install_is_not_exposed_as_cli_or_tool():
+    help_result = run_module("--help")
+    assert help_result.returncode == 0
+    assert "skill" not in help_result.stdout
 
-    installed = tmp_path / ".codex" / "skills" / "indesign-cli" / "SKILL.md"
-    assert installed.exists()
-    assert installed == Path(payload["data"]["installed_path"])
-    assert "name: indesign-cli" in installed.read_text(encoding="utf-8")
+    command_result = run_module("skill", "install", "--target", ".")
+    assert command_result.returncode != 0
+
+    schema_result = run_module("tool", "schema", "skill.install")
+    assert schema_result.returncode == 1
+    schema_payload = json.loads(schema_result.stdout)
+    assert schema_payload["error"]["code"] == "TOOL_NOT_FOUND"
+
+    domains = json.loads(run_module("tool", "domains").stdout)["data"]
+    assert "skill" not in {item["domain"] for item in domains}
 
 
 def test_external_path_is_scrubbed():

@@ -20,7 +20,7 @@ from .core.plugins.discovery import discover_plugins
 from .core.plugins.install import install_plugin, list_plugins, remove_plugin
 from .core.plugins.validate import doctor_plugin, validate_plugin_path
 from .core.router import Router, load_args
-from .core.runtime import install_skill, resolve_server_root
+from .core.runtime import resolve_server_root
 from .core.scripts import run_script, run_stdin_script
 from .core.session import SessionStore
 
@@ -102,11 +102,6 @@ def build_parser() -> argparse.ArgumentParser:
     health_parser = server_sub.add_parser("health", help="检查 CLI/Node/server；--deep 额外检查 winax")
     health_parser.add_argument("--deep", action="store_true", help="执行较深依赖检查，但仍不主动连接 InDesign COM")
     server_sub.add_parser("setup", help="在内置 server 目录执行 npm install")
-
-    skill_parser = subparsers.add_parser("skill", help="安装内置 Agent skill 到目标项目")
-    skill_sub = skill_parser.add_subparsers(dest="skill_command")
-    install_parser = skill_sub.add_parser("install", help="复制 skills/indesign-cli/SKILL.md 到目标项目")
-    install_parser.add_argument("--target", default=".", help="目标项目根目录，默认当前目录")
 
     plugin_parser = subparsers.add_parser("plugin", help="管理接入 indesign-cli 的外部插件")
     plugin_sub = plugin_parser.add_subparsers(dest="plugin_command")
@@ -294,13 +289,10 @@ def run(argv: list[str] | None = None) -> int:
     if args.group == "server" and args.server_command == "setup":
         data = setup_node_dependencies(REPO_ROOT)
         return emit(success(command="server setup", data=data, duration_ms=0, tool_id="server.setup", domain="server", source="cli"))
-    if args.group == "skill" and args.skill_command == "install":
-        data = install_skill(Path(args.target))
-        return emit(success(command="skill install", data=data, duration_ms=0, tool_id="skill.install", domain="skill", source="cli"))
     raise CliError(
         "Command is required",
         code="COMMAND_REQUIRED",
-        details={"groups": ["tool", "script", "export", "session", "server", "skill", "plugin"]},
+        details={"groups": ["tool", "script", "export", "session", "server", "plugin"]},
         hint="先用 tool domains 查看工具域，或用 tool search --query <关键词> 查找工具。",
     )
 
@@ -313,7 +305,7 @@ def safe_command(argv: list[str] | None) -> str:
         return "cli"
     if parts[0] == "tool" and len(parts) > 1:
         return f"tool {parts[1]}"
-    if parts[0] in {"script", "export", "session", "skill", "plugin"} and len(parts) > 1:
+    if parts[0] in {"script", "export", "session", "plugin"} and len(parts) > 1:
         return f"{parts[0]} {parts[1]}"
     return parts[0]
 

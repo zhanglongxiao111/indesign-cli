@@ -18,7 +18,6 @@ DOMAINS = {
     "script": "JSX 文件执行和 stdin 临时脚本",
     "session": "CLI 本地状态、最近文档和最近输出",
     "server": "依赖、后端、InDesign COM 健康检查",
-    "skill": "把内置 Agent skill 安装到目标项目",
     "utility": "难以归入以上域的辅助能力",
 }
 
@@ -159,7 +158,6 @@ KEYWORD_DOMAINS = {
     "presentation": "presentation",
     "session": "session",
     "health": "server",
-    "skill": "skill",
     "help": "utility",
 }
 

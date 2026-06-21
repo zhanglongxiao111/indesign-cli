@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 from pathlib import Path
 
 from .errors import CliError
@@ -51,15 +50,3 @@ def skill_source_path() -> Path:
     if source.exists():
         return source
     raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND")
-
-
-def install_skill(target: Path) -> dict[str, str]:
-    target_root = target.resolve()
-    destination = target_root / ".codex" / "skills" / "indesign-cli" / "SKILL.md"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(skill_source_path(), destination)
-    return {
-        "target": str(target_root),
-        "installed_path": str(destination),
-        "skill": "indesign-cli",
-    }

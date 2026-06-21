@@ -4,9 +4,9 @@
 
 An Agent-friendly CLI for controlling Adobe InDesign.
 
-`indesign-cli` wraps real InDesign automation behind a stable command-line interface. AI agents can discover available tools, run JSX scripts, call layout operations, verify exported files, and install a project-level Skill for repeatable InDesign workflows.
+`indesign-cli` wraps real InDesign automation behind a stable command-line interface. AI agents can discover available tools, run JSX scripts, call layout operations, verify exported files, and use a project-level Skill when installed manually.
 
-The CLI currently exposes **148 callable capabilities**, covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
+The CLI currently exposes **147 callable capabilities**, covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
 
 It is designed for projects such as **AI-generated design decks, architecture presentations, brand manuals, template-driven publishing, and HTML-to-InDesign pipelines**.
 
@@ -58,19 +58,29 @@ indesign-cli --json --pretty server health
 
 If the response contains `ok: true`, the base CLI environment is ready.
 
-## 🧠 Install the Agent Skill into another project
+## 🧠 Manually install the Agent Skill
 
-```powershell
-indesign-cli skill install --target D:\AI\your-project
+If you want agents in another project to know how to use `indesign-cli`, copy the Skill document manually.
+
+The source file in this repository is:
+
+```text
+skills/indesign-cli/SKILL.md
 ```
 
-This writes:
+If you installed the CLI from PyPI, locate the packaged copy with:
+
+```powershell
+python -c "from cli_anything.indesign.core.runtime import skill_source_path; print(skill_source_path())"
+```
+
+Copy that file to the target project:
 
 ```text
 D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
 ```
 
-Agents working in that project can then use the InDesign CLI with the right workflow guidance.
+The CLI no longer auto-copies the Skill. After the manual copy, agents working in that project can use the InDesign CLI with the right workflow guidance.
 
 ## 🧩 Plugin integration
 
@@ -102,14 +112,14 @@ Agents can inspect domains first, then load only the schema they need instead of
 
 ### 🧰 Capability coverage
 
-`indesign-cli` currently exposes **148 callable capabilities**, covering most commonly automated InDesign features and agent-facing workflows:
+`indesign-cli` currently exposes **147 callable capabilities**, covering most commonly automated InDesign features and agent-facing workflows:
 
 - Documents, pages, spreads, masters, and layers
 - Text frames, tables, images, basic shapes, and page items
 - Paragraph styles, character styles, object styles, and swatches
 - PDF / IDML / image export and artifact verification
 - Book, Presentation, template slots, and advanced template filling
-- JSX execution, session hints, environment checks, and Skill installation
+- JSX execution, session hints, and environment checks
 
 These capabilities are discoverable by domain through the CLI, so they do not have to occupy the agent context all at once.
 

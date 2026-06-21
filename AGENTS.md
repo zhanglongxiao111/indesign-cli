@@ -160,7 +160,6 @@
 | 安装 CLI harness | `pip install -e .` |
 | PyPI 安装 CLI | `pip install indesign-cli` |
 | 安装 Node 依赖 | `indesign-cli server setup` |
-| 安装项目 skill | `indesign-cli skill install --target <project-root>` |
 | CLI 健康检查 | `indesign-cli server health` |
 | CLI 工具域 | `indesign-cli tool domains` |
 | CLI 工具列表 | `indesign-cli tool list --domain <domain>` |
@@ -209,7 +208,7 @@
 | `src/types/` | MCP 工具定义和输入 Schema |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
-| `skills/indesign-cli/` | 随 CLI 安装到其他项目的 Agent skill 源文件 |
+| `skills/indesign-cli/` | 可手动复制到其他项目的 Agent skill 源文件 |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |
