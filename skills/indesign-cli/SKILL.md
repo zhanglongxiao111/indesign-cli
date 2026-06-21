@@ -25,7 +25,7 @@ indesign-cli server setup
 真实操作前先检查环境：
 
 ```powershell
-indesign-cli --json --pretty server health
+indesign-cli --json --pretty server health --deep
 ```
 
 工具选择不明确时，按需渐进发现：
@@ -69,10 +69,12 @@ indesign-cli tool list --domain html
 本地插件接入或排查时使用：
 
 ```powershell
-indesign-cli plugin install D:\AI\html-indesign
-indesign-cli plugin validate D:\AI\html-indesign
-indesign-cli plugin doctor html-indesign
+indesign-cli plugin install <plugin-root>
+indesign-cli plugin validate <plugin-root>
+indesign-cli plugin doctor <plugin-id>
 ```
+
+只有用户明确要求安装本地插件时才运行 `plugin install`。日常使用先查 `plugin list` 和 `tool list --domain <domain>`。
 
 插件工具仍然优先通过 `tool schema <tool_id>` 和 `tool call <tool_id>` 使用。不要绕过宿主直接调用插件内部脚本；需要真实 InDesign 的插件能力应由宿主执行 `script.run`、`export.verify` 等受控动作。
 
@@ -89,78 +91,10 @@ indesign-cli plugin doctor html-indesign
 5. `page.get_page_information` 复核页面、母版和 override 后的槽位。
 6. `template.populate_template_slots` 用 inspect/page info 返回的槽位名填文字和图片。
 
-常用调用样例：
+每个工具调用前先运行 `indesign-cli tool schema <tool_id>`，再把参数写进 `args.json` 调用：
 
 ```powershell
-indesign-cli --json --pretty tool call template.list_template_blueprints --args test\workspace\args.json
-```
-
-`args.json`：
-
-```json
-{}
-```
-
-```powershell
-indesign-cli --json --pretty tool call template.inspect_template_blueprint --args test\workspace\args.json
-```
-
-`args.json`，省略 `templatePath` 时使用当前打开文档：
-
-```json
-{
-  "templatePath": "D:\\path\\template.indd"
-}
-```
-
-```powershell
-indesign-cli --json --pretty tool call template.create_page_with_template --args test\workspace\args.json
-```
-
-`args.json`：
-
-```json
-{
-  "templateName": "A-封面",
-  "position": "AT_END",
-  "label": "cover-01"
-}
-```
-
-```powershell
-indesign-cli --json --pretty tool call page.get_page_information --args test\workspace\args.json
-```
-
-`args.json`：
-
-```json
-{
-  "pageIndex": 0
-}
-```
-
-```powershell
-indesign-cli --json --pretty tool call template.populate_template_slots --args test\workspace\args.json
-```
-
-`args.json`：
-
-```json
-{
-  "templatePath": "D:\\path\\template.indd",
-  "pageIndex": 0,
-  "outputPath": "D:\\path\\output.indd",
-  "values": {
-    "title": {
-      "text": "项目汇报标题"
-    },
-    "heroImage": {
-      "imagePath": "D:\\path\\image.jpg",
-      "fit": "FILL_FRAME",
-      "clearExisting": true
-    }
-  }
-}
+indesign-cli --json --pretty tool call <tool_id> --args test\workspace\args.json
 ```
 
 槽位名必须以 `inspect_template_blueprint` 或 `get_page_information` 返回值为准，不要凭视觉猜。图片填充常用 `FILL_FRAME` 或 `PROPORTIONALLY`；保留整图优先用 `PROPORTIONALLY`，铺满画面优先用 `FILL_FRAME`。
@@ -179,6 +113,7 @@ indesign-cli --json --pretty tool call template.populate_template_slots --args t
 - CLI 不是常驻服务；每次命令会按需启动并关闭 Node MCP/bridge 子进程。
 - InDesign 进程、打开的文档和文档内对象可以延续；Node 子进程内存状态不会跨命令延续。
 - 跨步骤状态必须显式落到 JSON 返回值、文件路径、InDesign 文档状态、脚本标签，或当前目录 `.indesign-cli/session.json`。
+- `tool domains`、`tool list`、`tool search`、`tool schema` 不写 session；`tool call`、`script run`、`export verify` 会写 session。
 - 不要假设上一次命令里创建的 JS 变量、缓存对象或临时内存还能被下一次命令读取。
 
 ## 上层项目边界
@@ -193,4 +128,4 @@ indesign-cli --json --pretty tool call template.populate_template_slots --args t
 - 临时真实测试放到目标项目已忽略的工作目录；没有约定时使用 `test/workspace/<日期时间>/`，并确认它不进 git。
 - 不记录客户文档内容、客户名称或私有资产完整路径；必须引用外部文件时，用临时副本或脱敏路径。
 - 创建临时 InDesign 文档后，测试结束要保存到工作目录或关闭，避免堆积标签页。
-- `server health`、COM 或 InDesign 环境失败时，报告环境阻塞；不要绕过 CLI 写模拟成功。
+- `server health --deep`、COM 或 InDesign 环境失败时，报告环境阻塞；不要绕过 CLI 写模拟成功。

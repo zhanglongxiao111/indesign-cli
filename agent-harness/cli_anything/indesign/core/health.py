@@ -19,6 +19,16 @@ def health(repo_root: Path, deep: bool = False) -> dict[str, Any]:
             "path": "src/index.js",
             "exists": (repo_root / "src/index.js").exists(),
         },
+        "winax": {
+            "checked": False,
+            "available": None,
+            "reason": "未运行 --deep，未检查 Node winax 依赖。",
+        },
+        "indesign_com": {
+            "checked": False,
+            "available": None,
+            "reason": "health 不主动连接 COM，避免隐式启动或干扰 InDesign；真实操作前可运行 `indesign-cli server health --deep` 检查 winax。",
+        },
     }
     if deep:
         payload["winax"] = _check_winax(repo_root)

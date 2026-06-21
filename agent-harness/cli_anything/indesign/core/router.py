@@ -49,9 +49,10 @@ PRIMITIVE_SCHEMAS = {
     "script.run": {
         "type": "object",
         "additionalProperties": False,
+        "oneOf": [{"required": ["file"]}, {"required": ["stdin"]}],
         "properties": {
-            "file": {"type": "string", "description": "要执行的 JSX 文件路径"},
-            "stdin": {"type": "boolean", "description": "从 stdin 读取临时 JSX"},
+            "file": {"type": "string", "description": "文件模式；推荐用于可复跑 JSX、相对 #include 和协作测试"},
+            "stdin": {"type": "boolean", "description": "从 stdin 读取短临时探针；复杂脚本优先写文件再执行"},
             "timeout": {"type": "integer", "description": "脚本通道超时秒数，范围 1-3600"},
         },
     },
@@ -74,7 +75,12 @@ class Router:
     def _find(self, tool_id: str) -> dict[str, Any]:
         matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
         if not matches:
-            raise CliError(f"Tool not found: {tool_id}", code="TOOL_NOT_FOUND")
+            raise CliError(
+                f"Tool not found: {tool_id}",
+                code="TOOL_NOT_FOUND",
+                details={"tool_id": tool_id},
+                hint="先运行 `indesign-cli tool domains` 查看工具域，再用 `indesign-cli tool search --query <关键词>` 查找候选工具。",
+            )
         return matches[0]
 
     def schema(self, tool_id: str) -> dict[str, Any]:

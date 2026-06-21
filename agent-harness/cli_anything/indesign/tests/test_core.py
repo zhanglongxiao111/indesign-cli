@@ -16,11 +16,13 @@ sys.path.insert(0, str(HARNESS_ROOT))
 def run_module(*args: str, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-m", "cli_anything.indesign", *args],
         cwd=cwd,
         env=env,
         text=True,
+        encoding="utf-8",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -88,6 +90,10 @@ def test_runtime_resolves_server_root_and_packaged_skill():
     skill_text = skill_path.read_text(encoding="utf-8")
     assert "name: indesign-cli" in skill_text
     assert "pip install indesign-cli" in skill_text
+    assert "server health --deep" in skill_text
+    assert "D:\\AI\\html-indesign" not in skill_text
+    assert '"templatePath"' not in skill_text
+    assert '"values"' not in skill_text
     assert "git+https://github.com" not in skill_text
     assert "cli-anything-indesign" not in skill_text
 
@@ -209,6 +215,8 @@ def test_invalid_domain_is_actionable():
     assert payload["error"]["code"] == "DOMAIN_NOT_FOUND"
     assert payload["error"]["details"]["domain"] == "not-a-domain"
     assert "export" in payload["error"]["details"]["available"]
+    assert "tool domains" in payload["error"]["hint"]
+    assert "plugin list" in payload["error"]["hint"]
 
 
 def test_invalid_source_is_actionable():
@@ -219,6 +227,27 @@ def test_invalid_source_is_actionable():
     assert payload["error"]["code"] == "SOURCE_NOT_FOUND"
     assert payload["error"]["details"]["source"] == "not-a-source"
     assert "advanced" in payload["error"]["details"]["available"]
+
+
+def test_unknown_tool_hint_points_to_search():
+    result = run_module("tool", "schema", "not_a_domain.not_a_tool")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "TOOL_NOT_FOUND"
+    assert "tool search" in payload["error"]["hint"]
+    assert "tool domains" in payload["error"]["hint"]
+
+
+def test_missing_artifact_hint_explains_next_step(tmp_path):
+    missing = tmp_path / "missing.pdf"
+    result = run_module("export", "verify", str(missing), cwd=tmp_path)
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "ARTIFACT_NOT_FOUND"
+    assert "导出" in payload["error"]["hint"]
+    assert "当前工作目录" in payload["error"]["hint"]
 
 
 def test_cli_discovery_commands_return_agent_useful_payloads():
@@ -254,6 +283,10 @@ def test_cli_discovery_commands_return_agent_useful_payloads():
     schema = json.loads(run_module("tool", "schema", "export.verify").stdout)["data"]["inputSchema"]
     assert schema["required"] == ["path"]
     assert "path" in schema["properties"]
+
+    health_payload = json.loads(run_module("server", "health").stdout)["data"]
+    assert health_payload["indesign_com"]["checked"] is False
+    assert health_payload["indesign_com"]["available"] is None
 
 
 def test_cli_action_commands_return_agent_useful_payloads(tmp_path):
@@ -479,6 +512,22 @@ def test_hidden_handlers_are_listed_callable_and_schema_backed():
     assert "filePath" in next(item for item in hidden_tools if item["id"] == "book.create_book")["arg_names"]
     assert "files" in next(item for item in hidden_tools if item["id"] == "presentation.add_image_grid")["arg_names"]
 
+    book_info = next(item for item in hidden_tools if item["id"] == "book.get_book_info")
+    assert "调用已有" not in book_info["one_line_purpose"]
+    assert book_info["side_effects"] == []
+    assert book_info["target_scope"] == "indesign_book"
+
+    export_book = next(item for item in hidden_tools if item["id"] == "book.export_book")
+    assert "Book" in export_book["one_line_purpose"]
+    assert export_book["side_effects"] == ["filesystem_write"]
+    assert {"pdf", "epub", "html"}.issubset(set(export_book["artifact_kinds"]))
+    assert export_book["produces_artifacts"] is True
+
+    export_presentation = next(item for item in hidden_tools if item["id"] == "presentation.export_presentation_pdf")
+    assert export_presentation["side_effects"] == ["filesystem_write"]
+    assert export_presentation["artifact_kinds"] == ["pdf"]
+    assert export_presentation["target_scope"] == "filesystem"
+
 
 def test_tool_schema_supports_hidden_handler():
     from cli_anything.indesign.core.catalog import Catalog
@@ -574,6 +623,34 @@ def test_cli_primitive_schema_exposes_required_args():
     script_payload = router.schema("script.run")
     assert "timeout" in script_payload["inputSchema"]["properties"]
     assert "timeout" in script_payload["tool"]["arg_names"]
+    assert script_payload["inputSchema"]["oneOf"] == [{"required": ["file"]}, {"required": ["stdin"]}]
+    assert "文件模式" in script_payload["inputSchema"]["properties"]["file"]["description"]
+    assert "临时探针" in script_payload["inputSchema"]["properties"]["stdin"]["description"]
+    assert "session_write" in script_payload["tool"]["side_effects"]
+
+
+def test_inline_script_tool_is_marked_as_short_probe():
+    from cli_anything.indesign.indesign_cli import build_catalog_with_backends
+
+    catalog, _warnings = build_catalog_with_backends()
+    inline_tool = next(item for item in catalog.list_tools(domain="script") if item["id"] == "script.execute_indesign_code")
+    assert "短" in inline_tool["one_line_purpose"]
+    assert "script.run" in inline_tool["one_line_purpose"]
+
+
+def test_cli_help_is_agent_oriented():
+    root = run_module("--help")
+    assert root.returncode == 0
+    assert "Agent" in root.stdout
+    assert "发现工具" in root.stdout
+
+    tool_list = run_module("tool", "list", "--help")
+    assert tool_list.returncode == 0
+    assert "不带过滤条件时返回工具域摘要" in tool_list.stdout
+
+    plugin_doctor = run_module("plugin", "doctor", "--help")
+    assert plugin_doctor.returncode == 0
+    assert "写入临时 session 探针" in plugin_doctor.stdout
 
 
 def test_router_passes_timeout_to_mcp_backend():

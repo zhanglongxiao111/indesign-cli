@@ -221,3 +221,122 @@ HIDDEN_HANDLER_SCHEMAS: dict[str, dict[str, Any]] = {
         ["filePath"],
     ),
 }
+
+
+HIDDEN_HANDLER_METADATA: dict[str, dict[str, Any]] = {
+    "book.create_book": {
+        "one_line_purpose": "新建 InDesign Book（.indb）文件",
+        "side_effects": ["filesystem_write"],
+        "artifact_kinds": ["indb"],
+        "target_scope": "filesystem",
+        "produces_artifacts": True,
+    },
+    "book.open_book": {
+        "one_line_purpose": "打开已有 InDesign Book 文件",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.add_document_to_book": {
+        "one_line_purpose": "把 InDesign 文档加入指定 Book",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.synchronize_book": {
+        "one_line_purpose": "同步 Book 内文档的样式、母版和编号设置",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.export_book": {
+        "one_line_purpose": "把整个 Book 导出为 PDF、EPUB 或 HTML",
+        "side_effects": ["filesystem_write"],
+        "artifact_kinds": ["pdf", "epub", "html"],
+        "target_scope": "filesystem",
+        "produces_artifacts": True,
+    },
+    "book.package_book": {
+        "one_line_purpose": "打包 Book 及其字体、链接图像和报告",
+        "side_effects": ["filesystem_write"],
+        "artifact_kinds": ["package", "idml", "pdf", "report"],
+        "target_scope": "filesystem",
+        "produces_artifacts": True,
+    },
+    "book.get_book_info": {
+        "one_line_purpose": "读取指定 Book 的文档列表和属性信息",
+        "side_effects": [],
+        "target_scope": "indesign_book",
+    },
+    "book.list_books": {
+        "one_line_purpose": "列出当前 InDesign 打开的 Book",
+        "side_effects": [],
+        "target_scope": "indesign_book",
+    },
+    "book.repaginate_book": {
+        "one_line_purpose": "重新计算 Book 内所有文档页码",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.update_all_cross_references": {
+        "one_line_purpose": "更新 Book 内全部交叉引用",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.update_all_numbers": {
+        "one_line_purpose": "更新 Book 内页码、章节号和段落编号",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.update_chapter_and_paragraph_numbers": {
+        "one_line_purpose": "更新 Book 的章节号和段落编号",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "book.preflight_book": {
+        "one_line_purpose": "预检 Book，并可输出预检报告",
+        "side_effects": ["filesystem_write"],
+        "artifact_kinds": ["report"],
+        "target_scope": "filesystem",
+        "produces_artifacts": True,
+    },
+    "book.print_book": {
+        "one_line_purpose": "打印 Book，可使用打印预设或系统对话框",
+        "side_effects": ["print_job"],
+        "target_scope": "printer",
+    },
+    "book.set_book_properties": {
+        "one_line_purpose": "设置 Book 的同步、分页和转换属性",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "indesign_book",
+    },
+    "presentation.create_presentation_document": {
+        "one_line_purpose": "创建演示汇报型 InDesign 文档",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "active_document",
+    },
+    "presentation.add_cover_page": {
+        "one_line_purpose": "新增带标题、副标题和背景图的封面页",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "active_document",
+    },
+    "presentation.add_section_page": {
+        "one_line_purpose": "新增章节分隔页",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "active_document",
+    },
+    "presentation.add_full_bleed_image": {
+        "one_line_purpose": "新增满版图片页，可附图片说明",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "active_document",
+    },
+    "presentation.add_image_grid": {
+        "one_line_purpose": "新增图片网格页，按行列置入多张图片",
+        "side_effects": ["indesign_mutation"],
+        "target_scope": "active_document",
+    },
+    "presentation.export_presentation_pdf": {
+        "one_line_purpose": "把当前演示文档导出为 PDF",
+        "side_effects": ["filesystem_write"],
+        "artifact_kinds": ["pdf"],
+        "target_scope": "filesystem",
+        "produces_artifacts": True,
+    },
+}

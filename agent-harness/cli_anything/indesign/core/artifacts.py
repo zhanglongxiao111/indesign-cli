@@ -21,12 +21,27 @@ def parse_timestamp(value: str) -> datetime:
 def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path | None = None) -> dict[str, Any]:
     path_info = scrub_path(str(path), cwd or Path.cwd())
     if not path.exists():
-        raise CliError("Artifact not found", code="ARTIFACT_NOT_FOUND", details={"path": path_info})
+        raise CliError(
+            "Artifact not found",
+            code="ARTIFACT_NOT_FOUND",
+            details={"path": path_info},
+            hint="先确认导出命令是否成功；相对路径按当前工作目录解析，必要时用绝对输出路径再运行 `indesign-cli export verify <path>`。",
+        )
     stat = path.stat()
     if stat.st_size <= 0:
-        raise CliError("Artifact is empty", code="ARTIFACT_EMPTY", details={"path": path_info})
+        raise CliError(
+            "Artifact is empty",
+            code="ARTIFACT_EMPTY",
+            details={"path": path_info},
+            hint="产物存在但为空；重新导出后再验证，或检查 InDesign 导出错误。",
+        )
     if created_after and datetime.fromtimestamp(stat.st_mtime, created_after.tzinfo) < created_after:
-        raise CliError("Artifact is older than expected", code="ARTIFACT_TOO_OLD", details={"path": path_info})
+        raise CliError(
+            "Artifact is older than expected",
+            code="ARTIFACT_TOO_OLD",
+            details={"path": path_info},
+            hint="当前文件早于 created_after；重新导出，或确认验证路径没有指向旧产物。",
+        )
 
     suffix = path.suffix.lower()
     if suffix == ".pdf":
@@ -54,4 +69,8 @@ def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path
             "signature_ok": True,
             "mtime": stat.st_mtime,
         }
-    raise CliError(f"Unsupported artifact type: {suffix}", code="ARTIFACT_UNSUPPORTED")
+    raise CliError(
+        f"Unsupported artifact type: {suffix}",
+        code="ARTIFACT_UNSUPPORTED",
+        hint="当前只验证 PDF 和 IDML；图片等产物请先检查文件存在、大小和导出日志。",
+    )

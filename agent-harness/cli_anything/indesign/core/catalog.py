@@ -7,7 +7,7 @@ from typing import Any
 
 from .domains import DOMAINS, infer_domain
 from .errors import CliError
-from .hidden_handler_schemas import HIDDEN_HANDLER_SCHEMAS
+from .hidden_handler_schemas import HIDDEN_HANDLER_METADATA, HIDDEN_HANDLER_SCHEMAS
 from .plugins.manifest import PluginRecord
 
 
@@ -24,7 +24,7 @@ CLI_PRIMITIVES = [
         "availability": "exposed",
         "callable": True,
         "requires": [],
-        "side_effects": [],
+        "side_effects": ["session_write"],
         "artifact_kinds": ["pdf", "idml"],
         "destructive": False,
         "target_scope": "filesystem",
@@ -35,7 +35,7 @@ CLI_PRIMITIVES = [
         "id": "server.health",
         "domain": "server",
         "name": "health",
-        "one_line_purpose": "检查 CLI、Node 入口和可选 InDesign 后端状态",
+        "one_line_purpose": "检查 CLI、Node 入口和 InDesign 相关后端状态",
         "arg_names": ["deep"],
         "source": "cli",
         "rank": 1,
@@ -111,7 +111,7 @@ CLI_PRIMITIVES = [
         "id": "script.run",
         "domain": "script",
         "name": "run",
-        "one_line_purpose": "执行 JSX 文件或 stdin 临时脚本",
+        "one_line_purpose": "执行 JSX 文件；stdin 只适合短临时探针",
         "arg_names": ["file", "stdin", "timeout"],
         "source": "script",
         "rank": 1,
@@ -119,7 +119,7 @@ CLI_PRIMITIVES = [
         "availability": "exposed",
         "callable": True,
         "requires": ["indesign_com"],
-        "side_effects": ["indesign_mutation"],
+        "side_effects": ["indesign_mutation", "session_write"],
         "artifact_kinds": [],
         "destructive": False,
         "target_scope": "indesign",
@@ -154,6 +154,10 @@ HIDDEN_HANDLER_FILES = {
 }
 
 VALID_SOURCES = {"cli", "script", "advanced", "classic", "hidden_handler", "plugin"}
+
+PURPOSE_OVERRIDES = {
+    "execute_indesign_code": "执行短 inline ExtendScript 探针；长脚本优先用 script.run 文件模式",
+}
 
 
 def _camel_to_snake(value: str) -> str:
@@ -216,7 +220,7 @@ def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[
                 "id": f"{domain}.{name}",
                 "domain": domain,
                 "name": name,
-                "one_line_purpose": description.splitlines()[0] if description else name,
+                "one_line_purpose": PURPOSE_OVERRIDES.get(name, description.splitlines()[0] if description else name),
                 "arg_names": arg_names,
                 "source": source,
                 "rank": (10 if source == "advanced" else 20) + index,
@@ -339,6 +343,7 @@ class Catalog:
                     f"Unknown domain: {domain}",
                     code="DOMAIN_NOT_FOUND",
                     details={"domain": domain, "available": list(self._domains)},
+                    hint="先运行 `indesign-cli tool domains` 查看可用域；插件域缺失时运行 `indesign-cli plugin list`，需要时再 `indesign-cli plugin install <plugin-root>`。",
                 )
             tools = [tool for tool in tools if tool["domain"] == domain]
         if source:
@@ -347,6 +352,7 @@ class Catalog:
                     f"Unknown source: {source}",
                     code="SOURCE_NOT_FOUND",
                     details={"source": source, "available": sorted(VALID_SOURCES)},
+                    hint="先运行 `indesign-cli tool list` 查看工具来源；插件相关问题用 `indesign-cli plugin list` 检查。",
                 )
             tools = [tool for tool in tools if tool["source"] == source]
         if callable_only:
@@ -379,14 +385,16 @@ class Catalog:
                 name = _camel_to_snake(method)
                 tool_id = f"{domain}.{name}"
                 schema = HIDDEN_HANDLER_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})
+                metadata = HIDDEN_HANDLER_METADATA.get(tool_id, {})
                 arg_names = list(schema.get("properties", {}).keys())
                 callable_handler = tool_id in HIDDEN_HANDLER_SCHEMAS
+                artifact_kinds = list(metadata.get("artifact_kinds", _artifact_kinds(name)))
                 entries.append(
                     {
                         "id": tool_id,
                         "domain": domain,
                         "name": name,
-                        "one_line_purpose": f"调用已有 {domain} handler 能力",
+                        "one_line_purpose": str(metadata.get("one_line_purpose") or f"调用已有 {domain} handler 能力"),
                         "arg_names": arg_names,
                         "source": "hidden_handler",
                         "rank": 90,
@@ -394,12 +402,12 @@ class Catalog:
                         "availability": "exposed" if callable_handler else "hidden_handler",
                         "callable": callable_handler,
                         "requires": ["indesign_com"],
-                        "side_effects": ["indesign_mutation"],
-                        "artifact_kinds": _artifact_kinds(name),
+                        "side_effects": list(metadata.get("side_effects", ["indesign_mutation"])),
+                        "artifact_kinds": artifact_kinds,
                         "destructive": any(part in name for part in ("delete", "clear", "close")),
-                        "target_scope": _target_scope(domain, name),
+                        "target_scope": str(metadata.get("target_scope") or _target_scope(domain, name)),
                         "needs_indesign": True,
-                        "produces_artifacts": bool(_artifact_kinds(name)),
+                        "produces_artifacts": bool(metadata.get("produces_artifacts", bool(artifact_kinds))),
                     }
                 )
         return entries
