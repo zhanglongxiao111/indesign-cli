@@ -1,6 +1,12 @@
 ---
 name: indesign-cli
 description: 当 Agent 需要通过 indesign-cli 操作真实 Adobe InDesign、执行 JSX、调用现有工具、验证导出物，或在其他项目中接入 InDesign 自动化能力时使用。
+tags:
+  - Adobe InDesign
+  - CLI
+  - 自动化
+  - 排版
+  - 设计工具
 ---
 
 # InDesign CLI

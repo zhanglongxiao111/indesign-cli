@@ -2,6 +2,17 @@
 
 本目录用于放长期可追溯的项目文档。`AGENTS.md` 是项目级协作入口，本文只规定文档放置位置。
 
+## 仓库级入口
+
+这些文件不放在 `docs/` 下，但属于当前项目入口或对外分发资料：
+
+| 路径 | 用途 |
+| ---- | ---- |
+| `../AGENTS.md` | 项目级 Agent 协作规则、目录职责和执行基线 |
+| `../README.md` / `../README.en.md` | 面向人类用户的项目说明、安装和能力概览 |
+| `../skills/indesign-cli/SKILL.md` | 可手动复制到其他项目的 InDesign CLI 配套 Agent Skill |
+| `../skills/indesign-cli/preview.png` | InDesign CLI 配套 Skill 预览图 |
+
 ## 标准目录
 
 | 目录 | 用途 | 命名建议 |

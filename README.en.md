@@ -21,7 +21,7 @@ Adobe InDesign is powerful, but it is not easy for AI agents to use directly:
 
 `indesign-cli` provides a practical bridge between AI projects and real Adobe InDesign.
 
-One of its main benefits is **token efficiency**: agents do not need to load all 148 full tool descriptions into context. They can start with compact `tool domains` summaries, then load only the relevant details through `tool search`, `tool list`, and `tool schema`.
+One of its main benefits is **token efficiency**: agents do not need to load all 147 full tool descriptions into context. They can start with compact `tool domains` summaries, then load only the relevant details through `tool search`, `tool list`, and `tool schema`.
 
 It is not a manual layout CLI for humans, and it is not a new layout engine. It is an execution layer for agents that need to automate InDesign safely.
 
@@ -218,12 +218,12 @@ node tests\index.js --required
 
 ```text
 .
-├─ agent-harness/   # Python CLI, bundled Skill, CLI tests
+├─ agent-harness/   # Python CLI and CLI tests
 ├─ src/             # MCP server, InDesign handlers, JSX/COM execution
 ├─ scripts/         # Maintenance and validation scripts
 ├─ tests/           # Tests and real InDesign E2E scenarios
 ├─ docs/            # Design notes, plans, collaboration records
-├─ skills/          # Agent Skill source installable into other projects
+├─ skills/          # Agent Skill source and preview assets for manual copy
 ├─ pyproject.toml   # pip installation entry
 └─ AGENTS.md        # Project-level agent collaboration rules
 ```

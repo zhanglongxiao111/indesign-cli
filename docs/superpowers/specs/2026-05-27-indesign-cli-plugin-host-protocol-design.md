@@ -6,7 +6,7 @@
 
 ## 1. 背景
 
-`indesign-cli` 当前是 Agent 使用 Adobe InDesign 的通用自动化底座，已经提供工具发现、JSX 执行、MCP handler 调用、导出验证、session 记录和 Skill 安装能力。
+`indesign-cli` 当前是 Agent 使用 Adobe InDesign 的通用自动化底座，已经提供工具发现、JSX 执行、MCP handler 调用、导出验证、session 记录，以及随包分发但需手动复制的配套 Skill 文档。
 
 `html-indesign` 当前定位是固定语义 HTML 与 InDesign 的双向翻译库。它需要真实 InDesign 通道执行 JSX、导出 PDF/IDML、做回环验证，但不应该并入 `indesign-cli` 核心，也不应该重新实现 InDesign COM、MCP 或脚本执行层。
 
@@ -875,4 +875,3 @@ indesign-cli plugin doctor html-indesign --deep
 - `plugin validate` 能在安装前发现 manifest、schema、协议和 stdout 问题。
 - `plugin doctor` 能在安装后定位发现顺序、依赖、权限和宿主能力问题。
 - 普通 `indesign-cli` 用户不安装插件时，基础 CLI 仍保持轻量。
-

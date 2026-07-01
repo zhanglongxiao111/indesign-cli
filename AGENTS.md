@@ -5,7 +5,7 @@
 - **先理解现状，再动手。** 先读代码、工具定义、测试和当前文档，避免凭旧印象改项目。
 - **收口优先。** 能复用现有 `core`、`handlers`、`types`、`utils` 时，不新增平行实现。
 - **CLI 复用现有能力。** CLI 是面向 Agent 的按需入口，不重写一套 InDesign 自动化。
-- **下一阶段转向固定语义 HTML。** 先定义可校验、可编译的 HTML 语义，再把它转换成 InDesign 页面、样式和对象。
+- **HTML 转 InDesign 在外部插件仓库实现。** 本仓库只维护 `indesign-cli` 宿主、插件协议和 InDesign 执行底座。
 - **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，可能通过 CLI 工具目录继续使用。
 - **文档按用途归档。** 长期规范、方案、计划、排查、复盘分开放，避免一个目录堆成垃圾场。
 - **历史资料只追溯。** 当前开发以代码、`AGENTS.md` 和当前文档为准。
@@ -29,7 +29,7 @@
 | 当前文档与历史文档不一致 | 以当前文档为准 |
 | MCP 暴露工具与 handler 实现不一致 | 先判断是否是临时隐藏，不直接按死代码删除 |
 | CLI 目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
-| HTML 语义转换目标与现有工具不一致 | 以语义协议和可验证转换链路为准，CLI 只作为调用入口 |
+| HTML 插件需求与 CLI 宿主不一致 | 先判断是否属于插件协议或 host action 边界；不要把 HTML 转换实现塞回本仓库 |
 
 ## 2. 强制规则
 
@@ -62,6 +62,7 @@
 - `src/advanced/` 放高级模板服务器入口。
 - `scripts/` 只放维护脚本和轻量检查，不放临时手测脚本。
 - `tests/` 放测试入口、场景测试和测试数据。
+- `skills/` 放可手动分发到其他项目的 Agent Skill 源文件、预览图和轻量资产。
 
 新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
 
@@ -74,68 +75,38 @@
 - 脚本标签是模板槽位的重要元数据；除非工具明确负责覆盖标签，否则不要破坏现有标签。
 - 不要记录客户文档内容、客户名称或私有资产路径。
 
-### 2.5 CLI 使用
+### 2.5 CLI 开发边界
 
-本项目已提供 Agent 专用 CLI harness：
+- CLI 实现在 `agent-harness/`，Python 包名为 `cli_anything.indesign`。
+- `AGENTS.md` 只记录实现边界、测试责任和目录职责；CLI 使用教程写入 `README.md` / `README.en.md`，Agent 使用提示写入 `skills/indesign-cli/SKILL.md`。
+- CLI 必须复用当前 MCP server、handler 和 COM/脚本执行层，不重写一套 InDesign 自动化。
+- CLI 不应引入常驻后台服务；如需改变进程模型，先写方案并说明兼容影响。
+- 工具目录、router、session、schema、插件协议和脚本执行契约发生变化时，必须同步更新 CLI 单元测试和相关对外文档。
+- Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 另行判断。
+- 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
+- 配套 Skill 源文件在 `skills/indesign-cli/SKILL.md`；CLI 不提供自动安装命令，不能重新加入自动复制 Skill 的命令入口。
+- `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
-- 位置：`agent-harness/`
-- 命令入口：`indesign-cli`
-- Python 包名：`cli_anything.indesign`
-- 本地 session：当前工作目录下的 `.indesign-cli/session.json`
+### 2.6 HTML 插件接入边界
 
-使用原则：
+固定语义 HTML 转 InDesign 已在 `D:\AI\html-indesign` 作为独立项目开发。本仓库不实现语义 HTML 解析、模板生成、CSS 映射或 HTML 到 InDesign 的业务转换。
 
-- CLI 复用当前 MCP server、handler 和 COM/脚本执行层。
-- 不重写 InDesign 操作，不做玩具模拟器。
-- 不需要单独启动常驻服务；每次调用按需启动 Node MCP/bridge 子进程，调用完退出。
-- InDesign 进程和打开文档可以连续存在，但 Node 子进程内存不跨命令保留。
-- 跨步骤连续操作依赖 JSON 返回值、InDesign 真实文档状态、显式文件路径、脚本标签或 `.indesign-cli/session.json`。
-- 简单单步操作用 `tool call`；复杂多步骤优先写成单个 JSX，再用 `script run` 执行。
-- `script run` 支持文件和 `--stdin`；stdin 支持中文输入。
-- JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)` 的 JSON 字符串；JSON 字符串会额外解析到 `data.result_json`。
-- ExtendScript 执行环境会补最小 `JSON.stringify` / `JSON.parse` 兼容层。
-- `script run` 成功和失败都会写入当前目录 `.indesign-cli/session.json`。
-- Book、Presentation、Export、Template 等工具域都进入 CLI 工具目录；是否公开到 MCP 另行判断。
-- 生成 PDF 或 IDML 后必须用 `export verify` 验证产物。
-- 不要把客户文档内容、客户名称或外部资产完整路径写进日志和 session。
+本仓库已经为外部 HTML 转换项目准备插件宿主能力：
 
-### 2.6 固定语义 HTML 转 InDesign
+- `plugin install/list/remove` 负责项目级插件记录，不复制插件源码。
+- `plugin validate` 负责安装前校验 manifest、协议、工具清单、schema 和 stdout 规范。
+- `plugin doctor` 负责安装后诊断插件发现、依赖和宿主能力。
+- 工具目录支持动态 domain、`source: plugin`、`tool list --domain html`、`tool schema` 和 `tool call`。
+- 插件需要真实 InDesign 时，通过受控 host action 使用宿主能力；第一版允许 `script.run`、`export.verify`、`session.show`。
+- 插件协议规范见 `docs/superpowers/specs/2026-05-27-indesign-cli-plugin-host-protocol-design.md`。
 
-下一阶段目标是建立固定语义 HTML 到 InDesign 的转换能力。
+开发边界：
 
-定位：
-
-- 本质上是一个 `HTML to InDesign` 的语义编译库，不只是 CLI 命令集合。
-- CLI 是 Agent 调用入口，负责发现能力、校验输入、编排转换和返回结构化结果。
-- ExtendScript/JSX 是 InDesign 执行后端，负责创建页面、文本框、图片框、样式和置入资源。
-- 不在 ExtendScript 里承担复杂 HTML 解析、语义校验和模板推理；这些逻辑应放在宿主侧库中，便于测试和维护。
-
-设计原则：
-
-- 第一版先定义建筑设计汇报可用的固定语义，不急于生产大量模板。
-- HTML 是受约束的语义输入，不是任意网页源码。
-- 语义层应稳定表达 `deck`、`section`、`page`、`title`、`body`、`image`、`caption`、`metric`、`table`、`case-study`、`image-grid` 等出版/汇报对象。
-- CSS 主要作为样式 token 和受限布局表达，最终应映射到 InDesign 段落样式、字符样式、对象样式和页面对象属性。
-- 不支持完整浏览器 CSS；需要浏览器排版时，应作为后续受限布局能力单独设计。
-- 旧 `D:\AI\html-indesign` 项目可作为语义、蓝图、校验和回填链路的参考来源，但不能原样迁入当前项目。
-- 兼容已有 InDesign 模板槽位时，通过映射层把稳定语义映射到母版名、脚本标签和槽位名。
-
-推荐转换链路：
-
-```text
-固定语义 HTML
--> 语义校验
--> 样式和资源解析
--> InDesign 构建指令 JSON
--> CLI 调用 JSX 执行后端
--> InDesign 内容页、样式和资源
-```
-
-边界：
-
-- 模板库、模板生成和浏览器布局转换是后续能力，不作为第一版前置条件。
-- InDesign 母版可以作为兼容目标或缓存优化，但不是主流程必经中间层。
-- 转换过程不得记录客户文档内容、客户名称或私有资产完整路径。
+- `html-indesign` 侧负责固定语义、模板协议、HTML/CSS 到 InDesign 指令的转换和自身测试。
+- `indesign-cli` 侧负责插件协议、工具目录、JSON envelope、host action、session 记录和真实 InDesign 执行通道。
+- 不把 `html-indesign` 源码搬进 `src/`、`agent-harness/` 或本仓库核心模块。
+- 如 HTML 插件需要新的宿主动作，先扩展插件协议和安全边界，再实现 CLI host action。
+- 修改插件协议后，同步更新协议 spec、CLI 单元测试、README 和配套 Skill。
 
 ### 2.7 方案与计划文档
 
@@ -160,14 +131,7 @@
 | 安装 CLI harness | `pip install -e .` |
 | PyPI 安装 CLI | `pip install indesign-cli` |
 | 安装 Node 依赖 | `indesign-cli server setup` |
-| CLI 健康检查 | `indesign-cli server health` |
-| CLI 工具域 | `indesign-cli tool domains` |
-| CLI 工具列表 | `indesign-cli tool list --domain <domain>` |
-| CLI Schema | `indesign-cli tool schema <tool_id>` |
-| CLI 调用工具 | `indesign-cli tool call <tool_id> --args args.json` |
-| CLI 执行 JSX | `indesign-cli script run <file.jsx>` |
-| CLI 执行 stdin JSX | `indesign-cli script run --stdin` |
-| CLI 验证产物 | `indesign-cli export verify <path>` |
+| CLI smoke | `indesign-cli server health`、`indesign-cli tool domains` |
 | 启动经典服务器 | `npm run start` 或 `node src/index.js` |
 | 调试经典服务器 | `npm run dev` |
 | 启动高级模板服务器 | `node src/advanced/index.js` |
@@ -208,7 +172,9 @@
 | `src/types/` | MCP 工具定义和输入 Schema |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
-| `skills/indesign-cli/` | 可手动复制到其他项目的 Agent skill 源文件 |
+| `skills/` | 可手动复制到其他项目的 Agent skill 源文件和展示资产 |
+| `skills/indesign-cli/SKILL.md` | InDesign CLI 配套 Skill 主文档 |
+| `skills/indesign-cli/preview.png` | InDesign CLI 配套 Skill 预览图 |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |
@@ -243,7 +209,7 @@
 | 事项 | 当前状态 | 处理原则 |
 | ---- | -------- | -------- |
 | Book / Presentation 等工具域 | 已进入 CLI 工具目录和真实 E2E 覆盖，部分 MCP 工具定义仍未暴露 | 不按死代码删除；是否公开到 MCP 另行判断 |
-| 固定语义 HTML 转 InDesign | 下一阶段目标；当前只形成项目级口径，尚未实现 | 先写方案和语义协议，再进入实现计划 |
+| 固定语义 HTML 转 InDesign | 在 `D:\AI\html-indesign` 独立开发；本仓库已提供插件宿主协议和本地插件接入入口 | 本仓库只维护宿主边界、验证工具和 InDesign 执行通道 |
 | 根 README | 当前内容较薄，且指向上级 README | 后续可补成清晰项目入口 |
 | 部分 docs | 存在旧平台和旧版本描述 | 触及时按当前代码和 Windows COM 现状修正 |
 | InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话；当前真实 E2E 入口在 `tests/real-e2e/` | 没有真实环境时要明确说明未跑 |

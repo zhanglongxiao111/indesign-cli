@@ -228,12 +228,12 @@ node tests\index.js --required
 
 ```text
 .
-├─ agent-harness/   # Python CLI、内置 Skill、CLI 测试
+├─ agent-harness/   # Python CLI、CLI 测试
 ├─ src/             # MCP Server、InDesign handler、JSX/COM 执行链路
 ├─ scripts/         # 维护脚本和检查脚本
 ├─ tests/           # 测试和真实 InDesign E2E
 ├─ docs/            # 设计文档、计划、协作记录
-├─ skills/          # 可安装到其他项目的 Agent Skill
+├─ skills/          # 可手动复制到其他项目的 Agent Skill 和预览资产
 ├─ pyproject.toml   # pip 安装入口
 └─ AGENTS.md        # 项目级 Agent 协作规则
 ```

@@ -436,7 +436,7 @@ python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
 
 - [x] 更新 `README.md`，增加插件能力概览和本地安装示例。
 - [x] 更新 `README.en.md`。
-- [x] 更新内置 Skill，只补 CLI 内无法发现的信息：
+- [x] 更新配套 Skill，只补 CLI 内无法发现的信息：
   - 插件机制存在。
   - 优先用 `tool domains/list/schema/call` 发现插件工具。
   - 需要 HTML 能力时先检查 `tool list --domain html`。
