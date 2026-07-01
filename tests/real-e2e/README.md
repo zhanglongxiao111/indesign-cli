@@ -27,6 +27,14 @@ node tests/real-e2e/run-architecture-presentation.mjs --phase assets --offline
 
 `--full --offline` 后续会在真实 Adobe InDesign 中创建 28 页 `.indd`，导出 PDF/IDML/图片/package，并写入 `coverage-report.json`。
 
+Agent UX hardening smoke:
+
+```powershell
+node tests\real-e2e\run-agent-ux-hardening.mjs --offline
+```
+
+该 runner 覆盖显式 COM 探针、可省略空参数工具调用、`--args-file`、圆角矩形、JPEG-only 图片导出、PNG 拒绝、JSX wrapper 失败、`tool batch` 失败步骤和 `session doctor`。报告写入 `.indesign-e2e-runs/<run-id>/reports/agent-ux-hardening-report.json`。
+
 ## 关键报告
 
 - `reports/tool-catalog.json`：实时 CLI 工具目录。

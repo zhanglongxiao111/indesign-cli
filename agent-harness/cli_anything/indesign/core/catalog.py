@@ -36,7 +36,7 @@ CLI_PRIMITIVES = [
         "domain": "server",
         "name": "health",
         "one_line_purpose": "检查 CLI、Node 入口和 InDesign 相关后端状态",
-        "arg_names": ["deep"],
+        "arg_names": ["deep", "connect_indesign"],
         "source": "cli",
         "rank": 1,
         "schema_size": "small",
@@ -108,11 +108,49 @@ CLI_PRIMITIVES = [
         "produces_artifacts": False,
     },
     {
+        "id": "session.doctor",
+        "domain": "session",
+        "name": "doctor",
+        "one_line_purpose": "读取最近失败、artifacts 和文档状态线索，给出下一步诊断建议",
+        "arg_names": [],
+        "source": "cli",
+        "rank": 3,
+        "schema_size": "small",
+        "availability": "exposed",
+        "callable": True,
+        "requires": [],
+        "side_effects": [],
+        "artifact_kinds": [],
+        "destructive": False,
+        "target_scope": "workspace",
+        "needs_indesign": False,
+        "produces_artifacts": False,
+    },
+    {
+        "id": "tool.batch",
+        "domain": "tool",
+        "name": "batch",
+        "one_line_purpose": "按 JSON plan 顺序执行多个工具调用，失败时停止并返回 failed_step",
+        "arg_names": ["plan", "on_error", "timeout_ms"],
+        "source": "cli",
+        "rank": 1,
+        "schema_size": "small",
+        "availability": "exposed",
+        "callable": True,
+        "requires": [],
+        "side_effects": ["session_write"],
+        "artifact_kinds": [],
+        "destructive": False,
+        "target_scope": "workspace",
+        "needs_indesign": False,
+        "produces_artifacts": True,
+    },
+    {
         "id": "script.run",
         "domain": "script",
         "name": "run",
         "one_line_purpose": "执行 JSX 文件；stdin 只适合短临时探针",
-        "arg_names": ["file", "stdin", "timeout"],
+        "arg_names": ["file", "stdin", "timeout", "timeout_ms"],
         "source": "script",
         "rank": 1,
         "schema_size": "small",
@@ -187,6 +225,81 @@ def _target_scope(domain: str, tool_name: str) -> str:
     return "indesign"
 
 
+def _agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
+    tool_id = str(tool.get("id") or "")
+    domain = str(tool.get("domain") or "")
+    name = str(tool.get("name") or "")
+    side_effects = list(tool.get("side_effects") or [])
+    artifact_kinds = list(tool.get("artifact_kinds") or [])
+    target_scope = str(tool.get("target_scope") or "")
+    needs_indesign = bool(tool.get("needs_indesign", False))
+    destructive = bool(tool.get("destructive", False))
+    writes_filesystem = "filesystem_write" in side_effects or domain == "export" or any(
+        word in name for word in ("export", "package", "save")
+    )
+    mutates_document = needs_indesign and bool(side_effects) and "filesystem_write" not in side_effects
+    if "indesign_mutation" in side_effects or destructive:
+        mutates_document = True
+    returns_artifacts = bool(tool.get("produces_artifacts") or artifact_kinds or writes_filesystem)
+    requires_active_document = target_scope == "active_document" or (
+        needs_indesign and name.startswith(("get_", "create_", "edit_", "place_", "export_", "save_", "close_", "package_")) and name != "create_document"
+    )
+    contract: dict[str, Any] = {
+        "requires_active_document": requires_active_document,
+        "requires_active_page": needs_indesign and domain in {"page", "text", "graphics", "object"},
+        "uses_selection": "selection" in name or "select" in name,
+        "opens_document": name.startswith("open_") or tool_id == "template.inspect_template_blueprint",
+        "closes_document": name.startswith("close_"),
+        "may_close_document": name.startswith("close_") or tool_id == "template.inspect_template_blueprint",
+        "mutates_document": mutates_document,
+        "writes_filesystem": writes_filesystem,
+        "returns_artifacts": returns_artifacts,
+        "return_shape": {
+            "success": "boolean",
+            "data": "object",
+            "warnings": "array",
+            "artifacts": "array" if returns_artifacts else "optional array",
+        },
+        "return_example": {"success": True, "data": {}, "artifacts": [] if returns_artifacts else None},
+        "failure_example": {"success": False, "code": "MCP_TOOL_FAILED", "message": "Tool failed"},
+        "preconditions": [],
+        "safe_usage_notes": [],
+        "common_next_steps": ["Inspect the returned data before chaining the next operation."],
+    }
+    if requires_active_document:
+        contract["preconditions"].append("An explicit or active InDesign document is required.")
+    if writes_filesystem:
+        contract["safe_usage_notes"].append("Use explicit output paths and verify artifacts after the call.")
+        contract["common_next_steps"].append("Run `indesign-cli export verify <path>` for supported exported artifacts.")
+    if destructive or contract["may_close_document"]:
+        contract["safe_usage_notes"].append("Confirm the target document when multiple documents are open.")
+    overrides: dict[str, dict[str, Any]] = {
+        "document.close_document": {
+            "may_close_document": True,
+            "closes_document": True,
+            "mutates_document": True,
+            "requires_active_document": True,
+        },
+        "document.save_document": {"mutates_document": True, "requires_active_document": True},
+        "export.export_pdf": {"writes_filesystem": True, "returns_artifacts": True},
+        "export.export_images": {"writes_filesystem": True, "returns_artifacts": True},
+        "template.inspect_template_blueprint": {"opens_document": True, "may_close_document": True},
+        "script.run": {
+            "mutates_document": True,
+            "safe_usage_notes": ["Complex JSX should use a JSON diagnostic wrapper and explicit timeout."],
+        },
+    }
+    contract.update(overrides.get(tool_id, {}))
+    return contract
+
+
+def _with_agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(tool)
+    for key, value in _agent_contract(merged).items():
+        merged.setdefault(key, value)
+    return merged
+
+
 def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for index, tool in enumerate(tools):
@@ -197,6 +310,7 @@ def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[
         arg_names = list(schema.get("properties", {}).keys())
         artifact_kinds = _artifact_kinds(name)
         entries.append(
+            _with_agent_contract(
             {
                 "id": f"{domain}.{name}",
                 "domain": domain,
@@ -216,6 +330,7 @@ def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[
                 "needs_indesign": True,
                 "produces_artifacts": bool(artifact_kinds),
             }
+            )
         )
     return entries
 
@@ -226,6 +341,7 @@ def plugin_tool_entries(record: PluginRecord, tools: list[dict[str, Any]]) -> li
         tool_id = str(tool.get("id") or "")
         name = str(tool.get("name") or tool_id.split(".", 1)[-1])
         entries.append(
+            _with_agent_contract(
             {
                 "id": tool_id,
                 "domain": str(tool.get("domain") or record.domain),
@@ -245,7 +361,11 @@ def plugin_tool_entries(record: PluginRecord, tools: list[dict[str, Any]]) -> li
                 "target_scope": str(tool.get("target_scope") or "workspace"),
                 "needs_indesign": bool(tool.get("needs_indesign", False)),
                 "produces_artifacts": bool(tool.get("produces_artifacts", False)),
+                "preconditions": list(tool.get("preconditions") or []),
+                "return_example": tool.get("return_example") if isinstance(tool.get("return_example"), dict) else {},
+                "failure_example": tool.get("failure_example") if isinstance(tool.get("failure_example"), dict) else {},
             }
+            )
         )
     return entries
 
@@ -259,7 +379,7 @@ class Catalog:
         plugin_records: dict[str, PluginRecord] | None = None,
     ) -> None:
         self.repo_root = repo_root
-        self._tools = tools or [*CLI_PRIMITIVES, *self._hidden_handler_entries()]
+        self._tools = [_with_agent_contract(tool) for tool in (tools or [*CLI_PRIMITIVES, *self._hidden_handler_entries()])]
         self._domains = domains or dict(DOMAINS)
         self._plugin_records = plugin_records or {}
 
@@ -272,7 +392,7 @@ class Catalog:
         plugin_domain_summaries: dict[str, str] | None = None,
         plugin_records: dict[str, PluginRecord] | None = None,
     ) -> "Catalog":
-        tools = [*CLI_PRIMITIVES]
+        tools = [_with_agent_contract(tool) for tool in CLI_PRIMITIVES]
         tools.extend(exposed_tool_entries(advanced_tools or [], "advanced"))
         tools.extend(exposed_tool_entries(classic_tools or [], "classic"))
         exposed_ids = {tool["id"] for tool in tools}
@@ -371,6 +491,7 @@ class Catalog:
                 callable_handler = tool_id in HIDDEN_HANDLER_SCHEMAS
                 artifact_kinds = list(metadata.get("artifact_kinds", _artifact_kinds(name)))
                 entries.append(
+                    _with_agent_contract(
                     {
                         "id": tool_id,
                         "domain": domain,
@@ -390,5 +511,6 @@ class Catalog:
                         "needs_indesign": True,
                         "produces_artifacts": bool(metadata.get("produces_artifacts", bool(artifact_kinds))),
                     }
+                    )
                 )
         return entries

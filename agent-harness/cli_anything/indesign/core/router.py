@@ -35,6 +35,7 @@ PRIMITIVE_SCHEMAS = {
         "additionalProperties": False,
         "properties": {
             "deep": {"type": "boolean", "description": "是否执行较深的依赖检查"},
+            "connect_indesign": {"type": "boolean", "description": "是否执行只读 InDesign COM 探针"},
         },
     },
     "server.setup": {"type": "object", "additionalProperties": False, "properties": {}},
@@ -46,6 +47,17 @@ PRIMITIVE_SCHEMAS = {
         },
     },
     "session.clear": {"type": "object", "additionalProperties": False, "properties": {}},
+    "session.doctor": {"type": "object", "additionalProperties": False, "properties": {}},
+    "tool.batch": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "plan": {"type": "string", "description": "JSON batch plan 路径"},
+            "on_error": {"type": "string", "enum": ["stop"], "description": "失败策略，当前仅支持 stop"},
+            "timeout_ms": {"type": "integer", "description": "本次 batch 的超时毫秒"},
+        },
+        "required": ["plan"],
+    },
     "script.run": {
         "type": "object",
         "additionalProperties": False,
@@ -54,6 +66,7 @@ PRIMITIVE_SCHEMAS = {
             "file": {"type": "string", "description": "文件模式；推荐用于可复跑 JSX、相对 #include 和协作测试"},
             "stdin": {"type": "boolean", "description": "从 stdin 读取短临时探针；复杂脚本优先写文件再执行"},
             "timeout": {"type": "integer", "description": "脚本通道超时秒数，范围 1-3600"},
+            "timeout_ms": {"type": "integer", "description": "脚本通道超时毫秒，范围 1-3600000"},
         },
     },
 }
@@ -80,19 +93,41 @@ class Router:
         tool = self._find(tool_id)
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
+        metadata = self._metadata(tool)
         if tool["source"] in {"cli", "script"}:
-            return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})}
+            return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}}), "metadata": metadata}
         if tool["source"] == "hidden_handler":
-            return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id)}
+            return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id), "metadata": metadata}
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
             payload = backend.schema(tool_id)
-            return {"tool": tool, "inputSchema": payload.get("inputSchema", {})}
+            return {"tool": tool, "inputSchema": payload.get("inputSchema", {}), "metadata": metadata}
         backend = self._backend(tool["source"])
         for item in backend.list_tools():
             if item["name"] == tool["name"]:
-                return {"tool": tool, "inputSchema": item.get("inputSchema", {})}
+                return {"tool": tool, "inputSchema": item.get("inputSchema", {}), "metadata": metadata}
         raise CliError(f"Backend schema missing for {tool_id}", code="SCHEMA_NOT_FOUND")
+
+    @staticmethod
+    def _metadata(tool: dict[str, Any]) -> dict[str, Any]:
+        keys = (
+            "requires_active_document",
+            "requires_active_page",
+            "uses_selection",
+            "opens_document",
+            "closes_document",
+            "may_close_document",
+            "mutates_document",
+            "writes_filesystem",
+            "returns_artifacts",
+            "return_shape",
+            "return_example",
+            "failure_example",
+            "preconditions",
+            "safe_usage_notes",
+            "common_next_steps",
+        )
+        return {key: tool.get(key) for key in keys}
 
     def call(self, tool_id: str, args: dict[str, Any]) -> dict[str, Any]:
         tool = self._find(tool_id)
@@ -124,7 +159,11 @@ class Router:
         plugin_id = tool.get("plugin")
         if not isinstance(plugin_id, str) or not plugin_id:
             raise CliError("Plugin tool is missing plugin id", code="PLUGIN_RECORD_NOT_FOUND", details={"tool_id": tool.get("id")})
-        return PluginBackend(self.catalog.plugin_record(plugin_id))
+        record = self.catalog.plugin_record(plugin_id)
+        timeout = self.backend_timeout_seconds
+        if timeout is None:
+            timeout = self._parse_timeout_ms(record.manifest.get("timeout_default_ms", 30_000))
+        return PluginBackend(record, timeout=timeout)
 
     @staticmethod
     def _plugin_context() -> dict[str, Any]:
@@ -154,10 +193,18 @@ class Router:
 
             SessionStore(Path.cwd()).clear()
             return {"cleared": True}
+        if tool_id == "session.doctor":
+            from .session import SessionStore
+
+            return SessionStore(Path.cwd()).doctor()
         if tool_id == "server.health":
             from .health import health
 
-            return health(self.repo_root, deep=bool(args.get("deep")))
+            return health(self.repo_root, deep=bool(args.get("deep")), connect_indesign=bool(args.get("connect_indesign")))
+        if tool_id == "tool.batch":
+            from .batch import run_batch
+
+            return run_batch(self, Path(self._require_arg(args, "plan")), on_error=str(args.get("on_error") or "stop"))
         if tool_id == "server.setup":
             from .node_setup import setup_node_dependencies
 
@@ -168,7 +215,9 @@ class Router:
         from .scripts import run_script, run_stdin_script
 
         old_timeout = self.backend_timeout_seconds
-        if args.get("timeout") is not None:
+        if args.get("timeout_ms") is not None:
+            self.backend_timeout_seconds = self._parse_timeout_ms(args.get("timeout_ms"))
+        elif args.get("timeout") is not None:
             self.backend_timeout_seconds = self._parse_timeout(args.get("timeout"))
         try:
             if args.get("stdin"):
@@ -195,6 +244,16 @@ class Router:
         if timeout < 1 or timeout > 3600:
             raise CliError("timeout must be between 1 and 3600 seconds", code="BAD_TIMEOUT", details={"timeout": timeout})
         return timeout
+
+    @staticmethod
+    def _parse_timeout_ms(value: Any) -> int:
+        try:
+            timeout_ms = int(value)
+        except (TypeError, ValueError) as exc:
+            raise CliError("timeout_ms must be an integer number of milliseconds", code="BAD_TIMEOUT") from exc
+        if timeout_ms < 1 or timeout_ms > 3_600_000:
+            raise CliError("timeout_ms must be between 1 and 3600000", code="BAD_TIMEOUT", details={"timeout_ms": timeout_ms})
+        return max(1, int((timeout_ms + 999) / 1000))
 
 
 def load_args(path_value: str) -> dict[str, Any]:

@@ -36,6 +36,8 @@ def success(
         "tool_success": True,
         "raw_result_type": "json",
         "duration_ms": duration_ms,
+        "state_uncertain": False,
+        "next_action": None,
         "data": data,
         "warnings": warnings or [],
     }
@@ -49,6 +51,8 @@ def failure(*, command: str, error: CliError, duration_ms: int) -> dict[str, Any
         "request_id": request_id(),
         "command": command,
         "duration_ms": duration_ms,
+        "state_uncertain": error.state_uncertain,
+        "next_action": error.next_action,
         "error": {
             "type": error.__class__.__name__,
             "code": error.code,

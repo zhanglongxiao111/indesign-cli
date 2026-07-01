@@ -179,7 +179,7 @@ async function testSimpleDocument() {
 
         // Test 3: Close document
         log('=== TEST 3: Close Document ===', 'info');
-        const documentClosed = await testTool(serverProcess, 'close_document');
+        const documentClosed = await testTool(serverProcess, 'close_document', { allowDiscard: true, forceActiveDocument: true });
 
         testResults.total++;
         if (documentClosed) {
@@ -220,4 +220,4 @@ async function testSimpleDocument() {
 testSimpleDocument().catch(error => {
     log(`Test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

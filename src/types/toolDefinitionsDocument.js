@@ -58,8 +58,12 @@ export const documentToolDefinitions = [
     },
     {
         name: 'close_document',
-        description: 'Close the active document',
-        inputSchema: { type: 'object', properties: {},
+        description: 'Close a document only when the target is unambiguous. Modified documents require allowDiscard.',
+        inputSchema: { type: 'object', properties: {
+                allowDiscard: { type: 'boolean', description: 'Explicitly discard unsaved changes when closing the target document', default: false },
+                forceActiveDocument: { type: 'boolean', description: 'Explicitly close the active document even when multiple documents are open', default: false },
+                expectedDocumentName: { type: 'string', description: 'Optional document name to close when multiple documents are open' },
+            },
             additionalProperties: false
         },
     },
@@ -406,4 +410,4 @@ export const documentToolDefinitions = [
         },
     },
     */
-]; 
+];

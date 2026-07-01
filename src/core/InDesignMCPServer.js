@@ -65,7 +65,7 @@ export class InDesignMCPServer {
             case 'create_document': return await DocumentHandlers.createDocument(args);
             case 'open_document': return await DocumentHandlers.openDocument(args);
             case 'save_document': return await DocumentHandlers.saveDocument(args);
-            case 'close_document': return await DocumentHandlers.closeDocument();
+            case 'close_document': return await DocumentHandlers.closeDocument(args);
 
             // Document Advanced Tools
             case 'preflight_document': return await DocumentHandlers.preflightDocument(args);

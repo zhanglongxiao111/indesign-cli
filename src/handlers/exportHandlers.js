@@ -70,8 +70,16 @@ export class ExportHandlers {
         const escapedPageRange = escapeJsxString(canonicalPageRange);
         const normalizedFormat = typeof format === 'string' ? format.trim().toUpperCase() : 'JPEG';
         const supportedFormats = new Set(['JPEG']);
-        const safeFormat = supportedFormats.has(normalizedFormat) ? normalizedFormat : 'JPEG';
-        const escapedFormat = escapeJsxString(safeFormat);
+        if (!supportedFormats.has(normalizedFormat)) {
+            return formatResponse({
+                success: false,
+                operation: 'Export Images',
+                code: 'ARTIFACT_FORMAT_UNSUPPORTED',
+                message: `export_images currently supports JPEG only, not ${normalizedFormat}`,
+                data: { requestedFormat: normalizedFormat, supportedFormats: ['JPEG'] }
+            }, 'Export Images');
+        }
+        const escapedFormat = escapeJsxString(normalizedFormat);
 
         const script = [
             'if (app.documents.length === 0) {',
@@ -86,6 +94,7 @@ export class ExportHandlers {
             '    }',
             '',
             '    var exportedCount = 0;',
+            '    var artifacts = [];',
             '    var pagesToExport = [];',
             `    if ("${escapedPageRange}" !== "all") {`,
             `      var parts = "${escapedPageRange}".split(",");`,
@@ -126,12 +135,13 @@ export class ExportHandlers {
             '      var imageFile = File(fileName);',
             '      app.jpegExportPreferences.pageString = pageName;',
             '      doc.exportFile(ExportFormat.JPG, imageFile, false);',
+            '      artifacts.push({ path: imageFile.fsName, page: pageNum, kind: "image/jpeg" });',
             '      exportedCount++;',
             '    }',
             '',
-            `    exportedCount + " pages exported as JPEG images to: ${escapedFolderPath}";`,
+            `    JSON.stringify({ success: true, operation: "Export Images", summary: exportedCount + " pages exported as JPEG images to: ${escapedFolderPath}", data: { format: "JPEG", files: artifacts, documentState: { documentsCount: app.documents.length, activeDocumentName: doc.name, activeDocumentPathKnown: !!doc.saved, modified: doc.modified, targetWasExplicit: false, state_uncertain: false } }, artifacts: artifacts });`,
             '  } catch (error) {',
-            '    "Error exporting images: " + error.message;',
+            '    JSON.stringify({ success: false, operation: "Export Images", code: "INDESIGN_SCRIPT_FAILED", message: error.message, result: "Error exporting images: " + error.message });',
             '  }',
             '}'
         ].join('\n');

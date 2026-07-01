@@ -38,3 +38,10 @@
 | `agent-template-flow.md` | AI Agent 使用模板槽位生成页面的流程图 |
 
 新增长期文档前，先确认是否应进入标准目录，而不是继续放在根目录。
+
+## 当前专项
+
+| 文档 | 用途 |
+| ---- | ---- |
+| `superpowers/specs/2026-07-01-indesign-cli-agent-ux-hardening-design.md` | indesign-cli Agent 体验与可靠性整改方案 |
+| `superpowers/plans/2026-07-01-indesign-cli-agent-ux-hardening-plan.md` | indesign-cli Agent 体验与可靠性整改实施计划 |

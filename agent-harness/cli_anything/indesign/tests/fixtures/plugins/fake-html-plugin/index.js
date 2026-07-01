@@ -29,6 +29,9 @@ const tools = [
     target_scope: 'workspace',
     needs_indesign: false,
     produces_artifacts: true,
+    preconditions: [],
+    return_example: { status: 'complete', data: { ok: true }, artifacts: [{ kind: 'json', path: 'test/workspace/lint-report.json' }] },
+    failure_example: { code: 'PLUGIN_CALL_FAILED', message: 'Fake lint failure' },
   },
   {
     id: 'html.compile_instructions',
@@ -46,6 +49,9 @@ const tools = [
     target_scope: 'workspace',
     needs_indesign: false,
     produces_artifacts: true,
+    preconditions: ['Valid fixed semantic HTML package path.'],
+    return_example: { status: 'complete', data: { ok: true, instruction_count: 3 }, artifacts: [{ kind: 'json', path: 'test/workspace/instructions.json' }] },
+    failure_example: { code: 'PLUGIN_SCHEMA_INVALID', message: 'Package cannot be compiled' },
   },
   {
     id: 'html.build_indesign',
@@ -63,6 +69,9 @@ const tools = [
     target_scope: 'indesign',
     needs_indesign: true,
     produces_artifacts: true,
+    preconditions: ['InDesign COM is available.', 'Host actions are allowed by the manifest.'],
+    return_example: { status: 'complete', data: { ok: true }, artifacts: [{ kind: 'pdf', path: 'test/workspace/output/fake.pdf' }] },
+    failure_example: { code: 'PLUGIN_HOST_ACTION_FAILED', message: 'Host action failed' },
   },
 ];
 
@@ -106,6 +115,10 @@ function fail(code, message, details = {}) {
 
 const method = request.method;
 const params = request.params || {};
+
+if (params.sleep_ms) {
+  await new Promise((resolve) => setTimeout(resolve, Number(params.sleep_ms)));
+}
 
 if (method === 'plugin/handshake') {
   respond({

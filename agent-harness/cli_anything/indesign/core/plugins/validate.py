@@ -32,6 +32,9 @@ REQUIRED_TOOL_FIELDS = {
     "target_scope",
     "needs_indesign",
     "produces_artifacts",
+    "preconditions",
+    "return_example",
+    "failure_example",
 }
 
 
@@ -74,9 +77,12 @@ def _tool_errors(record: PluginRecord, tool: dict[str, Any]) -> list[dict[str, A
         errors.append(_error("PLUGIN_TOOL_INVALID", "Tool id must use plugin domain", tool_id=tool_id, domain=record.domain))
     if tool.get("domain") != record.domain:
         errors.append(_error("PLUGIN_TOOL_INVALID", "Tool domain must match plugin domain", tool_id=tool_id, domain=tool.get("domain")))
-    for list_field in ("arg_names", "requires", "side_effects", "artifact_kinds"):
+    for list_field in ("arg_names", "requires", "side_effects", "artifact_kinds", "preconditions"):
         if not isinstance(tool.get(list_field), list):
             errors.append(_error("PLUGIN_TOOL_INVALID", f"{list_field} must be an array", tool_id=tool_id))
+    for object_field in ("return_example", "failure_example"):
+        if not isinstance(tool.get(object_field), dict):
+            errors.append(_error("PLUGIN_TOOL_INVALID", f"{object_field} must be an object", tool_id=tool_id, field=object_field))
     for bool_field in ("callable", "destructive", "needs_indesign", "produces_artifacts"):
         if not isinstance(tool.get(bool_field), bool):
             errors.append(_error("PLUGIN_TOOL_INVALID", f"{bool_field} must be boolean", tool_id=tool_id))
@@ -133,7 +139,7 @@ def validate_plugin_path(path_value: str, *, host_version: str) -> dict[str, Any
         "summary": {
             "tools": len(tools),
             "needs_indesign": sum(1 for tool in tools if tool.get("needs_indesign")),
-            "host_actions": record.manifest.get("capabilities", {}).get("host_actions", []),
+            "host_actions": record.manifest.get("host_actions") or record.manifest.get("capabilities", {}).get("host_actions", []),
         },
     }
 

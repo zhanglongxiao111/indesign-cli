@@ -31,23 +31,22 @@ indesign-cli server setup
 真实操作前先检查环境：
 
 ```powershell
-indesign-cli --json --pretty server health --deep
+indesign-cli --json --pretty server health --deep --connect-indesign
 ```
 
 ## 打开与文件保护
 
-打开或连接 InDesign 的推荐方式是运行只读 JSX 探针；如果 InDesign 未启动，COM 会启动它，如果已启动，则连接现有进程：
+打开或连接 InDesign 的推荐方式是运行显式只读 COM 探针；如果 InDesign 未启动，COM 可能启动它，如果已启动，则连接现有进程：
 
 ```powershell
-@'
-JSON.stringify({ ok: true, appName: app.name, version: app.version, documentsCount: app.documents.length });
-'@ | indesign-cli --json --pretty script run --stdin --timeout 60
+indesign-cli --json --pretty server health --deep --connect-indesign
 ```
 
 公司内部使用时必须保护用户现场：
 
 - 不得关闭用户已经打开的 InDesign 文档，也不要运行 `app.quit()`、`documents.everyItem().close()` 或批量关闭逻辑。
 - 脚本只能关闭本轮明确创建且标记为临时测试用途的文档；不确定归属时保持打开。
+- 使用 `document.close_document` 时，多文档场景必须传 `expectedDocumentName` 或 `forceActiveDocument:true`；丢弃未保存修改必须同时传 `allowDiscard:true`。
 - 正式成果文件保持打开，方便用户直接在 InDesign 中检查；导出 PDF/IDML 后也不要自动关闭对应 INDD。
 - 状态检查只记录文档数量、输出路径和脱敏信息，不记录客户文档名称或私有路径。
 
@@ -66,10 +65,10 @@ indesign-cli tool schema <tool_id>
 indesign-cli --json --pretty script run test\workspace\probe.jsx
 ```
 
-直接 `script run` 的默认脚本通道超时是 300 秒。复杂构建、导出或回环测试预计更久时，显式加 `--timeout <秒>`，最大 3600：
+直接 `script run` 的默认脚本通道超时是 300 秒。复杂构建、导出或回环测试预计更久时，显式加 `--timeout-ms <毫秒>`，最大 3600000：
 
 ```powershell
-indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout-ms 900000
 ```
 
 `script run --stdin` 只用于很短的临时探针；需要复跑、引用文件、相对 `#include`、保存证据或多人协作时，用文件模式。
@@ -117,7 +116,7 @@ indesign-cli plugin doctor <plugin-id>
 每个工具调用前先运行 `indesign-cli tool schema <tool_id>`，再把参数写进 `args.json` 调用：
 
 ```powershell
-indesign-cli --json --pretty tool call <tool_id> --args test\workspace\args.json
+indesign-cli --json --pretty tool call <tool_id> --args-file test\workspace\args.json
 ```
 
 槽位名必须以 `inspect_template_blueprint` 或 `get_page_information` 返回值为准，不要凭视觉猜。图片填充常用 `FILL_FRAME` 或 `PROPORTIONALLY`；保留整图优先用 `PROPORTIONALLY`，铺满画面优先用 `FILL_FRAME`。
@@ -130,6 +129,7 @@ indesign-cli --json --pretty tool call <tool_id> --args test\workspace\args.json
 - 判断执行结果时看 `ok`、`exit_code`、`tool_success`、`warnings` 和 `data`，不要只看自然语言输出。
 - JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)`。
 - JSX 返回 JSON 字符串时，优先读取 `data.result_json`，不要让后续步骤重复解析 `data.parsed.result`。
+- `state_uncertain: true` 表示 InDesign 或文件系统状态可能已改变；先运行 `indesign-cli session doctor`，不要盲目重试写操作。
 
 ## 状态模型
 
@@ -137,7 +137,44 @@ indesign-cli --json --pretty tool call <tool_id> --args test\workspace\args.json
 - InDesign 进程、打开的文档和文档内对象可以延续；Node 子进程内存状态不会跨命令延续。
 - 跨步骤状态必须显式落到 JSON 返回值、文件路径、InDesign 文档状态、脚本标签，或当前目录 `.indesign-cli/session.json`。
 - `tool domains`、`tool list`、`tool search`、`tool schema` 不写 session；`tool call`、`script run`、`export verify` 会写 session。
+- 多步骤低风险工具调用可以写 JSON plan 后运行 `indesign-cli tool batch --plan batch.json --on-error stop --timeout-ms 120000`；复杂排版仍优先单个 `.jsx` 文件。
 - 不要假设上一次命令里创建的 JS 变量、缓存对象或临时内存还能被下一次命令读取。
+
+## Windows Shell 约束
+
+- 运行 `.ps1` 文件优先使用 `pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\script.ps1`。
+- 不要写 `powershell -File ...`，除非用户明确要求兼容 Windows PowerShell 5.1。
+- 涉及中文、UNC、空格、反斜杠或复杂 JSON 时，把参数写入 UTF-8 JSON 文件，再用 `--args-file` 传递。
+
+## JSX 诊断 wrapper
+
+复杂 JSX 必须返回结构化 JSON，至少包含 `ok`、`step`、`data`、`error`：
+
+```javascript
+var __step = "init";
+function __result(ok, data, error) {
+  return JSON.stringify({
+    ok: ok,
+    step: __step,
+    data: data || null,
+    error: error ? String(error.message || error) : null,
+    errorName: error && error.name ? String(error.name) : null,
+    errorNumber: error && error.number !== undefined ? error.number : null,
+    line: error && error.line !== undefined ? error.line : null,
+    fileName: error && error.fileName ? String(error.fileName) : null
+  });
+}
+
+try {
+  __step = "create document";
+  // work...
+  __step = "export";
+  // work...
+  __result(true, { exported: true }, null);
+} catch (e) {
+  __result(false, null, e);
+}
+```
 
 ## 上层项目边界
 
@@ -151,4 +188,4 @@ indesign-cli --json --pretty tool call <tool_id> --args test\workspace\args.json
 - 临时真实测试放到目标项目已忽略的工作目录；没有约定时使用 `test/workspace/<日期时间>/`，并确认它不进 git。
 - 不记录客户文档内容、客户名称或私有资产完整路径；必须引用外部文件时，用临时副本或脱敏路径。
 - 创建临时 InDesign 文档后，测试结束要保存到工作目录或关闭，避免堆积标签页。
-- `server health --deep`、COM 或 InDesign 环境失败时，报告环境阻塞；不要绕过 CLI 写模拟成功。
+- `server health --deep --connect-indesign`、COM 或 InDesign 环境失败时，报告环境阻塞；不要绕过 CLI 写模拟成功。

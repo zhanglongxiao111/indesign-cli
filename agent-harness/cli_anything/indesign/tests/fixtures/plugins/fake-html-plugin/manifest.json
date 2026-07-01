@@ -8,6 +8,9 @@
   "domain": "html",
   "entry": "index.js",
   "description": "Fake HTML plugin for indesign-cli host tests",
+  "timeout_default_ms": 30000,
+  "document_state_policy": "host_reported",
+  "host_actions": ["script.run", "export.verify", "session.show"],
   "requires": {
     "indesign_cli": ">=0.2.0",
     "node": ">=18.0.0"

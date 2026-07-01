@@ -189,6 +189,38 @@ def test_failure_envelope_has_machine_fields():
     assert payload["schema_version"] == 1
     assert payload["error"]["code"] == "BAD_INPUT"
     assert payload["error"]["retryable"] is False
+    assert payload["state_uncertain"] is False
+    assert "next_action" in payload
+
+
+def assert_failure_envelope(payload, code):
+    assert payload["ok"] is False
+    assert payload["exit_code"] == 1
+    assert payload["error"]["code"] == code
+    assert isinstance(payload["request_id"], str)
+    assert isinstance(payload["duration_ms"], int)
+    assert "state_uncertain" in payload
+    assert "next_action" in payload
+
+
+def test_failure_envelope_copies_uncertain_state_and_next_action():
+    from cli_anything.indesign.core.envelope import failure
+    from cli_anything.indesign.core.errors import CliError
+
+    payload = failure(
+        command="unit",
+        error=CliError(
+            "Timed out",
+            code="TIMEOUT",
+            state_uncertain=True,
+            next_action="Run session doctor before retrying.",
+        ),
+        duration_ms=25,
+    )
+
+    assert_failure_envelope(payload, "TIMEOUT")
+    assert payload["state_uncertain"] is True
+    assert payload["next_action"] == "Run session doctor before retrying."
 
 
 def test_tool_domains_are_compact():
@@ -378,6 +410,118 @@ def test_plugin_validate_rejects_bad_manifest(tmp_path):
     assert payload["ok"] is False
     assert payload["data"]["ok"] is False
     assert any(item["code"] == "PLUGIN_MANIFEST_INVALID" for item in payload["data"]["errors"])
+
+
+def test_plugin_validate_rejects_missing_document_state_policy(tmp_path):
+    bad = tmp_path / "bad-plugin"
+    bad.mkdir()
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    manifest.pop("document_state_policy", None)
+    (bad / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (bad / "index.js").write_text((FAKE_PLUGIN_ROOT / "index.js").read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run_module("plugin", "validate", str(bad))
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["data"]["ok"] is False
+    assert any(error["code"] == "PLUGIN_MANIFEST_INVALID" for error in payload["data"]["errors"])
+    assert any(error["details"].get("field") == "document_state_policy" for error in payload["data"]["errors"])
+
+
+def test_plugin_validate_rejects_missing_tool_contract_field(tmp_path):
+    plugin = tmp_path / "contract-plugin"
+    plugin.mkdir()
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    (plugin / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    source = (FAKE_PLUGIN_ROOT / "index.js").read_text(encoding="utf-8")
+    source = source.replace("    preconditions: [],\n", "", 1)
+    (plugin / "index.js").write_text(source, encoding="utf-8")
+
+    result = run_module("plugin", "validate", str(plugin))
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert any(error["details"].get("field") == "preconditions" for error in payload["data"]["errors"])
+
+
+def test_plugin_validate_rejects_disallowed_host_action(tmp_path):
+    plugin = tmp_path / "bad-host-action-plugin"
+    plugin.mkdir()
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    manifest["host_actions"] = ["script.run", "server.setup"]
+    (plugin / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (plugin / "index.js").write_text((FAKE_PLUGIN_ROOT / "index.js").read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = run_module("plugin", "validate", str(plugin))
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert any(error["code"] == "PLUGIN_HOST_ACTION_DENIED" for error in payload["data"]["errors"])
+    denied = next(error for error in payload["data"]["errors"] if error["code"] == "PLUGIN_HOST_ACTION_DENIED")
+    assert denied["details"]["action"] == "server.setup"
+
+
+def test_plugin_timeout_uses_common_uncertain_error():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.backend import PluginBackend
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8")),
+    )
+    backend = PluginBackend(record, timeout=0.001)
+
+    try:
+        backend.request("plugin/handshake", {"sleep_ms": 1000})
+    except CliError as exc:
+        assert exc.code == "TIMEOUT"
+        assert exc.state_uncertain is True
+    else:
+        raise AssertionError("plugin timeout should fail")
+
+
+def test_router_passes_timeout_to_plugin_backend_and_uses_manifest_default():
+    from cli_anything.indesign.core.catalog import Catalog, plugin_tool_entries
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+    from cli_anything.indesign.core.router import Router
+
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    manifest["timeout_default_ms"] = 2500
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=manifest,
+    )
+    tools = plugin_tool_entries(
+        record,
+        [
+            {
+                "id": "html.authoring_lint",
+                "domain": "html",
+                "name": "authoring_lint",
+                "arg_names": ["package"],
+                "preconditions": [],
+                "return_example": {},
+                "failure_example": {},
+            }
+        ],
+    )
+    catalog = Catalog(repo_root=REPO_ROOT).with_exposed_tools(
+        plugin_tools=tools,
+        plugin_domain_summaries={"html": "HTML plugin"},
+        plugin_records={record.id: record},
+    )
+    tool = next(item for item in catalog.list_tools(source="plugin") if item["id"] == "html.authoring_lint")
+
+    assert Router(catalog=catalog, repo_root=REPO_ROOT)._plugin_backend(tool).timeout == 3
+    assert Router(catalog=catalog, repo_root=REPO_ROOT, backend_timeout_seconds=9)._plugin_backend(tool).timeout == 9
 
 
 def test_plugin_install_list_remove_project_plugin(tmp_path):
@@ -651,10 +795,62 @@ def test_cli_primitive_schema_exposes_required_args():
     script_payload = router.schema("script.run")
     assert "timeout" in script_payload["inputSchema"]["properties"]
     assert "timeout" in script_payload["tool"]["arg_names"]
+    assert "timeout_ms" in script_payload["tool"]["arg_names"]
     assert script_payload["inputSchema"]["oneOf"] == [{"required": ["file"]}, {"required": ["stdin"]}]
     assert "文件模式" in script_payload["inputSchema"]["properties"]["file"]["description"]
     assert "临时探针" in script_payload["inputSchema"]["properties"]["stdin"]["description"]
     assert "session_write" in script_payload["tool"]["side_effects"]
+
+    health_payload = router.schema("server.health")
+    assert "connect_indesign" in health_payload["tool"]["arg_names"]
+
+
+def test_tool_schema_includes_agent_metadata():
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.router import Router
+
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT)
+    payload = router.schema("export.verify")
+
+    assert "metadata" in payload
+    metadata = payload["metadata"]
+    for field in (
+        "requires_active_document",
+        "mutates_document",
+        "writes_filesystem",
+        "returns_artifacts",
+        "return_shape",
+        "return_example",
+        "failure_example",
+        "preconditions",
+        "safe_usage_notes",
+        "common_next_steps",
+    ):
+        assert field in metadata
+    assert metadata["returns_artifacts"] is True
+
+
+def test_tool_explain_returns_task_level_contract():
+    result = run_module("tool", "explain", "graphics.create_rectangle")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    data = payload["data"]
+    assert data["tool_id"] == "graphics.create_rectangle"
+    assert "preconditions" in data
+    assert "side_effects" in data
+    assert "return_example" in data
+    assert "failure_example" in data
+    assert "common_next_steps" in data
+
+
+def test_agent_quickstart_returns_canonical_commands():
+    result = run_module("agent", "quickstart")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    commands = payload["data"]["commands"]
+    assert "indesign-cli server health --deep --connect-indesign" in commands
+    assert any("--args-file" in command for command in commands)
 
 
 def test_inline_script_tool_is_marked_as_short_probe():
@@ -721,6 +917,21 @@ def test_every_listed_callable_tool_has_agent_contract_fields():
         "target_scope",
         "needs_indesign",
         "produces_artifacts",
+        "requires_active_document",
+        "requires_active_page",
+        "uses_selection",
+        "opens_document",
+        "closes_document",
+        "may_close_document",
+        "mutates_document",
+        "writes_filesystem",
+        "returns_artifacts",
+        "return_shape",
+        "return_example",
+        "failure_example",
+        "preconditions",
+        "safe_usage_notes",
+        "common_next_steps",
     }
     for tool in tools:
         assert required_fields.issubset(tool), tool["id"]
@@ -772,6 +983,47 @@ def test_tool_call_missing_args_returns_json_failure(tmp_path):
     assert "Traceback" not in result.stderr
 
 
+def test_empty_schema_tool_call_can_omit_args(tmp_path):
+    result = run_module("tool", "call", "session.show", cwd=tmp_path)
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["tool_id"] == "session.show"
+
+
+def test_required_schema_without_args_returns_json_failure():
+    result = run_module("tool", "call", "export.verify")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert_failure_envelope(payload, "ARGS_REQUIRED")
+    assert "usage:" not in result.stdout.lower()
+
+
+def test_args_file_accepts_unicode_path(tmp_path):
+    args_file = tmp_path / "参数.json"
+    args_file.write_text(json.dumps({"verbose": True}), encoding="utf-8")
+
+    result = run_module("tool", "call", "session.show", "--args-file", str(args_file), cwd=tmp_path)
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+
+
+def test_missing_args_file_uses_stable_failure_envelope(tmp_path):
+    result = run_module("tool", "call", "session.show", "--args-file", str(tmp_path / "missing.json"))
+    assert result.returncode == 1
+    assert_failure_envelope(json.loads(result.stdout), "ARGS_FILE_NOT_FOUND")
+
+
+def test_bad_args_json_uses_stable_failure_envelope(tmp_path):
+    args_file = tmp_path / "bad.json"
+    args_file.write_text("{bad", encoding="utf-8")
+    result = run_module("tool", "call", "session.show", "--args-file", str(args_file))
+    assert result.returncode == 1
+    assert_failure_envelope(json.loads(result.stdout), "ARGS_JSON_INVALID")
+
+
 def test_tool_call_accepts_utf8_bom_args_file(tmp_path):
     args_file = tmp_path / "args-bom.json"
     pdf = tmp_path / "out.pdf"
@@ -813,6 +1065,65 @@ def test_script_run_failure_updates_session():
     assert payload["data"]["recent_calls"][0]["ok"] is False
 
 
+def test_timeout_exception_returns_uncertain_failure_envelope():
+    from cli_anything.indesign.core.envelope import failure
+    from cli_anything.indesign.core.errors import TimeoutError
+
+    payload = failure(command="tool call", error=TimeoutError("MCP process timed out"), duration_ms=2)
+
+    assert_failure_envelope(payload, "TIMEOUT")
+    assert payload["state_uncertain"] is True
+    assert isinstance(payload["next_action"], str)
+
+
+def test_session_doctor_reports_recent_failure(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(
+        tool_id="export.verify",
+        domain="export",
+        source="cli",
+        ok=False,
+        duration_ms=12,
+        error_code="ARTIFACT_NOT_FOUND",
+        error_summary="Missing output",
+        next_action="Create the artifact first.",
+    )
+
+    result = run_module("session", "doctor", cwd=tmp_path)
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert "recent_failure" in payload["data"]
+    assert payload["data"]["recent_failure"]["error_code"] == "ARTIFACT_NOT_FOUND"
+    assert "next_action" in payload["data"]
+
+
+def test_tool_batch_stops_on_first_failure(tmp_path):
+    plan = tmp_path / "batch.json"
+    plan.write_text(
+        json.dumps(
+            {
+                "steps": [
+                    {"id": "show", "type": "tool", "tool": "session.show", "args": {}},
+                    {"id": "bad-step", "type": "tool", "tool": "missing.tool", "args": {}},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_module("tool", "batch", "--plan", str(plan), cwd=tmp_path)
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["data"]["failed_step"] == "bad-step"
+    assert payload["data"]["steps"][0]["ok"] is True
+
+
 def test_backend_tool_failure_returns_failure_envelope_without_path_leak(tmp_path):
     args_file = tmp_path / "args.json"
     secret_path = r"D:\Clients\AcmeSecret\missing.jsx"
@@ -851,6 +1162,90 @@ def test_backend_tool_response_exposes_nested_json_result():
 
     assert payload["parsed"]["result"]
     assert payload["result_json"] == {"ok": True, "marker": "NESTED_JSON_OK"}
+
+
+def test_backend_tool_response_fails_on_nested_json_failure():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": True,
+                        "operation": "Run JSX File",
+                        "result": json.dumps({"ok": False, "step": "export", "error": "boom"}),
+                    }
+                ),
+            }
+        ]
+    }
+
+    try:
+        backend._parse_tool_response("run_jsx_file", response)
+    except CliError as exc:
+        assert exc.code == "INDESIGN_SCRIPT_FAILED"
+        assert exc.details["step"] == "export"
+    else:
+        raise AssertionError("nested ok:false should fail")
+
+
+def test_backend_tool_response_fails_on_top_level_ok_false():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "ok": False,
+                        "code": "INDESIGN_SCRIPT_FAILED",
+                        "message": "INTENTIONAL_REFERENCE_ERROR is undefined",
+                        "step": "trigger intentional reference failure",
+                        "line": 27,
+                        "fileName": "probe.jsx",
+                        "errorName": "ReferenceError",
+                        "errorNumber": 2,
+                        "data": {"expectedMarker": "INTENTIONAL_ERROR_MARKER"},
+                    }
+                ),
+            }
+        ]
+    }
+
+    try:
+        backend._parse_tool_response("get_document_info", response)
+    except CliError as exc:
+        assert exc.code == "INDESIGN_SCRIPT_FAILED"
+        assert exc.details["step"] == "trigger intentional reference failure"
+        assert exc.details["line"] == 27
+        assert exc.details["fileName"] == "probe.jsx"
+        assert exc.details["errorName"] == "ReferenceError"
+        assert exc.details["errorNumber"] == 2
+        assert exc.details["data"]["expectedMarker"] == "INTENTIONAL_ERROR_MARKER"
+    else:
+        raise AssertionError("top-level ok:false should fail")
+
+
+def test_backend_tool_response_fails_on_legacy_failure_string():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {"content": [{"type": "text", "text": "No document open"}]}
+
+    try:
+        backend._parse_tool_response("get_document_info", response)
+    except CliError as exc:
+        assert exc.code == "NO_ACTIVE_DOCUMENT"
+    else:
+        raise AssertionError("legacy failure string should fail")
 
 
 def test_pdf_verify_rejects_non_pdf(tmp_path):
@@ -908,3 +1303,29 @@ def test_deep_health_does_not_claim_unchecked_com_probe():
     assert payload["winax"]["checked"] is True
     assert payload["indesign_com"]["checked"] is False
     assert "reason" in payload["indesign_com"]
+
+
+def test_health_connect_indesign_uses_explicit_com_probe(monkeypatch):
+    from cli_anything.indesign.core import health as health_module
+
+    def fake_probe(repo_root):
+        assert repo_root == REPO_ROOT
+        return {"checked": True, "available": True, "appName": "Adobe InDesign", "version": "20.x", "documentsCount": 0}
+
+    monkeypatch.setattr(health_module, "indesign_com_probe", fake_probe)
+
+    payload = health_module.health(REPO_ROOT, deep=True, connect_indesign=True)
+
+    assert payload["indesign_com"]["checked"] is True
+    assert payload["indesign_com"]["available"] is True
+    assert payload["indesign_com"]["documentsCount"] == 0
+
+
+def test_server_health_parser_accepts_connect_indesign_flag():
+    from cli_anything.indesign.indesign_cli import build_parser
+
+    parser = build_parser()
+    args = parser.parse_args(["server", "health", "--deep", "--connect-indesign"])
+
+    assert args.deep is True
+    assert args.connect_indesign is True

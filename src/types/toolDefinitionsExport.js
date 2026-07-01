@@ -27,7 +27,7 @@ export const exportToolDefinitions = [
             type: 'object',
             properties: {
                 outputPath: { type: 'string', description: 'Output directory path' },
-                format: { type: 'string', enum: ['JPEG', 'PNG', 'TIFF'], default: 'JPEG' },
+                format: { type: 'string', enum: ['JPEG'], default: 'JPEG' },
                 resolution: { type: 'number', description: 'Resolution in DPI', default: 300 },
                 pages: { type: 'string', description: 'Page range (e.g., "1-5", "all")', default: 'all' },
                 quality: { type: 'number', description: 'Quality (1-100 for JPEG)', default: 80 },
@@ -62,4 +62,4 @@ export const exportToolDefinitions = [
             required: ['outputPath'],
         },
     },
-]; 
+];

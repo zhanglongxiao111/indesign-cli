@@ -15,6 +15,7 @@ DOMAINS = {
     "export": "PDF、IDML、图片等导出和产物验证",
     "book": "InDesign Book 文件、章节和书籍级同步",
     "presentation": "演示型版面、页面序列和 presentation handler 能力",
+    "tool": "工具发现、schema、调用和批处理编排",
     "script": "JSX 文件执行和 stdin 临时脚本",
     "session": "CLI 本地状态、最近文档和最近输出",
     "server": "依赖、后端、InDesign COM 健康检查",

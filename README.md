@@ -55,10 +55,10 @@ indesign-cli server setup
 ### 4. 检查环境
 
 ```powershell
-indesign-cli --json --pretty server health
+indesign-cli --json --pretty server health --deep --connect-indesign
 ```
 
-如果返回 `ok: true`，CLI 基础环境就绪。
+如果返回 `ok: true` 且 `data.indesign_com.checked` 为 `true`，真实 InDesign COM 链路已完成只读探针。
 
 ## 🧠 手动安装 Agent Skill
 
@@ -136,7 +136,7 @@ indesign-cli --json --pretty script run test\workspace\probe.jsx
 复杂构建或导出可能超过默认等待时间，可以显式加长脚本通道超时：
 
 ```powershell
-indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout-ms 900000
 ```
 
 短脚本也可以从 stdin 输入：
@@ -153,13 +153,19 @@ indesign-cli export verify output\deck.pdf
 
 用于确认 PDF、IDML 等文件真的生成成功，而不是只看命令是否结束。
 
+`export_images` 当前只声明并支持 JPEG。传入 PNG/TIFF 会返回 `ARTIFACT_FORMAT_UNSUPPORTED`，避免生成误导性的 `.jpg` 产物。
+
+### 🛡️ 文档关闭安全
+
+`document.close_document` 默认不会在多文档场景关闭 `activeDocument`。如果确实要关闭本轮创建的测试文档，参数必须显式包含 `expectedDocumentName` 或 `forceActiveDocument:true`；如需丢弃未保存修改，还必须传 `allowDiscard:true`。
+
 ### 🧩 使用模板槽位
 
 ```powershell
-indesign-cli tool call template.list_template_blueprints --args args.json
-indesign-cli tool call template.inspect_template_blueprint --args args.json
-indesign-cli tool call template.create_page_with_template --args args.json
-indesign-cli tool call template.populate_template_slots --args args.json
+indesign-cli tool call template.list_template_blueprints --args-file args.json
+indesign-cli tool call template.inspect_template_blueprint --args-file args.json
+indesign-cli tool call template.create_page_with_template --args-file args.json
+indesign-cli tool call template.populate_template_slots --args-file args.json
 ```
 
 适合让 Agent 基于母版、脚本标签和槽位名生成稳定页面。
@@ -180,11 +186,13 @@ indesign-cli tool call template.populate_template_slots --args args.json
 一个典型 Agent 流程可能是：
 
 ```powershell
-indesign-cli --json --pretty server health
+indesign-cli --json --pretty server health --deep --connect-indesign
 indesign-cli tool domains
 indesign-cli tool search --query "template"
 indesign-cli tool schema template.populate_template_slots
+indesign-cli tool explain template.populate_template_slots
 indesign-cli --json --pretty script run test\workspace\build.jsx
+indesign-cli session doctor
 indesign-cli export verify output\presentation.pdf
 ```
 
@@ -212,7 +220,7 @@ git clone https://github.com/zhanglongxiao111/indesign-cli.git
 cd indesign-cli
 pip install -e .
 indesign-cli server setup
-indesign-cli server health
+indesign-cli server health --deep
 ```
 
 运行测试：

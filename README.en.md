@@ -53,10 +53,10 @@ This installs the bundled Node server dependencies, including `winax`.
 ### 4. Check the environment
 
 ```powershell
-indesign-cli --json --pretty server health
+indesign-cli --json --pretty server health --deep --connect-indesign
 ```
 
-If the response contains `ok: true`, the base CLI environment is ready.
+If the response contains `ok: true` and `data.indesign_com.checked` is `true`, the real InDesign COM path has been probed read-only.
 
 ## 🧠 Manually install the Agent Skill
 
@@ -132,7 +132,7 @@ indesign-cli --json --pretty script run test\workspace\probe.jsx
 Long builds or exports can use a longer script-channel timeout:
 
 ```powershell
-indesign-cli --json --pretty script run test\workspace\build.jsx --timeout 900
+indesign-cli --json --pretty script run test\workspace\build.jsx --timeout-ms 900000
 ```
 
 Short probes can also be passed through stdin:
@@ -147,13 +147,19 @@ Get-Content test\workspace\probe.jsx | indesign-cli --json --pretty script run -
 indesign-cli export verify output\deck.pdf
 ```
 
+`export_images` currently declares and supports JPEG only. PNG/TIFF requests fail with `ARTIFACT_FORMAT_UNSUPPORTED` instead of creating misleading `.jpg` output.
+
+### 🛡️ Document close safety
+
+`document.close_document` does not close `activeDocument` by default when multiple documents are open. To close a test document created by the current run, pass `expectedDocumentName` or `forceActiveDocument:true`; discarding unsaved changes also requires `allowDiscard:true`.
+
 ### 🧩 Work with template slots
 
 ```powershell
-indesign-cli tool call template.list_template_blueprints --args args.json
-indesign-cli tool call template.inspect_template_blueprint --args args.json
-indesign-cli tool call template.create_page_with_template --args args.json
-indesign-cli tool call template.populate_template_slots --args args.json
+indesign-cli tool call template.list_template_blueprints --args-file args.json
+indesign-cli tool call template.inspect_template_blueprint --args-file args.json
+indesign-cli tool call template.create_page_with_template --args-file args.json
+indesign-cli tool call template.populate_template_slots --args-file args.json
 ```
 
 ### 📚 Book and Presentation tools
@@ -170,11 +176,13 @@ Use `tool domains`, `tool list`, and `tool schema` to inspect the available comm
 ## 🧪 Example workflow
 
 ```powershell
-indesign-cli --json --pretty server health
+indesign-cli --json --pretty server health --deep --connect-indesign
 indesign-cli tool domains
 indesign-cli tool search --query "template"
 indesign-cli tool schema template.populate_template_slots
+indesign-cli tool explain template.populate_template_slots
 indesign-cli --json --pretty script run test\workspace\build.jsx
+indesign-cli session doctor
 indesign-cli export verify output\presentation.pdf
 ```
 
@@ -202,7 +210,7 @@ git clone https://github.com/zhanglongxiao111/indesign-cli.git
 cd indesign-cli
 pip install -e .
 indesign-cli server setup
-indesign-cli server health
+indesign-cli server health --deep
 ```
 
 Run tests:

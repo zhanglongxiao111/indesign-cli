@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import CliError
+from .host_actions import ALLOWED_HOST_ACTIONS
 
 
 PLUGIN_PROTOCOL = "indesign-cli-plugin.v1"
@@ -46,6 +47,9 @@ REQUIRED_MANIFEST_FIELDS = {
     "domain",
     "entry",
     "description",
+    "timeout_default_ms",
+    "document_state_policy",
+    "host_actions",
     "requires",
     "capabilities",
     "permissions",
@@ -211,6 +215,27 @@ def validate_manifest(
     permissions = manifest.get("permissions")
     if not isinstance(permissions, dict) or permissions.get("indesign") != "host_only":
         errors.append({"code": "PLUGIN_MANIFEST_INVALID", "message": "permissions.indesign must be host_only", "details": {"permissions": permissions}})
+
+    timeout_default_ms = manifest.get("timeout_default_ms")
+    if not isinstance(timeout_default_ms, int) or timeout_default_ms < 1 or timeout_default_ms > 3_600_000:
+        errors.append({"code": "PLUGIN_MANIFEST_INVALID", "message": "timeout_default_ms must be between 1 and 3600000", "details": {"field": "timeout_default_ms"}})
+
+    if manifest.get("document_state_policy") not in {"host_reported", "plugin_reported", "none"}:
+        errors.append({"code": "PLUGIN_MANIFEST_INVALID", "message": "document_state_policy is required", "details": {"field": "document_state_policy"}})
+
+    host_actions = manifest.get("host_actions")
+    if not isinstance(host_actions, list) or not all(isinstance(action, str) for action in host_actions):
+        errors.append({"code": "PLUGIN_MANIFEST_INVALID", "message": "host_actions must be an array of strings", "details": {"field": "host_actions"}})
+    else:
+        for action in host_actions:
+            if action not in ALLOWED_HOST_ACTIONS:
+                errors.append(
+                    {
+                        "code": "PLUGIN_HOST_ACTION_DENIED",
+                        "message": f"Unsupported host action: {action}",
+                        "details": {"field": "host_actions", "action": action, "allowed": sorted(ALLOWED_HOST_ACTIONS)},
+                    }
+                )
 
     requires = manifest.get("requires")
     if not isinstance(requires, dict):

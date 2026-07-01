@@ -289,7 +289,7 @@ async function testDocumentPreferences() {
 
         // Phase 8: Cleanup
         log('=== PHASE 8: Cleanup ===', 'info');
-        const documentClosed = await testTool(serverProcess, 'close_document');
+        const documentClosed = await testTool(serverProcess, 'close_document', { allowDiscard: true, forceActiveDocument: true });
         testResults.total++;
         if (documentClosed) testResults.passed++; else testResults.failed++;
 
@@ -323,4 +323,4 @@ async function testDocumentPreferences() {
 testDocumentPreferences().catch(error => {
     log(`Test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

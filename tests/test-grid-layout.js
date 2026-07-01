@@ -245,7 +245,7 @@ async function testGridAndLayoutTools() {
         // Phase 5: Cleanup
         log('=== PHASE 5: Cleanup ===', 'info');
 
-        const documentClosed = await testTool(serverProcess, 'close_document');
+        const documentClosed = await testTool(serverProcess, 'close_document', { allowDiscard: true, forceActiveDocument: true });
         testResults.total++;
         if (documentClosed) testResults.passed++; else testResults.failed++;
         await delay(TEST_CONFIG.delay);
@@ -280,4 +280,4 @@ async function testGridAndLayoutTools() {
 testGridAndLayoutTools().catch(error => {
     log(`Test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

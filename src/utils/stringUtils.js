@@ -23,13 +23,91 @@ export function escapeJsxString(str) {
  * @param {string} [operation="Operation"] - The operation name.
  * @returns {object} Formatted response object.
  */
-export function formatResponse(result, operation = "Operation") {
+export function formatScriptResult(result, operation = "Operation") {
+    const timestamp = new Date().toISOString();
+    let parsed = result;
+    if (typeof result === 'string') {
+        try {
+            parsed = JSON.parse(result);
+        } catch (_) {
+            parsed = result;
+        }
+    }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        if (parsed.success === false || parsed.ok === false) {
+            const message = parsed.message ?? parsed.error ?? parsed.result ?? result;
+            return {
+                success: false,
+                operation: parsed.operation || operation,
+                code: parsed.code || parsed.errorCode || 'INDESIGN_SCRIPT_FAILED',
+                message,
+                error: parsed.error,
+                step: parsed.step,
+                errorName: parsed.errorName,
+                errorNumber: parsed.errorNumber,
+                line: parsed.line,
+                fileName: parsed.fileName,
+                result: parsed.result ?? parsed.error ?? parsed.message ?? result,
+                data: parsed.data,
+                documentState: parsed.documentState,
+                timestamp: parsed.timestamp || timestamp
+            };
+        }
+        if (parsed.success === true || parsed.ok === true) {
+            return {
+                ...parsed,
+                success: parsed.success !== undefined ? parsed.success : true,
+                operation: parsed.operation || operation,
+                timestamp: parsed.timestamp || timestamp
+            };
+        }
+        return {
+            success: true,
+            operation,
+            result: parsed,
+            timestamp
+        };
+    }
+
+    const text = String(result ?? '');
+    if (text.includes('No document open')) {
+        return {
+            success: false,
+            operation,
+            code: 'NO_ACTIVE_DOCUMENT',
+            result: text,
+            timestamp
+        };
+    }
+    if (text.includes('No document to close')) {
+        return {
+            success: false,
+            operation,
+            code: 'NO_ACTIVE_DOCUMENT',
+            result: text,
+            timestamp
+        };
+    }
+    if (/^(Error |ERROR:|Failed )/.test(text.trim())) {
+        return {
+            success: false,
+            operation,
+            code: 'INDESIGN_SCRIPT_FAILED',
+            result: text,
+            timestamp
+        };
+    }
     return {
         success: true,
         operation,
-        result,
-        timestamp: new Date().toISOString()
+        result: text,
+        timestamp
     };
+}
+
+export function formatResponse(result, operation = "Operation") {
+    return formatScriptResult(result, operation);
 }
 
 /**

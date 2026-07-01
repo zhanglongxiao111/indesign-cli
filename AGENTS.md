@@ -82,6 +82,9 @@
 - CLI 必须复用当前 MCP server、handler 和 COM/脚本执行层，不重写一套 InDesign 自动化。
 - CLI 不应引入常驻后台服务；如需改变进程模型，先写方案并说明兼容影响。
 - 工具目录、router、session、schema、插件协议和脚本执行契约发生变化时，必须同步更新 CLI 单元测试和相关对外文档。
+- CLI contract 改动必须同步 CLI 单元测试、`README.md` / `README.en.md` 和 `skills/indesign-cli/SKILL.md`。
+- 插件工具必须遵守与内置工具一致的 envelope、session、schema、timeout 和 document-state 契约。
+- `AGENTS.md` 只记录开发边界和测试责任；不要把 Agent 使用教程写进这里。
 - Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 另行判断。
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
 - 配套 Skill 源文件在 `skills/indesign-cli/SKILL.md`；CLI 不提供自动安装命令，不能重新加入自动复制 Skill 的命令入口。

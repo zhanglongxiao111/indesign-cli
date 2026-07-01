@@ -35,7 +35,14 @@ class PluginBackend:
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            raise CliError("Plugin timed out", code="PLUGIN_TIMEOUT", retryable=True, details={"plugin": self.record.id, "method": method}) from exc
+            raise CliError(
+                "Plugin timed out",
+                code="TIMEOUT",
+                retryable=True,
+                details={"plugin": self.record.id, "method": method, "timeout_seconds": self.timeout},
+                state_uncertain=True,
+                next_action="Run `indesign-cli session doctor` before retrying plugin host actions.",
+            ) from exc
 
         if completed.returncode != 0:
             raise CliError(

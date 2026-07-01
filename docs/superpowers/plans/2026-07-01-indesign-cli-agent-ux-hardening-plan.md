@@ -714,6 +714,7 @@ git commit -m "fix(plugin): enforce host contract metadata"
 - Create: `agent-harness/cli_anything/indesign/core/batch.py`
 - Modify: `agent-harness/cli_anything/indesign/indesign_cli.py`
 - Modify: `agent-harness/cli_anything/indesign/core/catalog.py`
+- Modify: `agent-harness/cli_anything/indesign/core/domains.py`
 - Modify: `agent-harness/cli_anything/indesign/core/router.py`
 - Modify: `agent-harness/cli_anything/indesign/tests/test_core.py`
 
@@ -735,6 +736,8 @@ Add `tool.batch` to `CLI_PRIMITIVES` with:
   "returns_artifacts": True
 }
 ```
+
+Also add the `tool` domain to `agent-harness/cli_anything/indesign/core/domains.py` so `tool list --domain tool` and domain summaries remain complete.
 
 - [ ] **Step 2: Implement `batch.py`**
 

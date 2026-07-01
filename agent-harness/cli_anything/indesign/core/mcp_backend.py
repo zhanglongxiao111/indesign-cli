@@ -10,6 +10,26 @@ from .errors import CliError, TimeoutError
 from .paths import scrub_text_paths
 
 
+LEGACY_FAILURE_PATTERNS = (
+    "No document open",
+    "No document to close",
+    "Error ",
+    "ERROR:",
+    "Failed ",
+)
+
+
+def classify_legacy_failure(text: str) -> tuple[str, str] | None:
+    stripped = text.strip()
+    if "No document open" in stripped:
+        return ("NO_ACTIVE_DOCUMENT", "No active document")
+    if "No document to close" in stripped:
+        return ("NO_ACTIVE_DOCUMENT", "No document to close")
+    if stripped.startswith(("Error ", "ERROR:", "Failed ")):
+        return ("INDESIGN_SCRIPT_FAILED", stripped[:200])
+    return None
+
+
 class McpBackend:
     def __init__(self, repo_root: Path, entry: str, timeout_seconds: int = 30) -> None:
         self.repo_root = repo_root
@@ -128,6 +148,10 @@ class McpBackend:
         try:
             parsed = json.loads(text)
         except json.JSONDecodeError:
+            legacy = classify_legacy_failure(text)
+            if legacy:
+                code, message = legacy
+                raise CliError(message, code=code, details={"tool": name, "result": scrub_text_paths(text)})
             if response.get("isError"):
                 raise CliError(
                     "MCP tool failed",
@@ -136,17 +160,59 @@ class McpBackend:
                 )
             return response
 
-        if response.get("isError") or (isinstance(parsed, dict) and parsed.get("success") is False):
+        if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
+            legacy = classify_legacy_failure(parsed["result"])
+            if legacy:
+                code, message = legacy
+                raise CliError(message, code=code, details={"tool": name, "result": scrub_text_paths(parsed["result"])})
+
+        if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
+            try:
+                result_json = json.loads(parsed["result"])
+            except json.JSONDecodeError:
+                result_json = None
+        else:
+            result_json = None
+
+        if isinstance(result_json, dict) and result_json.get("ok") is False:
+            details = {"tool": name, **result_json}
+            message = str(result_json.get("error") or result_json.get("message") or "InDesign script failed")
+            raise CliError(message, code=str(result_json.get("code") or "INDESIGN_SCRIPT_FAILED"), details=details)
+
+        if response.get("isError") or (
+            isinstance(parsed, dict) and (parsed.get("success") is False or parsed.get("ok") is False)
+        ):
             details = {"tool": name}
             if isinstance(parsed, dict):
                 details["operation"] = parsed.get("operation")
                 details["result"] = scrub_text_paths(str(parsed.get("result", "")))
-            raise CliError("MCP tool failed", code="MCP_TOOL_FAILED", details=details)
+                details.update(
+                    {
+                        key: value
+                        for key, value in parsed.items()
+                        if key
+                        in {
+                            "code",
+                            "message",
+                            "error",
+                            "step",
+                            "data",
+                            "documentState",
+                            "errorName",
+                            "errorNumber",
+                            "line",
+                            "fileName",
+                        }
+                    }
+                )
+            code = str(parsed.get("code") or "MCP_TOOL_FAILED") if isinstance(parsed, dict) else "MCP_TOOL_FAILED"
+            message = str(parsed.get("message") or parsed.get("error") or "MCP tool failed") if isinstance(parsed, dict) else "MCP tool failed"
+            legacy = classify_legacy_failure(message)
+            if legacy:
+                code, message = legacy
+            raise CliError(message, code=code, details=details)
 
         payload = {"content": content, "parsed": parsed}
-        if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
-            try:
-                payload["result_json"] = json.loads(parsed["result"])
-            except json.JSONDecodeError:
-                pass
+        if isinstance(result_json, dict):
+            payload["result_json"] = result_json
         return payload

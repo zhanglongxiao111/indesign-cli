@@ -48,6 +48,16 @@ class ProgressBar {
 // Comprehensive test suite configuration
 const TEST_SUITES = [
     {
+        name: 'Response Semantics',
+        description: 'Tests handler response success and failure classification',
+        tests: [
+            'test-response-semantics.js',
+            'test-handler-contracts.js'
+        ],
+        required: true,
+        category: 'validation'
+    },
+    {
         name: 'Basic Connectivity',
         description: 'Tests basic InDesign connectivity and MCP protocol',
         tests: [

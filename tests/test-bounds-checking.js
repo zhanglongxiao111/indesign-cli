@@ -287,7 +287,7 @@ async function testBoundsChecking() {
 
         // Phase 7: Cleanup
         log('=== PHASE 7: Cleanup ===', 'info');
-        const documentClosed = await testTool(serverProcess, 'close_document');
+        const documentClosed = await testTool(serverProcess, 'close_document', { allowDiscard: true, forceActiveDocument: true });
         testResults.total++;
         if (documentClosed) {
             testResults.passed++;
