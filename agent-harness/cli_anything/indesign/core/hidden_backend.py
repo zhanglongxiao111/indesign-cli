@@ -50,7 +50,11 @@ class HiddenHandlerBackend:
         except subprocess.TimeoutExpired as exc:
             raise TimeoutError(
                 "Hidden handler bridge timed out",
-                details={"tool": tool["id"], "stderr_tail": scrub_text_paths((exc.stderr or "")[-2000:])},
+                details={
+                    "tool": tool["id"],
+                    "timeout_seconds": self.timeout_seconds,
+                    "stderr_tail": scrub_text_paths((exc.stderr or "")[-2000:]),
+                },
             ) from exc
         except OSError as exc:
             raise CliError("Failed to start hidden handler bridge", code="HIDDEN_HANDLER_START_FAILED") from exc

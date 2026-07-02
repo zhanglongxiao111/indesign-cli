@@ -43,6 +43,8 @@ def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path
             hint="当前文件早于 created_after；重新导出，或确认验证路径没有指向旧产物。",
         )
 
+    # mtime 保留 epoch 兼容旧消费方；mtime_iso 与 created_after 的 ISO 输入对称
+    mtime_iso = datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat()
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         with path.open("rb") as handle:
@@ -54,6 +56,7 @@ def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path
             "size_bytes": stat.st_size,
             "signature_ok": True,
             "mtime": stat.st_mtime,
+            "mtime_iso": mtime_iso,
         }
     if suffix == ".idml":
         try:
@@ -68,6 +71,7 @@ def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path
             "size_bytes": stat.st_size,
             "signature_ok": True,
             "mtime": stat.st_mtime,
+            "mtime_iso": mtime_iso,
         }
     raise CliError(
         f"Unsupported artifact type: {suffix}",

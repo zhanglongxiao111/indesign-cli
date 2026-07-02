@@ -28,7 +28,12 @@ def install_plugin(path_value: str, *, cwd: Path, host_version: str) -> dict[str
 def remove_plugin(plugin_id: str, *, cwd: Path) -> dict[str, Any]:
     target = project_plugin_dir(cwd) / f"{plugin_id}.json"
     if not target.exists():
-        raise CliError("Plugin is not installed in this project", code="PLUGIN_NOT_INSTALLED", details={"id": plugin_id})
+        raise CliError(
+            "Plugin is not installed in this project",
+            code="PLUGIN_NOT_INSTALLED",
+            details={"id": plugin_id},
+            hint="先运行 `indesign-cli plugin list` 查看已安装插件和确切 id。",
+        )
     target.unlink()
     return {"removed": True, "id": plugin_id, "record_path": str(target)}
 

@@ -9,7 +9,7 @@ indesign-cli --version
 indesign-cli tool domains
 indesign-cli tool list --domain template
 indesign-cli tool schema template.run_jsx_file
-indesign-cli tool call template.run_jsx_file --args args.json
+indesign-cli tool call template.run_jsx_file --args-file args.json
 indesign-cli script run scripts/check.jsx
 indesign-cli script run --stdin
 indesign-cli export verify output/result.pdf
@@ -37,5 +37,7 @@ skills/indesign-cli/SKILL.md
 - JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)` 的字符串。
 - 返回 JSON 字符串时，CLI 输出会包含 `data.result_json`，避免调用方二次解析 `data.parsed.result`。
 - 成功和失败都会记录到当前目录的 `.indesign-cli/session.json`。
+
+环境变量 `INDESIGN_CLI_SERVER_ROOT` 可把内置 Node server 目录固定到稳定短路径（须包含 `package.json`、`src/index.js`、`src/advanced/index.js`），用于规避长路径下 `winax` 构建失败；排查步骤见根 `README.md`。
 
 本 CLI 复用当前项目的 MCP server 和 ExtendScript/COM 执行链路，不重新实现 InDesign 自动化能力。

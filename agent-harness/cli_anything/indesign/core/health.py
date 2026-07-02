@@ -1,17 +1,54 @@
 from __future__ import annotations
 
 import json
-import shutil
+import site
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
+from .node_setup import LONG_PATH_WARNING_THRESHOLD, SERVER_ROOT_HINT, toolchain_report
+from .runtime import package_root, server_root_override
+
+
+def _server_root_diagnostics(repo_root: Path) -> dict[str, Any]:
+    root_text = str(repo_root)
+    diagnostics: dict[str, Any] = {
+        "path": root_text,
+        "source": "env_override" if server_root_override() else "auto",
+        "path_length": len(root_text),
+        "long_path_risk": len(root_text) >= LONG_PATH_WARNING_THRESHOLD,
+    }
+    if diagnostics["long_path_risk"]:
+        diagnostics["hint"] = SERVER_ROOT_HINT
+    return diagnostics
+
+
+def _python_diagnostics() -> dict[str, Any]:
+    try:
+        user_base = site.getuserbase()
+        user_site = site.getusersitepackages()
+    except (AttributeError, OSError):
+        user_base = None
+        user_site = None
+    return {
+        "available": True,
+        "executable": sys.executable,
+        "user_base": user_base,
+        "user_site": user_site,
+        "package_root": str(package_root()),
+    }
+
 
 def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) -> dict[str, Any]:
+    toolchain = toolchain_report()
     payload: dict[str, Any] = {
         "deep": deep,
-        "node": {"available": shutil.which("node") is not None},
-        "python": {"available": shutil.which("python") is not None},
+        "node": {"available": toolchain["node"]["path"] is not None, **toolchain["node"]},
+        "npm": {"available": toolchain["npm"]["version"] is not None, **toolchain["npm"]},
+        "python": _python_diagnostics(),
+        "server_root": _server_root_diagnostics(repo_root),
+        "cwd": {"unc": str(Path.cwd()).startswith("\\\\")},
         "node_entry_advanced": {
             "path": "src/advanced/index.js",
             "exists": (repo_root / "src/advanced/index.js").exists(),
@@ -36,7 +73,7 @@ def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) 
         payload["indesign_com"] = {
             "checked": False,
             "available": None,
-            "reason": "health --deep 不主动连接 COM，避免隐式启动或干扰 InDesign；真实验证请运行 INDESIGN_E2E=1 的 E2E 测试。",
+            "reason": "health --deep 不主动连接 COM，避免隐式启动或干扰 InDesign；需要真实验证时加 `--connect-indesign` 执行只读探针。",
         }
     if connect_indesign:
         payload["indesign_com"] = indesign_com_probe(repo_root)

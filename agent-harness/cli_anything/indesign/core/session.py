@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,8 +21,11 @@ class SessionStore:
         return payload
 
     def write(self, payload: dict[str, Any]) -> None:
+        # 临时文件 + 原子替换，避免多 Agent 并发写出半截 JSON
         self.root.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp = self.path.with_name(f"session.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self.path)
 
     def record_call(
         self,

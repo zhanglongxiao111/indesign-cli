@@ -18,18 +18,35 @@ def _is_server_root(path: Path) -> bool:
     )
 
 
+def server_root_override() -> str | None:
+    return os.environ.get("INDESIGN_CLI_SERVER_ROOT")
+
+
 def resolve_server_root() -> Path:
     package_dir = package_root()
-    override = os.environ.get("INDESIGN_CLI_SERVER_ROOT")
+    override = server_root_override()
     if override:
         path = Path(override).resolve()
         if _is_server_root(path):
             return path
-        raise CliError("INDESIGN_CLI_SERVER_ROOT does not point to a valid server root", code="SERVER_ROOT_INVALID")
+        raise CliError(
+            "INDESIGN_CLI_SERVER_ROOT does not point to a valid server root",
+            code="SERVER_ROOT_INVALID",
+            details={
+                "override": override,
+                "expected_files": ["package.json", "src/index.js", "src/advanced/index.js"],
+            },
+            hint="INDESIGN_CLI_SERVER_ROOT 必须指向包含 package.json、src/index.js、src/advanced/index.js 的 server 目录；修正路径或删除该环境变量后重试。",
+        )
     for candidate in [*package_dir.parents, package_dir / "server"]:
         if _is_server_root(candidate):
             return candidate
-    raise CliError("InDesign CLI server resources were not found", code="SERVER_ROOT_NOT_FOUND")
+    raise CliError(
+        "InDesign CLI server resources were not found",
+        code="SERVER_ROOT_NOT_FOUND",
+        details={"package_root": str(package_dir)},
+        hint="包内 server 资源缺失，通常是安装不完整或用户目录被重定向导致；重新 `pip install indesign-cli`，或设置 INDESIGN_CLI_SERVER_ROOT 指向一个完整的 server 目录。",
+    )
 
 
 def hidden_handler_bridge_path() -> Path:

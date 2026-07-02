@@ -7,7 +7,7 @@
 1. `tool domains`
 2. `tool list --domain <domain>`
 3. `tool schema <tool_id>`
-4. `tool call <tool_id> --args args.json`
+4. `tool call <tool_id> --args-file args.json`（也支持 `--args -` 从 stdin 读 JSON，或 `--args '{...}'` 内联 JSON）
 5. 多步骤自动化优先写 JSX，再执行 `script run <file.jsx>`
 6. 生成 PDF 或 IDML 后执行 `export verify <path>`
 

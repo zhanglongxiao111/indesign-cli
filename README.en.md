@@ -6,7 +6,7 @@ An Agent-friendly CLI for controlling Adobe InDesign.
 
 `indesign-cli` wraps real InDesign automation behind a stable command-line interface. AI agents can discover available tools, run JSX scripts, call layout operations, verify exported files, and use a project-level Skill when installed manually.
 
-The CLI currently exposes **147 callable capabilities**, covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
+The CLI currently exposes **around 150 callable capabilities** (check `tool domains` for the live count), covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
 
 It is designed for projects such as **AI-generated design decks, architecture presentations, brand manuals, template-driven publishing, and HTML-to-InDesign pipelines**.
 
@@ -21,7 +21,7 @@ Adobe InDesign is powerful, but it is not easy for AI agents to use directly:
 
 `indesign-cli` provides a practical bridge between AI projects and real Adobe InDesign.
 
-One of its main benefits is **token efficiency**: agents do not need to load all 147 full tool descriptions into context. They can start with compact `tool domains` summaries, then load only the relevant details through `tool search`, `tool list`, and `tool schema`.
+One of its main benefits is **token efficiency**: agents do not need to load every full tool description into context. They can start with compact `tool domains` summaries, then load only the relevant details through `tool search`, `tool list`, and `tool schema`. Output is compact single-line JSON by default; add `--pretty` for human inspection.
 
 It is not a manual layout CLI for humans, and it is not a new layout engine. It is an execution layer for agents that need to automate InDesign safely.
 
@@ -53,10 +53,43 @@ This installs the bundled Node server dependencies, including `winax`.
 ### 4. Check the environment
 
 ```powershell
-indesign-cli --json --pretty server health --deep --connect-indesign
+indesign-cli --pretty server health --deep --connect-indesign
 ```
 
 If the response contains `ok: true` and `data.indesign_com.checked` is `true`, the real InDesign COM path has been probed read-only.
+
+### 5. Troubleshooting common environment issues
+
+The `server health` output includes toolchain diagnostics: `python` (interpreter, user package dirs, package location), `node` / `npm` (path and version), `server_root` (source and long-path risk), and whether the current directory is a UNC path. Start there when the environment misbehaves.
+
+**`ModuleNotFoundError: No module named 'cli_anything'`**
+
+The `indesign-cli.exe` entry point and the Python user package directory are out of sync, typically because a sandbox or managed agent runtime redirected `APPDATA` / `USERPROFILE`. Inspect the user package dirs:
+
+```powershell
+python -c "import site; print(site.getuserbase()); print(site.getusersitepackages())"
+```
+
+If they point into a temp directory, pin `PYTHONUSERBASE` to the real user directory or a stable short path, then reinstall with `pip install indesign-cli`.
+
+**`winax` build failures (e.g. `error C1083`)**
+
+`server setup` compiles the native module `winax` with MSVC, which is fragile under very long paths (deeply nested temp directories). Pin the server directory to a stable short path:
+
+```powershell
+# 1. Locate the current server root
+python -c "from cli_anything.indesign.core.runtime import resolve_server_root; print(resolve_server_root())"
+# 2. Copy the whole directory to a short path, e.g. D:\indesign-cli-server
+# 3. Point the CLI at it and reinstall dependencies
+setx INDESIGN_CLI_SERVER_ROOT "D:\indesign-cli-server"
+indesign-cli server setup
+```
+
+`INDESIGN_CLI_SERVER_ROOT` must point to a directory containing `package.json`, `src/index.js`, and `src/advanced/index.js`. This is also the recommended prebuilt pattern: build `winax` once and reuse it across sessions and managed environments instead of recompiling every time.
+
+**`npm` unusable (broken Volta / nvm shim)**
+
+`server setup` probes the `npm` found on PATH first; if the probe fails it falls back to the `npm-cli.js` bundled with Node. If neither works it fails with `NPM_NOT_AVAILABLE`, and the local Node / npm installation needs fixing first.
 
 ## 🧠 Manually install the Agent Skill
 
@@ -112,7 +145,7 @@ Agents can inspect domains first, then load only the schema they need instead of
 
 ### 🧰 Capability coverage
 
-`indesign-cli` currently exposes **147 callable capabilities**, covering most commonly automated InDesign features and agent-facing workflows:
+`indesign-cli` currently exposes **around 150 callable capabilities** (the count grows over time; check `tool domains` for the live number), covering most commonly automated InDesign features and agent-facing workflows:
 
 - Documents, pages, spreads, masters, and layers
 - Text frames, tables, images, basic shapes, and page items
@@ -126,19 +159,19 @@ These capabilities are discoverable by domain through the CLI, so they do not ha
 ### 📜 Run JSX scripts
 
 ```powershell
-indesign-cli --json --pretty script run test\workspace\probe.jsx
+indesign-cli --pretty script run test\workspace\probe.jsx
 ```
 
-Long builds or exports can use a longer script-channel timeout:
+Long builds or exports can use a longer script-channel timeout (`script run` defaults to 300 seconds; `tool call` defaults to 30 seconds):
 
 ```powershell
-indesign-cli --json --pretty script run test\workspace\build.jsx --timeout-ms 900000
+indesign-cli --pretty script run test\workspace\build.jsx --timeout-ms 900000
 ```
 
 Short probes can also be passed through stdin:
 
 ```powershell
-Get-Content test\workspace\probe.jsx | indesign-cli --json --pretty script run --stdin
+Get-Content test\workspace\probe.jsx | indesign-cli --pretty script run --stdin
 ```
 
 ### 📦 Verify exports
@@ -173,15 +206,34 @@ The CLI also exposes Book and Presentation-oriented capabilities, including:
 
 Use `tool domains`, `tool list`, and `tool schema` to inspect the available commands.
 
+### 🚨 Common error codes
+
+Every command (including argument typos) returns the unified JSON envelope (`schema_version: 2`); on failure read `error.code`, `error.message`, and `error.hint`. Frequent codes:
+
+| Code | Meaning | Typical fix |
+| ---- | ------- | ----------- |
+| `BAD_CLI_ARGS` | Missing or misspelled command-line arguments | Read `error.details.usage` or run the subcommand with `--help` |
+| `ARGS_REQUIRED` / `ARGS_FILE_NOT_FOUND` / `ARGS_JSON_INVALID` / `ARGS_NOT_OBJECT` | Tool arguments missing or invalid JSON | Pass a UTF-8 JSON file via `--args-file`, or use `--args -` with stdin |
+| `ARGS_UNKNOWN_KEY` | Misspelled argument key | Fix keys per `error.details.allowed` |
+| `TOOL_NOT_FOUND` / `DOMAIN_NOT_FOUND` | Unknown tool or domain | Run `tool domains`, then `tool search --query <keyword>` |
+| `MISSING_ARGUMENT` | Required argument missing | Check `tool schema <tool_id>` |
+| `BAD_TIMEOUT` / `TIMEOUT` | Invalid timeout value / execution timed out | Timeouts accept 1-3600 seconds; after `TIMEOUT`, run `session doctor` before retrying |
+| `BATCH_PLAN_*` / `BATCH_STEP_INVALID` / `BATCH_STEP_FAILED` | Batch plan format or step failure | Fix the plan per `error.details.expected_step` |
+| `MCP_START_FAILED` / `MCP_TOOL_FAILED` / `INDESIGN_SCRIPT_FAILED` | Node backend or InDesign script failure | Run `server health`; inspect `error.details.result` |
+| `NO_ACTIVE_DOCUMENT` | No document is open | Open or create a document first |
+| `ARTIFACT_*` | Export verification failed | Confirm the export succeeded and the path points at a fresh artifact |
+| `SERVER_ROOT_*` / `NPM_*` | Environment or dependency issues | See the troubleshooting section above |
+| `UNEXPECTED_ERROR` | Unexpected CLI exception | Report it with `error.details` (exception type and location) |
+
 ## 🧪 Example workflow
 
 ```powershell
-indesign-cli --json --pretty server health --deep --connect-indesign
+indesign-cli server health --deep --connect-indesign
 indesign-cli tool domains
 indesign-cli tool search --query "template"
 indesign-cli tool schema template.populate_template_slots
 indesign-cli tool explain template.populate_template_slots
-indesign-cli --json --pretty script run test\workspace\build.jsx
+indesign-cli script run test\workspace\build.jsx
 indesign-cli session doctor
 indesign-cli export verify output\presentation.pdf
 ```

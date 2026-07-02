@@ -39,20 +39,17 @@ PRIMITIVE_SCHEMAS = {
         },
     },
     "server.setup": {"type": "object", "additionalProperties": False, "properties": {}},
-    "session.show": {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "verbose": {"type": "boolean", "description": "是否显示允许展示的详细 session 信息"},
-        },
-    },
+    "session.show": {"type": "object", "additionalProperties": False, "properties": {}},
     "session.clear": {"type": "object", "additionalProperties": False, "properties": {}},
     "session.doctor": {"type": "object", "additionalProperties": False, "properties": {}},
     "tool.batch": {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "plan": {"type": "string", "description": "JSON batch plan 路径"},
+            "plan": {
+                "type": "string",
+                "description": 'JSON batch plan 路径；格式：{"steps":[{"id":"step-1","type":"tool","tool":"<tool_id>","args":{}}]}',
+            },
             "on_error": {"type": "string", "enum": ["stop"], "description": "失败策略，当前仅支持 stop"},
             "timeout_ms": {"type": "integer", "description": "本次 batch 的超时毫秒"},
         },
@@ -187,7 +184,7 @@ class Router:
         if tool_id == "session.show":
             from .session import SessionStore
 
-            return SessionStore(Path.cwd()).read(compact=not bool(args.get("verbose")))
+            return SessionStore(Path.cwd()).read(compact=True)
         if tool_id == "session.clear":
             from .session import SessionStore
 
@@ -224,7 +221,11 @@ class Router:
                 return run_stdin_script(self, Path.cwd())
             if args.get("file"):
                 return run_script(self, Path(args["file"]))
-            raise CliError("script.run requires file or stdin", code="SCRIPT_INPUT_REQUIRED")
+            raise CliError(
+                "script.run requires file or stdin",
+                code="SCRIPT_INPUT_REQUIRED",
+                hint="传 JSX 文件路径（可复跑、支持相对 #include），或传 stdin:true 执行短临时探针。",
+            )
         finally:
             self.backend_timeout_seconds = old_timeout
 
@@ -232,7 +233,12 @@ class Router:
     def _require_arg(args: dict[str, Any], key: str) -> Any:
         value = args.get(key)
         if value in (None, ""):
-            raise CliError(f"Missing required argument: {key}", code="MISSING_ARGUMENT", details={"argument": key})
+            raise CliError(
+                f"Missing required argument: {key}",
+                code="MISSING_ARGUMENT",
+                details={"argument": key},
+                hint="用 `indesign-cli tool schema <tool_id>` 查看必填参数和类型。",
+            )
         return value
 
     @staticmethod
@@ -256,16 +262,45 @@ class Router:
         return max(1, int((timeout_ms + 999) / 1000))
 
 
+ARGS_USAGE_HINT = (
+    "三种传参方式：`--args-file <path>` 读 UTF-8 JSON 文件；`--args -` 从 stdin 读 JSON；"
+    "`--args` 直接传以 { 开头的内联 JSON（注意 shell 引号转义）。"
+)
+
+
 def load_args(path_value: str) -> dict[str, Any]:
-    try:
-        if path_value == "-":
-            payload = json.loads(sys.stdin.read() or "{}")
-        else:
-            payload = json.loads(Path(path_value).read_text(encoding="utf-8-sig"))
-    except FileNotFoundError as exc:
-        raise CliError("Arguments file not found", code="ARGS_FILE_NOT_FOUND") from exc
-    except JSONDecodeError as exc:
-        raise CliError("Arguments must be valid JSON", code="ARGS_JSON_INVALID") from exc
+    stripped = path_value.strip()
+    if stripped.startswith(("{", "[")):
+        try:
+            payload = json.loads(stripped)
+        except JSONDecodeError as exc:
+            raise CliError(
+                "Inline JSON arguments are invalid",
+                code="ARGS_JSON_INVALID",
+                details={"position": f"line {exc.lineno} column {exc.colno}"},
+                hint=f"内联 JSON 解析失败，常见原因是 shell 引号转义；{ARGS_USAGE_HINT}",
+            ) from exc
+    else:
+        try:
+            if path_value == "-":
+                payload = json.loads(sys.stdin.read() or "{}")
+            else:
+                payload = json.loads(Path(path_value).read_text(encoding="utf-8-sig"))
+        except JSONDecodeError as exc:
+            raise CliError(
+                "Arguments must be valid JSON",
+                code="ARGS_JSON_INVALID",
+                details={"position": f"line {exc.lineno} column {exc.colno}"},
+                hint=ARGS_USAGE_HINT,
+            ) from exc
+        except OSError as exc:
+            # FileNotFoundError 和 Windows 非法路径字符（如把 JSON 当路径）都落在这里
+            raise CliError(
+                "Arguments file not found or unreadable",
+                code="ARGS_FILE_NOT_FOUND",
+                details={"value": path_value},
+                hint=ARGS_USAGE_HINT,
+            ) from exc
     if not isinstance(payload, dict):
-        raise CliError("Arguments JSON must be an object", code="ARGS_NOT_OBJECT")
+        raise CliError("Arguments JSON must be an object", code="ARGS_NOT_OBJECT", hint=ARGS_USAGE_HINT)
     return payload

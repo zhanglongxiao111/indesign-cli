@@ -104,7 +104,10 @@ class McpBackend:
                 except subprocess.TimeoutExpired:
                     proc.kill()
             if timed_out["value"]:
-                raise TimeoutError("MCP process timed out", details={"entry": self.entry, "stderr_tail": stderr_tail})
+                raise TimeoutError(
+                    "MCP process timed out",
+                    details={"entry": self.entry, "timeout_seconds": self.timeout_seconds, "stderr_tail": stderr_tail},
+                )
 
     def _request(self, proc: subprocess.Popen[str], method: str, params: dict[str, Any]) -> dict[str, Any]:
         if proc.stdin is None or proc.stdout is None:
@@ -206,7 +209,11 @@ class McpBackend:
                     }
                 )
             code = str(parsed.get("code") or "MCP_TOOL_FAILED") if isinstance(parsed, dict) else "MCP_TOOL_FAILED"
-            message = str(parsed.get("message") or parsed.get("error") or "MCP tool failed") if isinstance(parsed, dict) else "MCP tool failed"
+            message = str(parsed.get("message") or parsed.get("error") or "") if isinstance(parsed, dict) else ""
+            if not message:
+                # message 缺失时回退到工具返回文本，Agent 才能看到真实失败原因
+                result_text = scrub_text_paths(str(parsed.get("result") or "")).strip() if isinstance(parsed, dict) else ""
+                message = result_text[:300] or "MCP tool failed"
             legacy = classify_legacy_failure(message)
             if legacy:
                 code, message = legacy

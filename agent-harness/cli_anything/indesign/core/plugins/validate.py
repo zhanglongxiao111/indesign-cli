@@ -148,7 +148,12 @@ def doctor_plugin(plugin_id: str, *, cwd: Path, host_version: str, deep: bool = 
     records, discovery_warnings = discover_plugins(cwd, host_version=host_version)
     record = next((item for item in records if item.id == plugin_id), None)
     if not record:
-        raise CliError("Plugin is not installed", code="PLUGIN_NOT_INSTALLED", details={"id": plugin_id})
+        raise CliError(
+            "Plugin is not installed",
+            code="PLUGIN_NOT_INSTALLED",
+            details={"id": plugin_id},
+            hint="先运行 `indesign-cli plugin list` 查看已安装插件和确切 id。",
+        )
 
     checks: list[dict[str, Any]] = []
     checks.append({"name": "discovered", "ok": True, "source": record.source})

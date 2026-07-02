@@ -32,10 +32,29 @@ def scrub_path(path_value: str, cwd: Path) -> dict[str, object]:
         }
 
 
-def scrub_text_paths(value: str) -> str:
+def scrub_text_paths(value: str, allow_roots: list[Path] | None = None) -> str:
+    # 白名单内（默认 cwd）的路径输出相对形式，供 Agent 自我修复；白名单外按外部资产打码。
+    roots: list[Path] = []
+    for root in allow_roots if allow_roots is not None else [Path.cwd()]:
+        try:
+            roots.append(root.resolve())
+        except OSError:
+            continue
+
     def replace(match: re.Match[str]) -> str:
         raw_path = match.group(0)
-        suffix = Path(raw_path).suffix.lower()
-        return f"<external_path extension={suffix or 'unknown'} hash={_hash_path(Path(raw_path))}>"
+        path = Path(raw_path)
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        for root in roots:
+            try:
+                relative = resolved.relative_to(root)
+            except ValueError:
+                continue
+            return str(relative).replace("\\", "/")
+        suffix = path.suffix.lower()
+        return f"<external_path extension={suffix or 'unknown'} hash={_hash_path(resolved)}>"
 
     return re.sub(r"[A-Za-z]:[\\/][^'\"\r\n]+", replace, value)

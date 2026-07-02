@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -13,10 +14,12 @@ FAKE_PLUGIN_ROOT = HARNESS_ROOT / "cli_anything" / "indesign" / "tests" / "fixtu
 sys.path.insert(0, str(HARNESS_ROOT))
 
 
-def run_module(*args: str, cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess[str]:
+def run_module(*args: str, cwd: Path = REPO_ROOT, env_overrides: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
     env["PYTHONIOENCODING"] = "utf-8"
+    if env_overrides:
+        env.update(env_overrides)
     return subprocess.run(
         [sys.executable, "-m", "cli_anything.indesign", *args],
         cwd=cwd,
@@ -127,24 +130,92 @@ def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch,
 
     calls = []
 
+    def fake_which(name):
+        return {"node": "C:\\nodejs\\node.exe", "npm": "C:\\nodejs\\npm.cmd"}.get(name)
+
     def fake_run(args, **kwargs):
         calls.append((args, kwargs))
 
         class Result:
             returncode = 0
-            stdout = "installed"
+            stdout = "10.9.0" if args[-1] == "--version" else "installed"
             stderr = ""
 
         return Result()
 
+    monkeypatch.setattr(shutil, "which", fake_which)
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     payload = setup_node_dependencies(tmp_path)
 
-    assert calls[0][0] == ["npm", "install"]
-    assert calls[0][1]["cwd"] == tmp_path
+    assert calls[-1][0] == ["C:\\nodejs\\npm.cmd", "install"]
+    assert calls[-1][1]["cwd"] == tmp_path
     assert payload["ok"] is True
     assert payload["server_root"] == str(tmp_path)
+    assert payload["npm_source"] == "path"
+    assert payload["toolchain"]["npm"]["version"] == "10.9.0"
+
+
+def test_node_dependency_setup_falls_back_to_node_bundled_npm(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.node_setup import setup_node_dependencies
+
+    node_dir = tmp_path / "nodejs"
+    npm_cli = node_dir / "node_modules" / "npm" / "bin" / "npm-cli.js"
+    npm_cli.parent.mkdir(parents=True)
+    npm_cli.write_text("// npm cli", encoding="utf-8")
+    node_path = node_dir / "node.exe"
+    node_path.write_text("", encoding="utf-8")
+    broken_npm = node_dir / "npm.cmd"
+    server_root = tmp_path / "server"
+    server_root.mkdir()
+
+    calls = []
+
+    def fake_which(name):
+        return {"node": str(node_path), "npm": str(broken_npm)}.get(name)
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+
+        class Result:
+            stdout = "v22.15.0"
+            stderr = ""
+            returncode = 1 if args[0] == str(broken_npm) else 0
+
+        return Result()
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    payload = setup_node_dependencies(server_root)
+
+    assert payload["npm_source"] == "node_bundled_fallback"
+    assert calls[-1][0] == [str(node_path), str(npm_cli), "install"]
+
+
+def test_node_dependency_setup_fails_with_remediation_when_npm_unusable(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.node_setup import setup_node_dependencies
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+
+    try:
+        setup_node_dependencies(tmp_path)
+    except CliError as exc:
+        assert exc.code == "NPM_NOT_AVAILABLE"
+        assert exc.hint
+    else:
+        raise AssertionError("expected CliError")
+
+
+def test_server_root_warnings_flags_long_paths():
+    from cli_anything.indesign.core.node_setup import server_root_warnings
+
+    long_root = Path("D:\\") / ("x" * 150)
+    warnings = server_root_warnings(long_root)
+    assert warnings
+    assert "INDESIGN_CLI_SERVER_ROOT" in warnings[0]
+    assert server_root_warnings(Path("D:\\srv")) == []
 
 
 def test_skill_install_is_not_exposed_as_cli_or_tool():
@@ -186,9 +257,12 @@ def test_failure_envelope_has_machine_fields():
     )
     assert payload["ok"] is False
     assert payload["exit_code"] == 1
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["error"]["code"] == "BAD_INPUT"
     assert payload["error"]["retryable"] is False
+    assert payload["tool_success"] is False
+    assert "tool_id" in payload
+    assert "data" in payload
     assert payload["state_uncertain"] is False
     assert "next_action" in payload
 
@@ -1001,7 +1075,7 @@ def test_required_schema_without_args_returns_json_failure():
 
 def test_args_file_accepts_unicode_path(tmp_path):
     args_file = tmp_path / "参数.json"
-    args_file.write_text(json.dumps({"verbose": True}), encoding="utf-8")
+    args_file.write_text(json.dumps({}), encoding="utf-8")
 
     result = run_module("tool", "call", "session.show", "--args-file", str(args_file), cwd=tmp_path)
 
@@ -1296,6 +1370,48 @@ def test_health_reports_project_files():
     assert payload["deep"] is False
 
 
+def test_health_reports_toolchain_diagnostics(monkeypatch):
+    from cli_anything.indesign.core import health as health_module
+
+    monkeypatch.setattr(
+        health_module,
+        "toolchain_report",
+        lambda: {
+            "node": {"path": "C:\\nodejs\\node.exe", "version": "v22.15.0"},
+            "npm": {"path": "C:\\nodejs\\npm.cmd", "version": None},
+        },
+    )
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["node"]["available"] is True
+    assert payload["node"]["version"] == "v22.15.0"
+    assert payload["npm"]["available"] is False
+    assert payload["python"]["executable"]
+    assert payload["python"]["package_root"]
+    assert "user_base" in payload["python"]
+    assert payload["server_root"]["path"] == str(REPO_ROOT)
+    assert payload["server_root"]["source"] in {"auto", "env_override"}
+    assert isinstance(payload["server_root"]["long_path_risk"], bool)
+    assert "unc" in payload["cwd"]
+
+
+def test_invalid_server_root_override_emits_json_envelope(tmp_path):
+    env_overrides = {"INDESIGN_CLI_SERVER_ROOT": str(tmp_path)}
+
+    version_result = run_module("--version", env_overrides=env_overrides)
+    assert version_result.returncode == 0
+    assert json.loads(version_result.stdout)["ok"] is True
+
+    health_result = run_module("server", "health", env_overrides=env_overrides)
+    assert health_result.returncode == 1
+    payload = json.loads(health_result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "SERVER_ROOT_INVALID"
+    assert payload["error"]["hint"]
+    assert "Traceback" not in health_result.stderr
+
+
 def test_deep_health_does_not_claim_unchecked_com_probe():
     from cli_anything.indesign.core.health import health
 
@@ -1329,3 +1445,221 @@ def test_server_health_parser_accepts_connect_indesign_flag():
 
     assert args.deep is True
     assert args.connect_indesign is True
+
+
+def test_load_args_accepts_inline_json():
+    from cli_anything.indesign.core.router import load_args
+
+    assert load_args('{"path": "out.pdf"}') == {"path": "out.pdf"}
+
+
+def test_load_args_inline_json_invalid_has_hint():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.router import load_args
+
+    try:
+        load_args('{"path": out.pdf}')
+    except CliError as exc:
+        assert exc.code == "ARGS_JSON_INVALID"
+        assert exc.hint
+    else:
+        raise AssertionError("expected CliError")
+
+
+def test_load_args_bad_path_reports_args_file_not_found_with_hint():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.router import load_args
+
+    for value in ("no-such-file.json", 'D:\\bad"path*?.json'):
+        try:
+            load_args(value)
+        except CliError as exc:
+            assert exc.code == "ARGS_FILE_NOT_FOUND"
+            assert exc.hint
+        else:
+            raise AssertionError("expected CliError")
+
+
+def test_argparse_errors_emit_json_envelope():
+    result = run_module("tool", "schema")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "BAD_CLI_ARGS"
+    assert "usage" in payload["error"]["details"]
+    assert payload["error"]["hint"]
+
+
+def test_output_is_compact_utf8_by_default_and_pretty_optional():
+    compact = run_module("--version")
+    assert compact.returncode == 0
+    assert len(compact.stdout.strip().splitlines()) == 1
+
+    pretty = run_module("--pretty", "--version")
+    assert pretty.returncode == 0
+    assert len(pretty.stdout.strip().splitlines()) > 1
+
+    quickstart = run_module("agent", "quickstart")
+    assert "\\u" not in quickstart.stdout or "指" in quickstart.stdout
+
+
+def test_chinese_output_is_not_ascii_escaped():
+    result = run_module("server", "health")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    # winax.reason 是中文；不允许再被转义成 \uXXXX
+    assert "未运行" in result.stdout
+    assert "\\u672a" not in result.stdout
+
+
+def test_unexpected_error_keeps_exception_summary(monkeypatch):
+    from cli_anything.indesign import indesign_cli
+
+    def boom(argv=None):
+        raise ValueError("boom detail")
+
+    monkeypatch.setattr(indesign_cli, "run", boom)
+    import io as io_module
+
+    buffer = io_module.StringIO()
+    monkeypatch.setattr(sys, "stdout", buffer)
+    exit_code = indesign_cli.main(["tool", "domains"])
+    payload = json.loads(buffer.getvalue())
+    assert exit_code == 1
+    assert payload["error"]["code"] == "UNEXPECTED_ERROR"
+    assert "boom detail" in payload["error"]["message"]
+    assert payload["error"]["details"]["type"] == "ValueError"
+    assert payload["error"]["details"]["location"]
+    assert payload["error"]["hint"]
+
+
+def test_scrub_text_paths_keeps_workspace_paths_relative(tmp_path):
+    from cli_anything.indesign.core.paths import scrub_text_paths
+
+    inside = tmp_path / "test" / "workspace" / "probe.jsx"
+    text = f"ENOENT: no such file, open '{inside}' and D:\\Clients\\AcmeSecret\\layout.indd"
+    scrubbed = scrub_text_paths(text, allow_roots=[tmp_path])
+    assert "test/workspace/probe.jsx" in scrubbed
+    assert "AcmeSecret" not in scrubbed
+    assert "<external_path" in scrubbed
+
+
+def test_batch_step_invalid_includes_expected_step_template(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.batch import run_batch
+
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps({"steps": [{"tool": "session.show", "args": {}}]}), encoding="utf-8")
+    try:
+        run_batch(None, plan)
+    except CliError as exc:
+        assert exc.code == "BATCH_STEP_INVALID"
+        assert exc.details["expected_step"]["type"] == "tool"
+        assert exc.hint and "steps" in exc.hint
+    else:
+        raise AssertionError("expected CliError")
+
+
+def test_mcp_failure_message_falls_back_to_result_text():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "isError": True,
+        "content": [{"type": "text", "text": json.dumps({"success": False, "result": "无法访问 JSX 文件：ENOENT"})}],
+    }
+    try:
+        backend._parse_tool_response("run_jsx_file", response)
+    except CliError as exc:
+        assert "无法访问 JSX 文件" in exc.message
+    else:
+        raise AssertionError("expected CliError")
+
+
+def test_tool_call_rejects_unknown_argument_keys():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.indesign_cli import validate_call_args
+
+    schema = {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}
+    try:
+        validate_call_args({"filePath": "x.pdf"}, schema)
+    except CliError as exc:
+        assert exc.code == "ARGS_UNKNOWN_KEY"
+        assert exc.details["unknown"] == ["filePath"]
+        assert exc.details["allowed"] == ["path"]
+    else:
+        raise AssertionError("expected CliError")
+    validate_call_args({"path": "x.pdf"}, schema)
+
+
+def test_timeout_seconds_validates_fallback_seconds():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.indesign_cli import timeout_seconds_from_ms
+
+    assert timeout_seconds_from_ms(None, 300) == 300
+    assert timeout_seconds_from_ms(None, None) is None
+    try:
+        timeout_seconds_from_ms(None, -5)
+    except CliError as exc:
+        assert exc.code == "BAD_TIMEOUT"
+    else:
+        raise AssertionError("expected CliError")
+
+
+def test_tool_list_output_is_slim():
+    from cli_anything.indesign.indesign_cli import SLIM_TOOL_FIELDS, slim_tools
+
+    tools = [{key: "x" for key in SLIM_TOOL_FIELDS} | {"return_example": {"big": True}, "plugin": "p1"}]
+    slimmed = slim_tools(tools)
+    assert "return_example" not in slimmed[0]
+    assert slimmed[0]["plugin"] == "p1"
+    assert set(slimmed[0]) == set(SLIM_TOOL_FIELDS) | {"plugin"}
+
+
+def test_tool_list_callable_only_alone_lists_tools():
+    result = run_module("tool", "list", "--callable-only")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert isinstance(payload["data"], list)
+    assert payload["data"], "expected non-empty tool list"
+    assert "id" in payload["data"][0]
+    assert "domain" in payload["data"][0]
+    assert "return_example" not in payload["data"][0]
+
+
+def test_artifact_verify_returns_iso_mtime(tmp_path):
+    from cli_anything.indesign.core.artifacts import verify_artifact
+
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.7 minimal")
+    payload = verify_artifact(pdf, cwd=tmp_path)
+    assert payload["mtime_iso"]
+    assert "T" in payload["mtime_iso"]
+
+
+def test_session_show_rejects_removed_verbose_flag():
+    result = run_module("session", "show", "--verbose")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["error"]["code"] == "BAD_CLI_ARGS"
+
+
+def test_emit_check_failure_includes_error_object():
+    from cli_anything.indesign import indesign_cli
+
+    import io as io_module
+
+    buffer = io_module.StringIO()
+    original = sys.stdout
+    sys.stdout = buffer
+    try:
+        exit_code = indesign_cli.emit_check("plugin validate", {"ok": False, "errors": [{"code": "X"}]}, tool_id="plugin.validate")
+    finally:
+        sys.stdout = original
+    payload = json.loads(buffer.getvalue())
+    assert exit_code == 1
+    assert payload["ok"] is False
+    assert payload["tool_success"] is False
+    assert payload["error"]["code"] == "CHECK_FAILED"

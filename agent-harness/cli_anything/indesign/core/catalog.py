@@ -74,7 +74,7 @@ CLI_PRIMITIVES = [
         "domain": "session",
         "name": "show",
         "one_line_purpose": "读取当前工作目录下的精简 CLI session",
-        "arg_names": ["verbose"],
+        "arg_names": [],
         "source": "cli",
         "rank": 1,
         "schema_size": "small",
@@ -261,7 +261,12 @@ def _agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
             "artifacts": "array" if returns_artifacts else "optional array",
         },
         "return_example": {"success": True, "data": {}, "artifacts": [] if returns_artifacts else None},
-        "failure_example": {"success": False, "code": "MCP_TOOL_FAILED", "message": "Tool failed"},
+        # MCP 后端工具失败走 MCP_TOOL_FAILED；CLI/script/hidden 原语失败码见各自 error.code
+        "failure_example": (
+            {"success": False, "code": "MCP_TOOL_FAILED", "message": "Tool failed"}
+            if str(tool.get("source") or "") in {"advanced", "classic"}
+            else {"ok": False, "error": {"code": "CLI_ERROR", "message": "Tool failed"}}
+        ),
         "preconditions": [],
         "safe_usage_notes": [],
         "common_next_steps": ["Inspect the returned data before chaining the next operation."],
@@ -274,6 +279,9 @@ def _agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
     if destructive or contract["may_close_document"]:
         contract["safe_usage_notes"].append("Confirm the target document when multiple documents are open.")
     overrides: dict[str, dict[str, Any]] = {
+        "export.verify": {
+            "failure_example": {"ok": False, "error": {"code": "ARTIFACT_NOT_FOUND", "message": "Artifact not found"}},
+        },
         "document.close_document": {
             "may_close_document": True,
             "closes_document": True,
