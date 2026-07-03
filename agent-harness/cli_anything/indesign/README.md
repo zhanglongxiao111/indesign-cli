@@ -15,6 +15,7 @@ indesign-cli script run --stdin
 indesign-cli export verify output/result.pdf
 indesign-cli server setup
 indesign-cli server health
+indesign-cli-agent run --source \\server\tools\indesign-cli\latest.json -- server health --deep --connect-indesign
 indesign-cli session show
 ```
 
@@ -39,5 +40,7 @@ skills/indesign-cli/SKILL.md
 - 成功和失败都会记录到当前目录的 `.indesign-cli/session.json`。
 
 环境变量 `INDESIGN_CLI_SERVER_ROOT` 可把内置 Node server 目录固定到稳定短路径（须包含 `package.json`、`src/index.js`、`src/advanced/index.js`），用于规避长路径下 `winax` 构建失败；排查步骤见根 `README.md`。
+
+受控工位可用 `indesign-cli-agent.exe` 单文件自举入口：它释放内置 Node/server/预编译 `winax` 到 `%LOCALAPPDATA%\indesign-cli\`，并在每次 `run` 前按服务器 `latest.json` 强制更新。
 
 本 CLI 复用当前项目的 MCP server 和 ExtendScript/COM 执行链路，不重新实现 InDesign 自动化能力。

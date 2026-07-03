@@ -26,6 +26,7 @@ classifiers = [
 [project.scripts]
 indesign-cli = "cli_anything.indesign.indesign_cli:main"
 cli-anything-indesign = "cli_anything.indesign.indesign_cli:main"
+indesign-cli-agent = "cli_anything.indesign.agent_bootstrapper:main"
 
 [project.urls]
 Repository = "https://github.com/zhanglongxiao111/indesign-cli"

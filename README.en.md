@@ -27,6 +27,25 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 
 ## 🚀 Quick install
 
+### Internal agent distribution
+
+For managed workstations and unattended agents, prefer the single-file bootstrapper instead of installing Node, npm, or compiling `winax` on every machine:
+
+```powershell
+Copy-Item "\\server\tools\indesign-cli\bootstrap\indesign-cli-agent.exe" "$env:TEMP\indesign-cli-agent.exe" -Force
+& "$env:TEMP\indesign-cli-agent.exe" run --source "\\server\tools\indesign-cli\latest.json" -- server health --deep --connect-indesign
+```
+
+`indesign-cli-agent.exe` extracts its embedded Node runtime, server files, and prebuilt `winax` into `%LOCALAPPDATA%\indesign-cli\`. Every `run` checks `latest.json` first; if a newer version exists, it updates before executing the requested command.
+
+Build entry for the single-file bootstrapper:
+
+```powershell
+python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --output-dir dist-agent
+```
+
+The PyPI flow below remains available for developers and open-source users.
+
 ### 1. Requirements
 
 - Windows

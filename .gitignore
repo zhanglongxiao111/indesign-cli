@@ -101,7 +101,9 @@ temp_script.jsx
 
 # Development artifacts
 dist/
+dist-agent/
 build/
+.build/
 *.tmp
 *.temp
 *.backup

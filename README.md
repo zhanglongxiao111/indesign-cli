@@ -27,6 +27,25 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 ## 🚀 快速安装
 
+### 事务所内部 Agent 分发
+
+受控工位和无人值守 Agent 优先使用单文件自举入口，而不是让每台电脑安装 Node、npm 或编译 `winax`：
+
+```powershell
+Copy-Item "\\server\tools\indesign-cli\bootstrap\indesign-cli-agent.exe" "$env:TEMP\indesign-cli-agent.exe" -Force
+& "$env:TEMP\indesign-cli-agent.exe" run --source "\\server\tools\indesign-cli\latest.json" -- server health --deep --connect-indesign
+```
+
+`indesign-cli-agent.exe` 会把内置 Node、server 和预编译 `winax` 释放到 `%LOCALAPPDATA%\indesign-cli\`，每次 `run` 前强制检查 `latest.json`。发现新版本时先更新，更新失败则不执行业务命令。
+
+发布单文件自举 exe 的构建入口：
+
+```powershell
+python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --output-dir dist-agent
+```
+
+下面的 PyPI 安装方式保留给开发者和开源用户。
+
 ### 1. 准备环境
 
 你需要：

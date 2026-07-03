@@ -45,3 +45,5 @@
 | ---- | ---- |
 | `superpowers/specs/2026-07-01-indesign-cli-agent-ux-hardening-design.md` | indesign-cli Agent 体验与可靠性整改方案 |
 | `superpowers/plans/2026-07-01-indesign-cli-agent-ux-hardening-plan.md` | indesign-cli Agent 体验与可靠性整改实施计划 |
+| `superpowers/specs/2026-07-03-indesign-cli-agent-bootstrapper-design.md` | indesign-cli Agent 单文件自举发布与强制更新方案 |
+| `superpowers/specs/2026-07-03-indesign-tool-semantics-design.md` | InDesign 工具语义全面提升方案 |

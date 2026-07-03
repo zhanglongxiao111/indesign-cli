@@ -1437,6 +1437,30 @@ def test_health_connect_indesign_uses_explicit_com_probe(monkeypatch):
     assert payload["indesign_com"]["documentsCount"] == 0
 
 
+def test_health_winax_probe_uses_resolved_node(monkeypatch):
+    from cli_anything.indesign.core import health as health_module
+
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+
+        class Result:
+            returncode = 0
+            stdout = "ok"
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(health_module, "resolve_node_executable", lambda repo_root: r"D:\runtime\node\node.exe")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    payload = health_module._check_winax(REPO_ROOT)
+
+    assert payload["available"] is True
+    assert calls[0][0] == r"D:\runtime\node\node.exe"
+
+
 def test_server_health_parser_accepts_connect_indesign_flag():
     from cli_anything.indesign.indesign_cli import build_parser
 
@@ -1663,3 +1687,228 @@ def test_emit_check_failure_includes_error_object():
     assert payload["ok"] is False
     assert payload["tool_success"] is False
     assert payload["error"]["code"] == "CHECK_FAILED"
+
+
+def run_agent_module(
+    *args: str,
+    cwd: Path = REPO_ROOT,
+    env_overrides: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(HARNESS_ROOT)
+    env["PYTHONIOENCODING"] = "utf-8"
+    if env_overrides:
+        env.update(env_overrides)
+    return subprocess.run(
+        [sys.executable, "-m", "cli_anything.indesign.agent_bootstrapper", *args],
+        cwd=cwd,
+        env=env,
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def test_runtime_resolves_explicit_and_bundled_node(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.runtime import resolve_node_executable
+
+    explicit = tmp_path / "explicit" / "node.exe"
+    explicit.parent.mkdir()
+    explicit.write_text("", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_NODE", str(explicit))
+
+    assert resolve_node_executable(tmp_path) == explicit.resolve()
+
+    monkeypatch.delenv("INDESIGN_CLI_NODE")
+    runtime_node = tmp_path / "runtime" / "node" / "node.exe"
+    runtime_node.parent.mkdir(parents=True)
+    runtime_node.write_text("", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(tmp_path / "runtime"))
+
+    assert resolve_node_executable(tmp_path) == runtime_node.resolve()
+
+
+def test_mcp_backend_uses_resolved_node(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    entry = tmp_path / "src" / "index.js"
+    entry.parent.mkdir(parents=True)
+    entry.write_text("// server", encoding="utf-8")
+    node = tmp_path / "runtime" / "node" / "node.exe"
+    node.parent.mkdir(parents=True)
+    node.write_text("", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(tmp_path / "runtime"))
+    calls = []
+
+    class FakeProc:
+        def __init__(self):
+            self.stdin = io.StringIO()
+            self.stdout = io.StringIO(
+                json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}})
+                + "\n"
+                + json.dumps({"jsonrpc": "2.0", "id": 2, "result": {"tools": []}})
+                + "\n"
+            )
+            self.stderr = io.StringIO("")
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            return None
+
+    def fake_popen(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeProc()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    tools = McpBackend(repo_root=tmp_path, entry="src/index.js").list_tools()
+
+    assert tools == []
+    assert calls[0][0] == str(node.resolve())
+
+
+def test_agent_bootstrapper_refuses_to_run_when_required_update_fails(tmp_path):
+    install_root = tmp_path / "install"
+    current_dir = install_root / "current"
+    current_dir.mkdir(parents=True)
+    (current_dir / "manifest.json").write_text(json.dumps({"version": "0.4.1"}), encoding="utf-8")
+
+    release = tmp_path / "release" / "indesign-cli-agent.exe"
+    release.parent.mkdir(parents=True)
+    release.write_text("new release", encoding="utf-8")
+    latest = tmp_path / "latest.json"
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.4.2",
+                "force": True,
+                "url": str(release),
+                "sha256": "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_agent_module(
+        "run",
+        "--install-root",
+        str(install_root),
+        "--source",
+        str(latest),
+        "--",
+        "--version",
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "UPDATE_REQUIRED_BUT_FAILED"
+    assert payload["current"] == "0.4.1"
+    assert payload["latest"] == "0.4.2"
+
+
+def test_agent_bootstrapper_builds_runtime_env(tmp_path):
+    from cli_anything.indesign.core.bootstrapper import build_runtime_env
+
+    runtime_root = tmp_path / "runtime" / "0.4.2"
+    node = runtime_root / "node" / "node.exe"
+    server = runtime_root / "server"
+    node.parent.mkdir(parents=True)
+    node.write_text("", encoding="utf-8")
+    (server / "src" / "advanced").mkdir(parents=True)
+    (server / "package.json").write_text("{}", encoding="utf-8")
+    (server / "src" / "index.js").write_text("// classic", encoding="utf-8")
+    (server / "src" / "advanced" / "index.js").write_text("// advanced", encoding="utf-8")
+
+    env = build_runtime_env(runtime_root, base_env={"PATH": "x"})
+
+    assert env["INDESIGN_CLI_NODE"] == str(node)
+    assert env["INDESIGN_CLI_SERVER_ROOT"] == str(server)
+    assert env["PATH"] == "x"
+
+
+def test_agent_bootstrapper_installs_embedded_runtime_without_node_or_npm(tmp_path):
+    embedded = tmp_path / "embedded-runtime"
+    node = embedded / "node" / "node.exe"
+    server = embedded / "server"
+    node.parent.mkdir(parents=True)
+    node.write_text("", encoding="utf-8")
+    (server / "src" / "advanced").mkdir(parents=True)
+    (server / "node_modules" / "winax").mkdir(parents=True)
+    (server / "package.json").write_text("{}", encoding="utf-8")
+    (server / "src" / "index.js").write_text("// classic", encoding="utf-8")
+    (server / "src" / "advanced" / "index.js").write_text("// advanced", encoding="utf-8")
+
+    release = tmp_path / "release" / "indesign-cli-agent.exe"
+    release.parent.mkdir(parents=True)
+    release.write_text("bootstrapper", encoding="utf-8")
+    digest = __import__("hashlib").sha256(release.read_bytes()).hexdigest()
+    latest = tmp_path / "latest.json"
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.4.2",
+                "force": True,
+                "url": str(release),
+                "sha256": digest,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    install_root = tmp_path / "install"
+    result = run_agent_module(
+        "update",
+        "--install-root",
+        str(install_root),
+        "--source",
+        str(latest),
+        env_overrides={"INDESIGN_CLI_EMBEDDED_RUNTIME_ROOT": str(embedded)},
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    current = json.loads((install_root / "current" / "manifest.json").read_text(encoding="utf-8"))
+    runtime_root = Path(current["runtime_root"])
+    assert current["version"] == "0.4.2"
+    assert (runtime_root / "node" / "node.exe").exists()
+    assert (runtime_root / "server" / "node_modules" / "winax").exists()
+
+
+def test_agent_bootstrapper_console_alias_and_build_script_are_declared():
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'indesign-cli-agent = "cli_anything.indesign.agent_bootstrapper:main"' in pyproject
+
+    script = REPO_ROOT / "scripts" / "build_agent_bootstrapper.py"
+    assert script.exists()
+    text = script.read_text(encoding="utf-8")
+    assert "PyInstaller" in text
+    assert "--onefile" in text
+    assert "runtime" in text
+    assert "indesign-cli-agent" in text
+
+
+def test_agent_bootstrapper_child_command_self_dispatches_when_frozen(monkeypatch):
+    from cli_anything.indesign import agent_bootstrapper
+
+    monkeypatch.setattr(agent_bootstrapper.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(agent_bootstrapper.sys, "executable", r"D:\tools\indesign-cli-agent.exe")
+
+    assert agent_bootstrapper.child_command(["--version"]) == [
+        r"D:\tools\indesign-cli-agent.exe",
+        "__cli__",
+        "--version",
+    ]

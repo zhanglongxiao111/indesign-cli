@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .node_setup import LONG_PATH_WARNING_THRESHOLD, SERVER_ROOT_HINT, toolchain_report
-from .runtime import package_root, server_root_override
+from .runtime import package_root, resolve_node_executable, server_root_override
 
 
 def _server_root_diagnostics(repo_root: Path) -> dict[str, Any]:
@@ -93,8 +93,9 @@ process.stdout.write(JSON.stringify({
 }));
 """
     try:
+        node = resolve_node_executable(repo_root)
         result = subprocess.run(
-            ["node", "-e", script],
+            [str(node), "-e", script],
             cwd=repo_root,
             text=True,
             stdout=subprocess.PIPE,
@@ -117,8 +118,9 @@ process.stdout.write(JSON.stringify({
 
 def _check_winax(repo_root: Path) -> dict[str, Any]:
     try:
+        node = resolve_node_executable(repo_root)
         result = subprocess.run(
-            ["node", "-e", "require('winax'); process.stdout.write('ok')"],
+            [str(node), "-e", "require('winax'); process.stdout.write('ok')"],
             cwd=repo_root,
             text=True,
             stdout=subprocess.PIPE,

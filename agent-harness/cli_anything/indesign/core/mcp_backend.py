@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from .errors import CliError, TimeoutError
 from .paths import scrub_text_paths
+from .runtime import resolve_node_executable
 
 
 LEGACY_FAILURE_PATTERNS = (
@@ -53,8 +54,9 @@ class McpBackend:
             raise CliError(f"MCP entry not found: {self.entry}", code="MCP_ENTRY_NOT_FOUND")
 
         try:
+            node = resolve_node_executable(self.repo_root)
             proc = subprocess.Popen(
-                ["node", self.entry],
+                [str(node), self.entry],
                 cwd=self.repo_root,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
