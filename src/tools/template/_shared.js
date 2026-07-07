@@ -359,6 +359,6 @@ export function defineTemplateTool(tool) {
         ...tool,
         domain: 'template',
         profiles: ['advanced'],
-        cli: { id: `template.${tool.name}`, aliases: [] }
+        cli: { id: tool.cliId || `template.${tool.name}`, aliases: [] }
     });
 }

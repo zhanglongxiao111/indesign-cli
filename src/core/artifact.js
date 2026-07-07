@@ -38,9 +38,10 @@ function artifactPayload() {
         groups[source].push({
             name: tool.name,
             source,
-            domain: tool.domain,
+            domain: tool.cli.domain,
             cli: {
                 id: tool.cli.id,
+                domain: tool.cli.domain,
                 aliases: tool.cli.aliases || []
             },
             contract: tool.contract,

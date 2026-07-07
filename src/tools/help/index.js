@@ -13,7 +13,6 @@ const HELP_SCHEMA = {
         category: {
             type: 'string',
             description: 'Category of tools to list (optional)',
-            enum: ['document', 'page', 'text', 'graphics', 'styles', 'layout', 'export', 'all'],
             default: 'all'
         },
         format: {

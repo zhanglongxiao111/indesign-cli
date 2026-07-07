@@ -76,6 +76,13 @@ function validateInputSchema(inputSchema, toolName) {
     }
 }
 
+function normalizeInputSchema(inputSchema) {
+    return {
+        additionalProperties: false,
+        ...inputSchema
+    };
+}
+
 export function defineTool(tool) {
     assertPlainObject(tool, 'tool');
     assertNonEmptyString(tool.name, 'tool.name');
@@ -83,6 +90,8 @@ export function defineTool(tool) {
     assertNonEmptyString(tool.domain, `${tool.name}.domain`);
     assertPlainObject(tool.cli, `${tool.name}.cli`);
     assertNonEmptyString(tool.cli.id, `${tool.name}.cli.id`);
+    const cliDomain = tool.cli.domain || tool.cli.id.split('.')[0];
+    assertNonEmptyString(cliDomain, `${tool.name}.cli.domain`);
     if (tool.cli.aliases !== undefined && !Array.isArray(tool.cli.aliases)) {
         throw new Error(`${tool.name}.cli.aliases must be an array`);
     }
@@ -96,8 +105,10 @@ export function defineTool(tool) {
         ...tool,
         cli: {
             ...tool.cli,
+            domain: cliDomain,
             aliases: tool.cli.aliases || []
-        }
+        },
+        inputSchema: normalizeInputSchema(tool.inputSchema)
     };
 }
 

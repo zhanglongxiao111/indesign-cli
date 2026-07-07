@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-07T10:06:58.264Z",
-  "registry_hash": "3717d8a3cb5b3ede5c155f3f231f78148b9ebf2a52f9e352a66481b7390b9dcc",
+  "generated_at": "2026-07-07T10:23:53.341Z",
+  "registry_hash": "8c20bb157f62aac7890bab8ecd593ef89db96b8a60f3d1d1c33dea9f819b11c1",
   "tool_count": 150,
   "sources": {
     "classic": [
       {
         "name": "add_item_to_group",
         "source": "classic",
-        "domain": "group",
+        "domain": "page",
         "cli": {
           "id": "page.add_item_to_group",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -51,6 +52,7 @@
         "domain": "page",
         "cli": {
           "id": "page.add_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -62,6 +64,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "position": {
@@ -87,6 +90,7 @@
         "domain": "page",
         "cli": {
           "id": "page.adjust_page_layout",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -98,6 +102,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -156,6 +161,7 @@
         "domain": "style",
         "cli": {
           "id": "style.apply_character_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -201,6 +207,7 @@
         "domain": "style",
         "cli": {
           "id": "style.apply_color",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -255,9 +262,10 @@
       {
         "name": "apply_master_spread",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.apply_master_spread",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -293,6 +301,7 @@
         "domain": "style",
         "cli": {
           "id": "style.apply_object_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -337,6 +346,7 @@
         "domain": "style",
         "cli": {
           "id": "style.apply_paragraph_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -374,9 +384,10 @@
       {
         "name": "clear_session",
         "source": "classic",
-        "domain": "utility",
+        "domain": "document",
         "cli": {
           "id": "document.clear_session",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -388,8 +399,8 @@
           "destructive": true
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
@@ -399,6 +410,7 @@
         "domain": "document",
         "cli": {
           "id": "document.close_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -436,6 +448,7 @@
         "domain": "style",
         "cli": {
           "id": "style.create_character_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -496,6 +509,7 @@
         "domain": "style",
         "cli": {
           "id": "style.create_color_swatch",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -549,6 +563,7 @@
         "domain": "document",
         "cli": {
           "id": "document.create_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -640,6 +655,7 @@
         "domain": "document",
         "cli": {
           "id": "document.create_document_hyperlink",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -689,6 +705,7 @@
         "domain": "document",
         "cli": {
           "id": "document.create_document_section",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -740,6 +757,7 @@
         "domain": "graphics",
         "cli": {
           "id": "graphics.create_ellipse",
+          "domain": "graphics",
           "aliases": []
         },
         "contract": {
@@ -795,9 +813,10 @@
       {
         "name": "create_group",
         "source": "classic",
-        "domain": "group",
+        "domain": "object",
         "cli": {
           "id": "object.create_group",
+          "domain": "object",
           "aliases": []
         },
         "contract": {
@@ -825,9 +844,10 @@
       {
         "name": "create_group_from_items",
         "source": "classic",
-        "domain": "group",
+        "domain": "object",
         "cli": {
           "id": "object.create_group_from_items",
+          "domain": "object",
           "aliases": []
         },
         "contract": {
@@ -867,6 +887,7 @@
         "domain": "layer",
         "cli": {
           "id": "layer.create_layer",
+          "domain": "layer",
           "aliases": []
         },
         "contract": {
@@ -878,8 +899,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "color": {
               "default": "BLUE",
@@ -909,9 +930,10 @@
       {
         "name": "create_master_guides",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.create_master_guides",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -978,9 +1000,10 @@
       {
         "name": "create_master_rectangle",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.create_master_rectangle",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1046,9 +1069,10 @@
       {
         "name": "create_master_spread",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.create_master_spread",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1093,9 +1117,10 @@
       {
         "name": "create_master_text_frame",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.create_master_text_frame",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1181,6 +1206,7 @@
         "domain": "style",
         "cli": {
           "id": "style.create_object_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -1234,6 +1260,7 @@
         "domain": "page",
         "cli": {
           "id": "page.create_page_guides",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1245,6 +1272,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -1302,6 +1330,7 @@
         "domain": "style",
         "cli": {
           "id": "style.create_paragraph_style",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -1369,6 +1398,7 @@
         "domain": "graphics",
         "cli": {
           "id": "graphics.create_polygon",
+          "domain": "graphics",
           "aliases": []
         },
         "contract": {
@@ -1432,6 +1462,7 @@
         "domain": "graphics",
         "cli": {
           "id": "graphics.create_rectangle",
+          "domain": "graphics",
           "aliases": []
         },
         "contract": {
@@ -1495,6 +1526,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.create_spread_guides",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -1564,6 +1596,7 @@
         "domain": "text",
         "cli": {
           "id": "text.create_table",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -1575,8 +1608,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "rows": {
               "type": "number",
@@ -1627,6 +1660,7 @@
         "domain": "text",
         "cli": {
           "id": "text.create_text_frame",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -1638,8 +1672,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "content": {
               "type": "string",
@@ -1710,6 +1744,7 @@
         "domain": "page",
         "cli": {
           "id": "page.delete_all_page_layout_snapshots",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1721,6 +1756,7 @@
           "destructive": true
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -1736,9 +1772,10 @@
       {
         "name": "delete_master_spread",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.delete_master_spread",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1773,6 +1810,7 @@
         "domain": "page",
         "cli": {
           "id": "page.delete_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1784,6 +1822,7 @@
           "destructive": true
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -1799,9 +1838,10 @@
       {
         "name": "delete_page_item",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.delete_page_item",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1837,6 +1877,7 @@
         "domain": "page",
         "cli": {
           "id": "page.delete_page_layout_snapshot",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1848,6 +1889,7 @@
           "destructive": true
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -1866,6 +1908,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.delete_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -1893,9 +1936,10 @@
       {
         "name": "detach_master_items",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.detach_master_items",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1927,9 +1971,10 @@
       {
         "name": "duplicate_master_spread",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.duplicate_master_spread",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -1983,6 +2028,7 @@
         "domain": "page",
         "cli": {
           "id": "page.duplicate_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -1994,6 +2040,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -2023,9 +2070,10 @@
       {
         "name": "duplicate_page_item",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.duplicate_page_item",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -2071,6 +2119,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.duplicate_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -2115,6 +2164,7 @@
         "domain": "text",
         "cli": {
           "id": "text.edit_text_frame",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -2126,8 +2176,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "frameIndex": {
               "type": "number",
@@ -2167,9 +2217,10 @@
       {
         "name": "execute_indesign_code",
         "source": "classic",
-        "domain": "utility",
+        "domain": "script",
         "cli": {
           "id": "script.execute_indesign_code",
+          "domain": "script",
           "aliases": []
         },
         "contract": {
@@ -2181,8 +2232,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "code": {
               "type": "string",
@@ -2200,6 +2251,7 @@
         "domain": "export",
         "cli": {
           "id": "export.export_epub",
+          "domain": "export",
           "aliases": []
         },
         "contract": {
@@ -2240,6 +2292,7 @@
         "domain": "export",
         "cli": {
           "id": "export.export_images",
+          "domain": "export",
           "aliases": []
         },
         "contract": {
@@ -2292,6 +2345,7 @@
         "domain": "export",
         "cli": {
           "id": "export.export_pdf",
+          "domain": "export",
           "aliases": []
         },
         "contract": {
@@ -2347,6 +2401,7 @@
         "domain": "text",
         "cli": {
           "id": "text.find_replace_text",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -2358,8 +2413,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "findText": {
               "type": "string",
@@ -2389,9 +2444,10 @@
       {
         "name": "find_text_in_document",
         "source": "classic",
-        "domain": "document",
+        "domain": "text",
         "cli": {
           "id": "text.find_text_in_document",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -2441,6 +2497,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_colors",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2479,6 +2536,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_elements",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2507,6 +2565,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_grid_settings",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2529,6 +2588,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_hyperlinks",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2562,6 +2622,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_info",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2584,6 +2645,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_layers",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2617,6 +2679,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_layout_preferences",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2639,6 +2702,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_preferences",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2676,6 +2740,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_sections",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2698,6 +2763,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_stories",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2731,6 +2797,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_styles",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -2763,9 +2830,10 @@
       {
         "name": "get_group_info",
         "source": "classic",
-        "domain": "group",
+        "domain": "object",
         "cli": {
           "id": "object.get_group_info",
+          "domain": "object",
           "aliases": []
         },
         "contract": {
@@ -2801,6 +2869,7 @@
         "domain": "graphics",
         "cli": {
           "id": "graphics.get_image_info",
+          "domain": "graphics",
           "aliases": []
         },
         "contract": {
@@ -2826,9 +2895,10 @@
       {
         "name": "get_master_spread_info",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.get_master_spread_info",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -2863,6 +2933,7 @@
         "domain": "page",
         "cli": {
           "id": "page.get_page_content_summary",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -2874,6 +2945,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -2892,6 +2964,7 @@
         "domain": "page",
         "cli": {
           "id": "page.get_page_info",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -2903,6 +2976,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -2918,9 +2992,10 @@
       {
         "name": "get_page_item_info",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.get_page_item_info",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -2953,9 +3028,10 @@
       {
         "name": "get_page_item_script_labels",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.get_page_item_script_labels",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3003,9 +3079,10 @@
       {
         "name": "get_session_info",
         "source": "classic",
-        "domain": "utility",
+        "domain": "document",
         "cli": {
           "id": "document.get_session_info",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -3017,8 +3094,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
@@ -3028,6 +3105,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.get_spread_content_summary",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -3058,6 +3136,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.get_spread_info",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -3085,9 +3164,10 @@
       {
         "name": "help",
         "source": "classic",
-        "domain": "help",
+        "domain": "utility",
         "cli": {
           "id": "utility.help",
+          "domain": "utility",
           "aliases": []
         },
         "contract": {
@@ -3099,8 +3179,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "tool": {
               "type": "string",
@@ -3110,16 +3190,6 @@
             "category": {
               "type": "string",
               "description": "Category of tools to list (optional)",
-              "enum": [
-                "document",
-                "page",
-                "text",
-                "graphics",
-                "styles",
-                "layout",
-                "export",
-                "all"
-              ],
               "default": "all"
             },
             "format": {
@@ -3142,6 +3212,7 @@
         "domain": "style",
         "cli": {
           "id": "style.list_color_swatches",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -3161,9 +3232,10 @@
       {
         "name": "list_groups",
         "source": "classic",
-        "domain": "group",
+        "domain": "page",
         "cli": {
           "id": "page.list_groups",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3194,6 +3266,7 @@
         "domain": "layer",
         "cli": {
           "id": "layer.list_layers",
+          "domain": "layer",
           "aliases": []
         },
         "contract": {
@@ -3205,17 +3278,18 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
       {
         "name": "list_master_spreads",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "document",
         "cli": {
           "id": "document.list_master_spreads",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -3238,6 +3312,7 @@
         "domain": "style",
         "cli": {
           "id": "style.list_object_styles",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -3257,9 +3332,10 @@
       {
         "name": "list_page_items",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.list_page_items",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3290,6 +3366,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.list_spreads",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -3312,6 +3389,7 @@
         "domain": "style",
         "cli": {
           "id": "style.list_styles",
+          "domain": "style",
           "aliases": []
         },
         "contract": {
@@ -3344,6 +3422,7 @@
         "domain": "page",
         "cli": {
           "id": "page.move_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3355,6 +3434,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -3403,9 +3483,10 @@
       {
         "name": "move_page_item",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.move_page_item",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3451,6 +3532,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.move_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -3495,6 +3577,7 @@
         "domain": "page",
         "cli": {
           "id": "page.navigate_to_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3506,6 +3589,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -3524,6 +3608,7 @@
         "domain": "document",
         "cli": {
           "id": "document.open_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -3554,6 +3639,7 @@
         "domain": "document",
         "cli": {
           "id": "document.organize_document_layers",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -3592,6 +3678,7 @@
         "domain": "export",
         "cli": {
           "id": "export.package_document",
+          "domain": "export",
           "aliases": []
         },
         "contract": {
@@ -3637,6 +3724,7 @@
         "domain": "page",
         "cli": {
           "id": "page.place_file_on_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3648,6 +3736,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -3695,6 +3784,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.place_file_on_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -3759,6 +3849,7 @@
         "domain": "graphics",
         "cli": {
           "id": "graphics.place_image",
+          "domain": "graphics",
           "aliases": []
         },
         "contract": {
@@ -3828,6 +3919,7 @@
         "domain": "page",
         "cli": {
           "id": "page.place_xml_on_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3839,6 +3931,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -3877,6 +3970,7 @@
         "domain": "text",
         "cli": {
           "id": "text.populate_table",
+          "domain": "text",
           "aliases": []
         },
         "contract": {
@@ -3888,8 +3982,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "tableIndex": {
               "type": "number",
@@ -3922,6 +4016,7 @@
         "domain": "page",
         "cli": {
           "id": "page.reframe_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -3933,6 +4028,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -3977,9 +4073,10 @@
       {
         "name": "remove_item_from_group",
         "source": "classic",
-        "domain": "group",
+        "domain": "page",
         "cli": {
           "id": "page.remove_item_from_group",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4017,9 +4114,10 @@
       {
         "name": "remove_master_override",
         "source": "classic",
-        "domain": "masterSpread",
+        "domain": "master",
         "cli": {
           "id": "master.remove_master_override",
+          "domain": "master",
           "aliases": []
         },
         "contract": {
@@ -4055,6 +4153,7 @@
         "domain": "page",
         "cli": {
           "id": "page.resize_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4066,6 +4165,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -4124,9 +4224,10 @@
       {
         "name": "resize_page_item",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.resize_page_item",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4188,6 +4289,7 @@
         "domain": "document",
         "cli": {
           "id": "document.save_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -4218,6 +4320,7 @@
         "domain": "page",
         "cli": {
           "id": "page.select_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4229,6 +4332,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -4253,9 +4357,10 @@
       {
         "name": "select_page_item",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.select_page_item",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4301,6 +4406,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.select_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -4341,6 +4447,7 @@
         "domain": "layer",
         "cli": {
           "id": "layer.set_active_layer",
+          "domain": "layer",
           "aliases": []
         },
         "contract": {
@@ -4352,8 +4459,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "layerName": {
               "description": "Layer name to activate",
@@ -4371,6 +4478,7 @@
         "domain": "document",
         "cli": {
           "id": "document.set_document_grid_settings",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -4382,8 +4490,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false,
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "properties": {
             "baselineGrid": {
               "description": "Enable/disable baseline grid",
@@ -4444,6 +4552,7 @@
         "domain": "document",
         "cli": {
           "id": "document.set_document_layout_preferences",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -4504,6 +4613,7 @@
         "domain": "document",
         "cli": {
           "id": "document.set_document_preferences",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -4546,9 +4656,10 @@
       {
         "name": "set_group_properties",
         "source": "classic",
-        "domain": "group",
+        "domain": "object",
         "cli": {
           "id": "object.set_group_properties",
+          "domain": "object",
           "aliases": []
         },
         "contract": {
@@ -4596,6 +4707,7 @@
         "domain": "page",
         "cli": {
           "id": "page.set_page_background",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4607,6 +4719,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -4631,9 +4744,10 @@
       {
         "name": "set_page_item_properties",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.set_page_item_properties",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4686,9 +4800,10 @@
       {
         "name": "set_page_item_script_label",
         "source": "classic",
-        "domain": "pageItem",
+        "domain": "page",
         "cli": {
           "id": "page.set_page_item_script_label",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4746,6 +4861,7 @@
         "domain": "page",
         "cli": {
           "id": "page.set_page_properties",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4757,6 +4873,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -4814,6 +4931,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.set_spread_properties",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -4911,6 +5029,7 @@
         "domain": "page",
         "cli": {
           "id": "page.snapshot_page_layout",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -4922,6 +5041,7 @@
           "destructive": false
         },
         "inputSchema": {
+          "additionalProperties": false,
           "type": "object",
           "properties": {
             "pageIndex": {
@@ -4937,9 +5057,10 @@
       {
         "name": "ungroup",
         "source": "classic",
-        "domain": "group",
+        "domain": "object",
         "cli": {
           "id": "object.ungroup",
+          "domain": "object",
           "aliases": []
         },
         "contract": {
@@ -4972,9 +5093,10 @@
       {
         "name": "view_document",
         "source": "classic",
-        "domain": "utility",
+        "domain": "document",
         "cli": {
           "id": "document.view_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -4986,17 +5108,18 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
       {
         "name": "zoom_to_page",
         "source": "classic",
-        "domain": "document",
+        "domain": "page",
         "cli": {
           "id": "page.zoom_to_page",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -5034,6 +5157,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.add_cover_page",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5045,8 +5169,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "title": {
               "type": "string",
@@ -5069,6 +5193,7 @@
         "domain": "book",
         "cli": {
           "id": "book.add_document_to_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5080,8 +5205,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5104,6 +5229,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.add_full_bleed_image",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5115,8 +5241,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
@@ -5138,6 +5264,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.add_image_grid",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5149,8 +5276,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "files": {
               "type": "array",
@@ -5188,6 +5315,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.add_section_page",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5199,8 +5327,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "title": {
               "type": "string",
@@ -5215,6 +5343,7 @@
         "domain": "document",
         "cli": {
           "id": "document.cleanup_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5226,8 +5355,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "removeUnusedStyles": {
               "type": "boolean",
@@ -5258,6 +5387,7 @@
         "domain": "book",
         "cli": {
           "id": "book.create_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5269,8 +5399,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
@@ -5288,6 +5418,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.create_presentation_document",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5299,8 +5430,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "preset": {
               "type": "string",
@@ -5342,6 +5473,7 @@
         "domain": "document",
         "cli": {
           "id": "document.data_merge",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5353,8 +5485,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "dataSource": {
               "type": "string",
@@ -5387,6 +5519,7 @@
         "domain": "book",
         "cli": {
           "id": "book.export_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5398,8 +5531,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5432,6 +5565,7 @@
         "domain": "document",
         "cli": {
           "id": "document.export_document_xml",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5443,8 +5577,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
@@ -5472,6 +5606,7 @@
         "domain": "presentation",
         "cli": {
           "id": "presentation.export_presentation_pdf",
+          "domain": "presentation",
           "aliases": []
         },
         "contract": {
@@ -5483,8 +5618,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
@@ -5507,6 +5642,7 @@
         "domain": "book",
         "cli": {
           "id": "book.get_book_info",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5518,8 +5654,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5537,6 +5673,7 @@
         "domain": "document",
         "cli": {
           "id": "document.get_document_xml_structure",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5548,8 +5685,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "includeTags": {
               "type": "boolean",
@@ -5570,6 +5707,7 @@
         "domain": "book",
         "cli": {
           "id": "book.list_books",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5581,8 +5719,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
@@ -5592,6 +5730,7 @@
         "domain": "book",
         "cli": {
           "id": "book.open_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5603,8 +5742,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",
@@ -5622,6 +5761,7 @@
         "domain": "document",
         "cli": {
           "id": "document.open_cloud_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5633,8 +5773,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "cloudDocumentId": {
               "type": "string",
@@ -5652,6 +5792,7 @@
         "domain": "book",
         "cli": {
           "id": "book.package_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5663,8 +5804,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5732,6 +5873,7 @@
         "domain": "spread",
         "cli": {
           "id": "spread.place_xml_on_spread",
+          "domain": "spread",
           "aliases": []
         },
         "contract": {
@@ -5787,6 +5929,7 @@
         "domain": "book",
         "cli": {
           "id": "book.preflight_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5798,8 +5941,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5826,6 +5969,7 @@
         "domain": "document",
         "cli": {
           "id": "document.preflight_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5837,8 +5981,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "profile": {
               "type": "string",
@@ -5859,6 +6003,7 @@
         "domain": "book",
         "cli": {
           "id": "book.print_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5870,8 +6015,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5899,6 +6044,7 @@
         "domain": "book",
         "cli": {
           "id": "book.repaginate_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5910,8 +6056,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -5929,6 +6075,7 @@
         "domain": "document",
         "cli": {
           "id": "document.save_document_to_cloud",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -5940,8 +6087,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "cloudName": {
               "type": "string",
@@ -5964,6 +6111,7 @@
         "domain": "book",
         "cli": {
           "id": "book.set_book_properties",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -5975,8 +6123,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -6062,6 +6210,7 @@
         "domain": "book",
         "cli": {
           "id": "book.synchronize_book",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -6073,8 +6222,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -6092,6 +6241,7 @@
         "domain": "book",
         "cli": {
           "id": "book.update_all_cross_references",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -6103,8 +6253,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -6122,6 +6272,7 @@
         "domain": "book",
         "cli": {
           "id": "book.update_all_numbers",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -6133,8 +6284,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -6152,6 +6303,7 @@
         "domain": "book",
         "cli": {
           "id": "book.update_chapter_and_paragraph_numbers",
+          "domain": "book",
           "aliases": []
         },
         "contract": {
@@ -6163,8 +6315,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "bookPath": {
               "type": "string",
@@ -6182,6 +6334,7 @@
         "domain": "document",
         "cli": {
           "id": "document.validate_document",
+          "domain": "document",
           "aliases": []
         },
         "contract": {
@@ -6193,8 +6346,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "checkLinks": {
               "type": "boolean",
@@ -6227,6 +6380,7 @@
         "domain": "template",
         "cli": {
           "id": "template.create_page_with_template",
+          "domain": "template",
           "aliases": []
         },
         "contract": {
@@ -6238,8 +6392,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "templateName": {
               "type": "string",
@@ -6272,9 +6426,10 @@
       {
         "name": "get_page_information",
         "source": "advanced",
-        "domain": "template",
+        "domain": "page",
         "cli": {
-          "id": "template.get_page_information",
+          "id": "page.get_page_information",
+          "domain": "page",
           "aliases": []
         },
         "contract": {
@@ -6286,8 +6441,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "pageIndex": {
               "type": "integer",
@@ -6305,6 +6460,7 @@
         "domain": "template",
         "cli": {
           "id": "template.inspect_template_blueprint",
+          "domain": "template",
           "aliases": []
         },
         "contract": {
@@ -6316,8 +6472,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "templatePath": {
               "type": "string",
@@ -6333,6 +6489,7 @@
         "domain": "template",
         "cli": {
           "id": "template.list_template_blueprints",
+          "domain": "template",
           "aliases": []
         },
         "contract": {
@@ -6344,8 +6501,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {}
         }
       },
@@ -6355,6 +6512,7 @@
         "domain": "template",
         "cli": {
           "id": "template.populate_template_slots",
+          "domain": "template",
           "aliases": []
         },
         "contract": {
@@ -6366,8 +6524,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "templatePath": {
               "type": "string",
@@ -6431,6 +6589,7 @@
         "domain": "template",
         "cli": {
           "id": "template.run_jsx_file",
+          "domain": "template",
           "aliases": []
         },
         "contract": {
@@ -6442,8 +6601,8 @@
           "destructive": false
         },
         "inputSchema": {
-          "type": "object",
           "additionalProperties": false,
+          "type": "object",
           "properties": {
             "filePath": {
               "type": "string",

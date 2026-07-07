@@ -283,6 +283,7 @@ export const listTemplateBlueprintsTool = defineTemplateTool({
 export const getPageInformationTool = defineTemplateTool({
     name: 'get_page_information',
     description: '返回指定页面当前套用的母版及脚本标签槽位详情，包含尺寸、文本预览、是否 override 等信息。',
+    cliId: 'page.get_page_information',
     contract: templateContract({ requiresActiveDocument: true }),
     inputSchema: getPageInformationSchema,
     handler: getPageInformation
