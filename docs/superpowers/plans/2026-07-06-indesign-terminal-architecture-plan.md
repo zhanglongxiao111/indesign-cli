@@ -14,7 +14,7 @@
 
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
-| Task 0 冻结、快照与基线导出 | code_review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | code quality fixes 已提交 `a889d31`：line reader、D evidence 发布、same-index guard、canonical switch-only helper；等待复审 |
+| Task 0 冻结、快照与基线导出 | code_fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | code rereview 未通过：D 阶段开始时仍未清理旧 failure artifact，失败重跑可能同时保留旧失败件与本轮失败件 |
 | Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
