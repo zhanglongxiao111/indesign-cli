@@ -106,7 +106,8 @@ export function writeArtifact() {
     const artifact = generateArtifact();
     const nextContent = `${JSON.stringify(artifact, null, 2)}\n`;
     const existingContent = fs.existsSync(ARTIFACT_PATH) ? fs.readFileSync(ARTIFACT_PATH, 'utf8') : null;
-    if (existingContent !== nextContent) {
+    const existingComparable = existingContent === null ? null : existingContent.replace(/\r\n/g, '\n');
+    if (existingComparable !== nextContent) {
         fs.writeFileSync(ARTIFACT_PATH, nextContent, 'utf8');
     }
     return artifact;
