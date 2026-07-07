@@ -127,6 +127,25 @@ CLI_PRIMITIVES = [
         "produces_artifacts": False,
     },
     {
+        "id": "feedback.report",
+        "domain": "feedback",
+        "name": "report",
+        "one_line_purpose": "上报 Agent 使用 indesign-cli 时遇到的工具缺口、文档不清或错误信息摩擦",
+        "arg_names": ["code", "note", "tool"],
+        "source": "cli.primitive",
+        "rank": 1,
+        "schema_size": "small",
+        "availability": "exposed",
+        "callable": True,
+        "requires": [],
+        "side_effects": ["session_write"],
+        "artifact_kinds": [],
+        "destructive": False,
+        "target_scope": "workspace",
+        "needs_indesign": False,
+        "produces_artifacts": False,
+    },
+    {
         "id": "tool.batch",
         "domain": "tool",
         "name": "batch",
@@ -172,7 +191,7 @@ HIDDEN_HANDLER_FILES = {
     "presentation": "src/handlers/presentationHandlers.js",
 }
 
-VALID_SOURCES = {"cli", "script", "advanced", "classic", "hidden_handler", "plugin"}
+VALID_SOURCES = {"cli", "cli.primitive", "script", "advanced", "classic", "hidden_handler", "plugin"}
 
 PURPOSE_OVERRIDES = {
     "execute_indesign_code": "执行短 inline ExtendScript 探针；长脚本优先用 script.run 文件模式",

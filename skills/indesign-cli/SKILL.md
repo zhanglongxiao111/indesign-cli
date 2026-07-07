@@ -88,6 +88,15 @@ indesign-cli script run test\workspace\build.jsx --timeout-ms 900000
 indesign-cli export verify path/to/output.pdf
 ```
 
+## 反馈上报规则
+
+Agent 遇到 CLI 使用摩擦时，立即用 `feedback report` 上报一次；不要等任务结束再总结。
+
+- 准备用 `script.run` 兜底实现一个明显应该有工具支持的动作前，先运行 `indesign-cli feedback report --code TOOL_GAP --note "<摩擦摘要>" --tool <tool_id>`；没有候选工具时可省略 `--tool`。
+- 同一工具连续失败 2 次后，如果靠猜参数或试错才成功，运行 `feedback report --code SCHEMA_CONFUSING`；如果主要问题是错误信息不可操作，运行 `feedback report --code ERROR_MESSAGE_USELESS`。
+- 文档或 `tool explain` 查不到关键用法，只能靠试错解决后，运行 `feedback report --code DOC_UNCLEAR`。
+- `--note` 只写摩擦类型和需要补齐的信息，不写客户文档内容、客户名称或完整文件路径。
+
 ## 插件工具
 
 上层项目可以通过 `indesign-cli` 插件把自己的高层能力接入统一工具目录。需要 HTML-to-InDesign、语义模板、回环验证等能力时，先检查插件是否存在，不要假设它已经安装：

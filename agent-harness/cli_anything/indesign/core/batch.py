@@ -8,6 +8,7 @@ from typing import Any
 from .envelope import now_ms
 from .errors import CliError
 from .router import Router
+from .telemetry import record_tool_call
 
 STEP_TEMPLATE = {"id": "step-1", "type": "tool", "tool": "<tool_id>", "args": {}}
 PLAN_TEMPLATE = {"steps": [STEP_TEMPLATE]}
@@ -61,9 +62,21 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
             raise _step_error("Batch step args must be an object", {"id": step_id})
 
         started = now_ms()
+        tool_meta: dict[str, Any] | None = None
         try:
+            tool_meta = router._find(tool_id)
             data = router.call(tool_id, args)
         except CliError as exc:
+            duration_ms = max(1, now_ms() - started)
+            record_tool_call(
+                tool_id=tool_id,
+                source=str(tool_meta.get("source")) if tool_meta else None,
+                ok=False,
+                duration_ms=duration_ms,
+                error_code=exc.code,
+                arg_keys=list(args),
+                via_batch=True,
+            )
             results.append(
                 {
                     "id": step_id,
@@ -71,7 +84,7 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
                     "ok": False,
                     "code": exc.code,
                     "message": exc.message,
-                    "duration_ms": max(1, now_ms() - started),
+                    "duration_ms": duration_ms,
                 }
             )
             raise CliError(
@@ -86,12 +99,21 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
                 state_uncertain=True,
                 next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
             ) from exc
+        duration_ms = max(1, now_ms() - started)
+        record_tool_call(
+            tool_id=tool_id,
+            source=str(tool_meta.get("source")) if tool_meta else None,
+            ok=True,
+            duration_ms=duration_ms,
+            arg_keys=list(args),
+            via_batch=True,
+        )
         results.append(
             {
                 "id": step_id,
                 "tool": tool_id,
                 "ok": True,
-                "duration_ms": max(1, now_ms() - started),
+                "duration_ms": duration_ms,
                 "data": data,
             }
         )

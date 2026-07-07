@@ -164,6 +164,34 @@ indesign-cli tool schema template.populate_template_slots
 
 Agent 可以先查有哪些工具，再只读取需要的 schema，减少上下文浪费。
 
+### 🧭 反馈与遥测
+
+CLI 提供 `feedback` 域，用来在 Agent 遇到工具缺口、文档不清、错误信息不可操作或 schema 难用时留下结构化反馈：
+
+```powershell
+indesign-cli feedback report --code TOOL_GAP --note "缺少批量替换段落样式的直接工具" --tool style.apply_paragraph_style
+indesign-cli tool schema feedback.report
+```
+
+共享遥测只有在显式配置 `INDESIGN_CLI_TELEMETRY_DIR` 时写入。公司默认 NAS 根目录：
+
+```powershell
+$env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
+```
+
+CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*.json`；`reports/` 预留给后续聚合结果。记录字段只包含白名单元数据：`session_id`、`origin_key`、`cwd_hash`、可选 Agent 线程/运行 ID、工具 id/source、成功失败、错误码、耗时、参数键名、反馈 code/note 和最近调用摘要。
+
+不会记录：参数值、脚本内容、文档内容、客户名称、完整文件路径或完整工作目录。工作目录只保存 hash。可用配置：
+
+| 变量 | 作用 |
+| ---- | ---- |
+| `INDESIGN_CLI_TELEMETRY_DIR` | 共享遥测根目录；未设置时不写共享遥测 |
+| `INDESIGN_CLI_TELEMETRY=off` | 完全关闭遥测 |
+| `INDESIGN_CLI_SESSION_ID` | 显式指定完整 telemetry session |
+| `INDESIGN_CLI_AGENT_THREAD_ID` | 上层 Agent 线程 ID，由运行时注入 |
+| `INDESIGN_CLI_AGENT_RUN_ID` | 上层 Agent 单次运行 ID，由运行时注入 |
+| `INDESIGN_CLI_TELEMETRY_IDLE_HOURS` | 默认 session 空闲切分阈值，默认 8 小时 |
+
 ### 🧰 能力覆盖
 
 当前 `indesign-cli` 可发现 **约 150 个可调用能力**（随版本增长，以 `tool domains` 实时输出为准），覆盖 InDesign 绝大部分常用自动化功能，以及大多数 Agent 自动化场景：

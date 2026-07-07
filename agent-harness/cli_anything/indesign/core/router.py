@@ -12,6 +12,7 @@ from .hidden_backend import HiddenHandlerBackend
 from .mcp_backend import McpBackend
 from .plugins.backend import PluginBackend
 from .plugins.host_actions import ALLOWED_HOST_ACTIONS, HostActionExecutor
+from .telemetry import FEEDBACK_CODES, recent_call_summaries, record_event, validate_feedback_payload
 
 
 BACKENDS = {
@@ -42,6 +43,20 @@ PRIMITIVE_SCHEMAS = {
     "session.show": {"type": "object", "additionalProperties": False, "properties": {}},
     "session.clear": {"type": "object", "additionalProperties": False, "properties": {}},
     "session.doctor": {"type": "object", "additionalProperties": False, "properties": {}},
+    "feedback.report": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "code": {"type": "string", "enum": FEEDBACK_CODES, "description": "反馈类型"},
+            "note": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "摩擦点摘要；不得包含客户文档内容、客户名称或文件路径",
+            },
+            "tool": {"type": "string", "description": "可选，关联的工具 id"},
+        },
+        "required": ["code", "note"],
+    },
     "tool.batch": {
         "type": "object",
         "additionalProperties": False,
@@ -91,7 +106,7 @@ class Router:
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
         metadata = self._metadata(tool)
-        if tool["source"] in {"cli", "script"}:
+        if tool["source"] in {"cli", "cli.primitive", "script"}:
             return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}}), "metadata": metadata}
         if tool["source"] == "hidden_handler":
             return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id), "metadata": metadata}
@@ -130,7 +145,7 @@ class Router:
         tool = self._find(tool_id)
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
-        if tool["source"] == "cli":
+        if tool["source"] in {"cli", "cli.primitive"}:
             return self._call_cli_primitive(tool_id, args)
         if tool["source"] == "script":
             return self._call_script_primitive(args)
@@ -194,6 +209,31 @@ class Router:
             from .session import SessionStore
 
             return SessionStore(Path.cwd()).doctor()
+        if tool_id == "feedback.report":
+            code = str(args.get("code") or "")
+            note = str(args.get("note") or "")
+            linked_tool = args.get("tool")
+            if linked_tool is not None and not isinstance(linked_tool, str):
+                raise CliError("feedback tool must be a string", code="FEEDBACK_TOOL_INVALID")
+            validate_feedback_payload(code, note)
+            event = record_event(
+                {
+                    "event": "feedback",
+                    "tool_id": linked_tool,
+                    "source": "cli.primitive",
+                    "code": code,
+                    "note": note.strip(),
+                    "recent_calls": recent_call_summaries(Path.cwd()),
+                }
+            )
+            return {
+                "recorded": event is not None,
+                "code": code,
+                "tool": linked_tool,
+                "session_id": event.get("session_id") if event else None,
+                "origin_key": event.get("origin_key") if event else None,
+                "cwd_hash": event.get("cwd_hash") if event else None,
+            }
         if tool_id == "server.health":
             from .health import health
 

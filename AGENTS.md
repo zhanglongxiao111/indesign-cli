@@ -95,6 +95,7 @@
 - `AGENTS.md` 只记录开发边界和测试责任；不要把 Agent 使用教程写进这里。
 - Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 另行判断。
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
+- CLI 遥测字段必须白名单制；禁止记录参数值、脚本内容、文档内容、客户信息和完整路径。新增遥测字段必须过 review；共享遥测目录只写 NAS JSONL、`state` 和 `reports`，不写客户素材。
 - 配套 Skill 源文件在 `skills/indesign-cli/SKILL.md`；CLI 不提供自动安装命令，不能重新加入自动复制 Skill 的命令入口。
 - `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 

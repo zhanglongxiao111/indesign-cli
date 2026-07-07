@@ -18,6 +18,7 @@ DOMAINS = {
     "tool": "工具发现、schema、调用和批处理编排",
     "script": "JSX 文件执行和 stdin 临时脚本",
     "session": "CLI 本地状态、最近文档和最近输出",
+    "feedback": "Agent 使用摩擦上报和反馈闭环",
     "server": "依赖、后端、InDesign COM 健康检查",
     "utility": "难以归入以上域的辅助能力",
 }

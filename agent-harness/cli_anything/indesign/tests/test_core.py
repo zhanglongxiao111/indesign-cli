@@ -1029,7 +1029,7 @@ def test_every_callable_tool_schema_covers_catalog_args():
             backend_schemas[(source, item["name"])] = item.get("inputSchema", {})
 
     for tool in catalog.list_tools(callable_only=True):
-        if tool["source"] in {"cli", "script"}:
+        if tool["source"] in {"cli", "cli.primitive", "script"}:
             schema = PRIMITIVE_SCHEMAS[tool["id"]]
         elif tool["source"] == "hidden_handler":
             schema = router.schema(tool["id"])["inputSchema"]

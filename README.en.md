@@ -162,6 +162,34 @@ indesign-cli tool schema template.populate_template_slots
 
 Agents can inspect domains first, then load only the schema they need instead of spending context on every tool description.
 
+### 🧭 Feedback and telemetry
+
+The CLI exposes a `feedback` domain so agents can report tool gaps, unclear docs, unhelpful errors, or confusing schemas at the moment of friction:
+
+```powershell
+indesign-cli feedback report --code TOOL_GAP --note "Need a direct tool for bulk paragraph style replacement" --tool style.apply_paragraph_style
+indesign-cli tool schema feedback.report
+```
+
+Shared telemetry is written only when `INDESIGN_CLI_TELEMETRY_DIR` is configured. The internal default NAS root is:
+
+```powershell
+$env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
+```
+
+The CLI writes directly under `sessions/YYYY-MM-DD/*.jsonl` and `state/*.json`; `reports/` is reserved for aggregate outputs. The allowlisted fields are metadata only: `session_id`, `origin_key`, `cwd_hash`, optional agent thread/run IDs, tool id/source, success status, error code, duration, argument key names, feedback code/note, and recent-call summaries.
+
+It does not record argument values, script bodies, document contents, customer names, full file paths, or the full working directory. The working directory is stored only as a hash. Configuration:
+
+| Variable | Purpose |
+| -------- | ------- |
+| `INDESIGN_CLI_TELEMETRY_DIR` | Shared telemetry root; if unset, no shared telemetry is written |
+| `INDESIGN_CLI_TELEMETRY=off` | Disable telemetry completely |
+| `INDESIGN_CLI_SESSION_ID` | Explicit full telemetry session ID |
+| `INDESIGN_CLI_AGENT_THREAD_ID` | Upstream agent thread ID, injected by the runtime |
+| `INDESIGN_CLI_AGENT_RUN_ID` | Upstream agent run ID, injected by the runtime |
+| `INDESIGN_CLI_TELEMETRY_IDLE_HOURS` | Idle rollover threshold; defaults to 8 hours |
+
 ### 🧰 Capability coverage
 
 `indesign-cli` currently exposes **around 150 callable capabilities** (the count grows over time; check `tool domains` for the live number), covering most commonly automated InDesign features and agent-facing workflows:

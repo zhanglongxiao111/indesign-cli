@@ -25,6 +25,7 @@ from .core.router import Router, load_args
 from .core.runtime import resolve_server_root
 from .core.scripts import run_script, run_stdin_script
 from .core.session import SessionStore
+from .core.telemetry import record_tool_call
 
 
 # server root 惰性解析：环境漂移时报 JSON envelope 而不是 import 期裸 traceback，
@@ -213,6 +214,17 @@ def build_parser() -> argparse.ArgumentParser:
     plugin_doctor.add_argument("id", help="插件 id")
     plugin_doctor.add_argument("--deep", action="store_true", help="保留给深度诊断")
 
+    feedback_parser = subparsers.add_parser("feedback", help="上报 Agent 使用 indesign-cli 时遇到的摩擦")
+    feedback_sub = feedback_parser.add_subparsers(dest="feedback_command")
+    feedback_report = feedback_sub.add_parser(
+        "report",
+        help="上报一次工具缺口、文档不清、错误信息或 schema 摩擦",
+        description="上报一次 Agent 使用摩擦；note 不得包含客户文档内容、客户名称或文件路径。",
+    )
+    feedback_report.add_argument("--code", required=True, help="反馈类型；用 tool schema feedback.report 查看允许值")
+    feedback_report.add_argument("--note", required=True, help="摩擦点摘要，最多 500 字；不得包含客户内容、客户名称或文件路径")
+    feedback_report.add_argument("--tool", help="可选，关联的工具 id")
+
     agent_parser = subparsers.add_parser("agent", help="Agent 快速入口和推荐命令")
     agent_sub = agent_parser.add_subparsers(dest="agent_command")
     agent_sub.add_parser("quickstart", help="输出 Agent 常用最短命令清单")
@@ -359,6 +371,14 @@ def run(argv: list[str] | None = None) -> int:
                     state_uncertain=exc.state_uncertain,
                     next_action=exc.next_action,
                 )
+                record_tool_call(
+                    tool_id=tool_id,
+                    source=tool["source"],
+                    ok=False,
+                    duration_ms=duration_ms,
+                    error_code=exc.code,
+                    arg_keys=["on_error", "plan", "timeout_ms"],
+                )
                 if exc.code == "BATCH_STEP_FAILED":
                     payload = failure(
                         command="tool batch",
@@ -371,8 +391,16 @@ def run(argv: list[str] | None = None) -> int:
                     )
                     return emit(payload)
                 raise
-            store.record_call(tool_id=tool_id, domain=tool["domain"], source=tool["source"], ok=True, duration_ms=elapsed(start))
-            return emit(success(command="tool batch", data=data, duration_ms=elapsed(start), tool_id=tool_id, domain=tool["domain"], source=tool["source"], warnings=warnings))
+            duration_ms = elapsed(start)
+            store.record_call(tool_id=tool_id, domain=tool["domain"], source=tool["source"], ok=True, duration_ms=duration_ms)
+            record_tool_call(
+                tool_id=tool_id,
+                source=tool["source"],
+                ok=True,
+                duration_ms=duration_ms,
+                arg_keys=["on_error", "plan", "timeout_ms"],
+            )
+            return emit(success(command="tool batch", data=data, duration_ms=duration_ms, tool_id=tool_id, domain=tool["domain"], source=tool["source"], warnings=warnings))
         if args.tool_command == "call":
             tool = router._find(args.tool_id)
             schema = router.schema(args.tool_id)["inputSchema"]
@@ -396,6 +424,15 @@ def run(argv: list[str] | None = None) -> int:
                     state_uncertain=exc.state_uncertain,
                     next_action=exc.next_action,
                 )
+                if args.tool_id != "feedback.report":
+                    record_tool_call(
+                        tool_id=args.tool_id,
+                        source=tool["source"],
+                        ok=False,
+                        duration_ms=duration_ms,
+                        error_code=exc.code,
+                        arg_keys=list(call_args),
+                    )
                 raise
             duration_ms = elapsed(start)
             store.record_call(
@@ -407,6 +444,14 @@ def run(argv: list[str] | None = None) -> int:
                 plugin=tool.get("plugin"),
                 artifacts=data.get("artifacts") if isinstance(data, dict) else None,
             )
+            if args.tool_id != "feedback.report":
+                record_tool_call(
+                    tool_id=args.tool_id,
+                    source=tool["source"],
+                    ok=True,
+                    duration_ms=duration_ms,
+                    arg_keys=list(call_args),
+                )
             return emit(
                 success(
                     command="tool call",
@@ -434,6 +479,21 @@ def run(argv: list[str] | None = None) -> int:
         if args.plugin_command == "doctor":
             data = doctor_plugin(args.id, cwd=Path.cwd(), host_version=__version__, deep=bool(args.deep))
             return emit_check("plugin doctor", data, tool_id="plugin.doctor")
+    if args.group == "feedback" and args.feedback_command == "report":
+        router = Router(catalog=Catalog(repo_root=repo_root()), repo_root=repo_root())
+        data = router.call("feedback.report", {"code": args.code, "note": args.note, "tool": args.tool})
+        return emit(
+            success(
+                command="feedback report",
+                data=data,
+                duration_ms=elapsed(start),
+                tool_id="feedback.report",
+                domain="feedback",
+                source="cli.primitive",
+            )
+        )
+    if args.group == "feedback":
+        raise CliError("Feedback command is required", code="COMMAND_REQUIRED", details={"commands": ["report"]})
     if args.group == "agent" and (args.agent_command == "quickstart" or args.agent_command is None):
         data = {
             "commands": [
@@ -471,19 +531,54 @@ def run(argv: list[str] | None = None) -> int:
                 error_summary=exc.message,
                 document_state=exc_document_state if isinstance(exc_document_state, dict) else None,
                 state_uncertain=exc.state_uncertain,
-                next_action=exc.next_action,
+                    next_action=exc.next_action,
+                )
+            record_tool_call(
+                tool_id="script.run",
+                source="script",
+                ok=False,
+                duration_ms=elapsed(start),
+                error_code=exc.code,
+                arg_keys=["file", "stdin", "timeout", "timeout_ms"],
             )
             raise
-        store.record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=elapsed(start))
-        return emit(success(command="script run", data=data, duration_ms=elapsed(start), tool_id="script.run", domain="script", source="script", warnings=warnings))
+        duration_ms = elapsed(start)
+        store.record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=duration_ms)
+        record_tool_call(
+            tool_id="script.run",
+            source="script",
+            ok=True,
+            duration_ms=duration_ms,
+            arg_keys=["file", "stdin", "timeout", "timeout_ms"],
+        )
+        return emit(success(command="script run", data=data, duration_ms=duration_ms, tool_id="script.run", domain="script", source="script", warnings=warnings))
     if args.group == "export" and args.export_command == "verify":
         try:
             created_after = parse_timestamp(args.created_after) if args.created_after else None
         except ValueError as exc:
             raise CliError("created-after must be an ISO timestamp", code="BAD_TIMESTAMP") from exc
-        data = verify_artifact(Path(args.path), created_after=created_after, cwd=Path.cwd())
-        SessionStore(Path.cwd()).record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=elapsed(start))
-        return emit(success(command="export verify", data=data, duration_ms=elapsed(start), tool_id="export.verify", domain="export", source="cli"))
+        try:
+            data = verify_artifact(Path(args.path), created_after=created_after, cwd=Path.cwd())
+        except CliError as exc:
+            record_tool_call(
+                tool_id="export.verify",
+                source="cli",
+                ok=False,
+                duration_ms=elapsed(start),
+                error_code=exc.code,
+                arg_keys=["created_after", "path"],
+            )
+            raise
+        duration_ms = elapsed(start)
+        SessionStore(Path.cwd()).record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=duration_ms)
+        record_tool_call(
+            tool_id="export.verify",
+            source="cli",
+            ok=True,
+            duration_ms=duration_ms,
+            arg_keys=["created_after", "path"],
+        )
+        return emit(success(command="export verify", data=data, duration_ms=duration_ms, tool_id="export.verify", domain="export", source="cli"))
     if args.group == "session":
         store = SessionStore(Path.cwd())
         if args.session_command == "show" or args.session_command is None:
@@ -497,14 +592,22 @@ def run(argv: list[str] | None = None) -> int:
             return emit(success(command="session doctor", data=data, duration_ms=elapsed(start), tool_id="session.doctor"))
     if args.group == "server" and (args.server_command == "health" or args.server_command is None):
         data = health(repo_root(), deep=getattr(args, "deep", False), connect_indesign=getattr(args, "connect_indesign", False))
-        return emit(success(command="server health", data=data, duration_ms=elapsed(start), tool_id="server.health"))
+        duration_ms = elapsed(start)
+        record_tool_call(
+            tool_id="server.health",
+            source="cli",
+            ok=True,
+            duration_ms=duration_ms,
+            arg_keys=["connect_indesign", "deep"],
+        )
+        return emit(success(command="server health", data=data, duration_ms=duration_ms, tool_id="server.health"))
     if args.group == "server" and args.server_command == "setup":
         data = setup_node_dependencies(repo_root())
         return emit(success(command="server setup", data=data, duration_ms=elapsed(start), tool_id="server.setup", domain="server", source="cli"))
     raise CliError(
         "Command is required",
         code="COMMAND_REQUIRED",
-        details={"groups": ["tool", "script", "export", "session", "server", "plugin", "agent"]},
+        details={"groups": ["tool", "script", "export", "session", "server", "plugin", "feedback", "agent"]},
         hint="先用 tool domains 查看工具域，或用 tool search --query <关键词> 查找工具。",
     )
 
@@ -517,7 +620,7 @@ def safe_command(argv: list[str] | None) -> str:
         return "cli"
     if parts[0] == "tool" and len(parts) > 1:
         return f"tool {parts[1]}"
-    if parts[0] in {"script", "export", "session", "plugin", "agent"} and len(parts) > 1:
+    if parts[0] in {"script", "export", "session", "plugin", "feedback", "agent"} and len(parts) > 1:
         return f"{parts[0]} {parts[1]}"
     return parts[0]
 
