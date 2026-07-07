@@ -147,9 +147,9 @@ node src/core/artifact.js --check
 工具调用示例：
 
 ```powershell
-indesign-cli tool call document.create --json "{\"width\":210,\"height\":297,\"pages\":1}"
-indesign-cli tool call text.create_frame --json "{\"content\":\"Hello Windows\",\"x\":30,\"y\":30,\"width\":120,\"height\":30,\"fontSize\":14}"
-indesign-cli tool call export.pdf --json "{\"filePath\":\"D:/Indesign-Exports/mcp-demo.pdf\",\"preset\":\"High Quality Print\"}"
+indesign-cli tool call document.create_document --json "{\"width\":210,\"height\":297,\"pages\":1}"
+indesign-cli tool call text.create_text_frame --json "{\"content\":\"Hello Windows\",\"x\":30,\"y\":30,\"width\":120,\"height\":30,\"fontSize\":14}"
+indesign-cli tool call export.export_pdf --json "{\"filePath\":\"D:/Indesign-Exports/mcp-demo.pdf\",\"preset\":\"High Quality Print\"}"
 ```
 
 真实 InDesign 行为变更需要补对应真实 E2E 或场景测试，并说明是否实际运行了 InDesign 集成测试。
