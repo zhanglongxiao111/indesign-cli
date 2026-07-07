@@ -1,0 +1,2141 @@
+[
+  {
+    "arg_names": [
+      "path",
+      "created_after"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "export",
+    "id": "export.verify",
+    "needs_indesign": false,
+    "one_line_purpose": "验证 PDF 或 IDML 产物是否存在且格式正确",
+    "source": "cli"
+  },
+  {
+    "arg_names": [
+      "code",
+      "note",
+      "tool"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "feedback",
+    "id": "feedback.report",
+    "needs_indesign": false,
+    "one_line_purpose": "上报 Agent 使用 indesign-cli 时遇到的工具缺口、文档不清或错误信息摩擦",
+    "source": "cli.primitive"
+  },
+  {
+    "arg_names": [
+      "file",
+      "stdin",
+      "timeout",
+      "timeout_ms"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "script",
+    "id": "script.run",
+    "needs_indesign": true,
+    "one_line_purpose": "执行 JSX 文件；stdin 只适合短临时探针",
+    "source": "script"
+  },
+  {
+    "arg_names": [
+      "deep",
+      "connect_indesign"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "server",
+    "id": "server.health",
+    "needs_indesign": false,
+    "one_line_purpose": "检查 CLI、Node 入口和 InDesign 相关后端状态",
+    "source": "cli"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "session",
+    "id": "session.show",
+    "needs_indesign": false,
+    "one_line_purpose": "读取当前工作目录下的精简 CLI session",
+    "source": "cli"
+  },
+  {
+    "arg_names": [
+      "plan",
+      "on_error",
+      "timeout_ms"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "tool",
+    "id": "tool.batch",
+    "needs_indesign": false,
+    "one_line_purpose": "按 JSON plan 顺序执行多个工具调用，失败时停止并返回 failed_step",
+    "source": "cli"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "server",
+    "id": "server.setup",
+    "needs_indesign": false,
+    "one_line_purpose": "在 CLI 内置 server 目录执行 npm install",
+    "source": "cli"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": true,
+    "domain": "session",
+    "id": "session.clear",
+    "needs_indesign": false,
+    "one_line_purpose": "清空当前工作目录下的 CLI session",
+    "source": "cli"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "session",
+    "id": "session.doctor",
+    "needs_indesign": false,
+    "one_line_purpose": "读取最近失败、artifacts 和文档状态线索，给出下一步诊断建议",
+    "source": "cli"
+  },
+  {
+    "arg_names": [
+      "filePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "template",
+    "id": "template.run_jsx_file",
+    "needs_indesign": true,
+    "one_line_purpose": "执行本地 .jsx 脚本文件，返回执行结果或错误信息。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [
+      "templatePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "template",
+    "id": "template.inspect_template_blueprint",
+    "needs_indesign": true,
+    "one_line_purpose": "读取指定模板的槽位说明、页面备注以及 PageNotes 图层中的说明信息，输出结构化 JSON。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "template",
+    "id": "template.list_template_blueprints",
+    "needs_indesign": true,
+    "one_line_purpose": "概览当前文档内所有母版模板，返回每个模板的槽位数量和槽位名称列表，帮助 Agent 快速挑选合适模板。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [
+      "templateName",
+      "position",
+      "referencePageIndex",
+      "label"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "template",
+    "id": "template.create_page_with_template",
+    "needs_indesign": true,
+    "one_line_purpose": "新建页面并套用指定母版模板，随后自动 override 母版上的脚本标签元素，返回页面索引等信息。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.get_page_information",
+    "needs_indesign": true,
+    "one_line_purpose": "返回指定页面当前套用的母版及脚本标签槽位详情，包含尺寸、文本预览、是否 override 等信息。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [
+      "templatePath",
+      "pageIndex",
+      "outputPath",
+      "values"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "template",
+    "id": "template.populate_template_slots",
+    "needs_indesign": true,
+    "one_line_purpose": "根据 inspect 结果返回的槽位名称，批量填充文本与图片，并可另存为成品文档。",
+    "source": "advanced"
+  },
+  {
+    "arg_names": [
+      "position",
+      "referencePage"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.add_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Add a new page to the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "page",
+    "id": "page.delete_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete a page from the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "position",
+      "referencePageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.duplicate_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Duplicate a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.navigate_to_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Navigate to a specific page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.get_page_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about a specific page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "newPosition",
+      "position",
+      "referencePageIndex",
+      "binding"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.move_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Move a page to a different position",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "label",
+      "pageColor",
+      "optionalPage",
+      "layoutRule",
+      "snapshotBlendingMode",
+      "appliedTrapPreset"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.set_page_properties",
+    "needs_indesign": true,
+    "one_line_purpose": "Set properties for a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "width",
+      "height",
+      "bleedInside",
+      "bleedTop",
+      "bleedOutside",
+      "bleedBottom",
+      "leftMargin",
+      "topMargin",
+      "rightMargin",
+      "bottomMargin"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.adjust_page_layout",
+    "needs_indesign": true,
+    "one_line_purpose": "Adjust page layout with new dimensions and margins",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "width",
+      "height",
+      "resizeMethod",
+      "anchorPoint",
+      "coordinateSpace"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.resize_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Resize a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "filePath",
+      "x",
+      "y",
+      "layerName",
+      "showingOptions",
+      "autoflowing"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.place_file_on_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Place a file on a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "xmlElementName",
+      "x",
+      "y",
+      "autoflowing"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.place_xml_on_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Place XML content on a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.snapshot_page_layout",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a snapshot of the current page layout",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "page",
+    "id": "page.delete_page_layout_snapshot",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete the layout snapshot for a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "page",
+    "id": "page.delete_all_page_layout_snapshots",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete all layout snapshots for a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "x1",
+      "y1",
+      "x2",
+      "y2",
+      "coordinateSpace"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.reframe_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Reframe (resize) a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "numberOfRows",
+      "numberOfColumns",
+      "rowGutter",
+      "columnGutter",
+      "guideColor",
+      "fitMargins",
+      "removeExisting",
+      "layerName"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.create_page_guides",
+    "needs_indesign": true,
+    "one_line_purpose": "Create guides on a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "selectionMode"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.select_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Select a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.get_page_content_summary",
+    "needs_indesign": true,
+    "one_line_purpose": "Get a summary of content on a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "backgroundColor",
+      "opacity"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.set_page_background",
+    "needs_indesign": true,
+    "one_line_purpose": "Set page background by creating a full-page rectangle with specified color",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "content",
+      "x",
+      "y",
+      "width",
+      "height",
+      "fontSize",
+      "fontName",
+      "textColor",
+      "alignment",
+      "paragraphStyle",
+      "characterStyle"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.create_text_frame",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a text frame on the active page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "frameIndex",
+      "content",
+      "fontSize",
+      "fontName",
+      "textColor",
+      "alignment"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.edit_text_frame",
+    "needs_indesign": true,
+    "one_line_purpose": "Edit an existing text frame",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "findText",
+      "replaceText",
+      "caseSensitive",
+      "wholeWord"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.find_replace_text",
+    "needs_indesign": true,
+    "one_line_purpose": "Find and replace text in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "rows",
+      "columns",
+      "x",
+      "y",
+      "width",
+      "height",
+      "headerRows",
+      "headerColumns"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.create_table",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a table on the active page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "tableIndex",
+      "data",
+      "startRow",
+      "startColumn"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.populate_table",
+    "needs_indesign": true,
+    "one_line_purpose": "Populate a table with data",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "filePath",
+      "x",
+      "y",
+      "width",
+      "height",
+      "linkImage",
+      "scale",
+      "fitMode"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "graphics",
+    "id": "graphics.place_image",
+    "needs_indesign": true,
+    "one_line_purpose": "Place an image on the active page with scaling and fitting options",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "tool",
+      "category",
+      "format"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "utility",
+    "id": "utility.help",
+    "needs_indesign": true,
+    "one_line_purpose": "Get help information about available tools and their usage",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "fillColor",
+      "strokeColor",
+      "strokeWidth",
+      "cornerRadius"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "graphics",
+    "id": "graphics.create_rectangle",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a rectangle on the active page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "fillColor",
+      "strokeColor",
+      "strokeWidth"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "graphics",
+    "id": "graphics.create_ellipse",
+    "needs_indesign": true,
+    "one_line_purpose": "Create an ellipse on the active page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "x",
+      "y",
+      "width",
+      "height",
+      "sides",
+      "fillColor",
+      "strokeColor",
+      "strokeWidth"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "graphics",
+    "id": "graphics.create_polygon",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a polygon on the active page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "fillColor",
+      "strokeColor",
+      "strokeWeight",
+      "cornerRadius",
+      "transparency"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.create_object_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Create an object style for consistent formatting",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.list_object_styles",
+    "needs_indesign": true,
+    "one_line_purpose": "List all object styles in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "styleName",
+      "itemType",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.apply_object_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Apply an object style to a page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "graphics",
+    "id": "graphics.get_image_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about an image",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "fontFamily",
+      "fontSize",
+      "textColor",
+      "alignment",
+      "leading",
+      "spaceBefore",
+      "spaceAfter"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.create_paragraph_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a paragraph style",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "fontFamily",
+      "fontSize",
+      "textColor",
+      "bold",
+      "italic",
+      "underline"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.create_character_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a character style",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "styleName",
+      "frameIndex",
+      "paragraphIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.apply_paragraph_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Apply a paragraph style to text",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "styleName",
+      "frameIndex",
+      "startIndex",
+      "endIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.apply_character_style",
+    "needs_indesign": true,
+    "one_line_purpose": "Apply a character style to text",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "styleType"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.list_styles",
+    "needs_indesign": true,
+    "one_line_purpose": "List all paragraph and character styles",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "colorType",
+      "red",
+      "green",
+      "blue"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.create_color_swatch",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a color swatch",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.list_color_swatches",
+    "needs_indesign": true,
+    "one_line_purpose": "List all color swatches",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "objectIndex",
+      "colorName",
+      "targetType",
+      "frameIndex",
+      "colorType"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "style",
+    "id": "style.apply_color",
+    "needs_indesign": true,
+    "one_line_purpose": "Apply color to an object",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get information about the active document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "width",
+      "height",
+      "pages",
+      "facingPages",
+      "pageOrientation",
+      "bleedTop",
+      "bleedBottom",
+      "bleedInside",
+      "bleedOutside",
+      "marginTop",
+      "marginBottom",
+      "marginLeft",
+      "marginRight"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.create_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a new document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "filePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.open_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Open an existing document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "filePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.save_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Save the active document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "allowDiscard",
+      "forceActiveDocument",
+      "expectedDocumentName"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "document",
+    "id": "document.close_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Close a document only when the target is unambiguous. Modified documents require allowDiscard.",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "zoomLevel"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.zoom_to_page",
+    "needs_indesign": true,
+    "one_line_purpose": "Zoom to fit page in view",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "elementType"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_elements",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all elements in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "styleType"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_styles",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all styles in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "includeSwatches",
+      "includeGradients",
+      "includeTints"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_colors",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all colors and swatches in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "preferenceType"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_preferences",
+    "needs_indesign": true,
+    "one_line_purpose": "Get document preferences and settings",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "preferenceType",
+      "preferences"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.set_document_preferences",
+    "needs_indesign": true,
+    "one_line_purpose": "Set document preferences",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "includeOverset",
+      "includeHidden"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_stories",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all stories in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "searchText",
+      "replaceText",
+      "caseSensitive",
+      "wholeWord",
+      "useRegex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "text",
+    "id": "text.find_text_in_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Find text across the entire document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "includeHidden",
+      "includeLocked"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_layers",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all layers in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "deleteEmptyLayers",
+      "mergeSimilarLayers",
+      "sortLayers"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.organize_document_layers",
+    "needs_indesign": true,
+    "one_line_purpose": "Organize and clean up document layers",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "includeDestinations",
+      "includeSources"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_hyperlinks",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all hyperlinks in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "sourceText",
+      "destination",
+      "linkType",
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.create_document_hyperlink",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a hyperlink in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_sections",
+    "needs_indesign": true,
+    "one_line_purpose": "Get all sections in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "startPage",
+      "sectionPrefix",
+      "startNumber",
+      "numberingStyle"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.create_document_section",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a new section in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_grid_settings",
+    "needs_indesign": true,
+    "one_line_purpose": "Get comprehensive grid settings for the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "documentGrid",
+      "documentGridColor",
+      "documentGridIncrement",
+      "documentGridSubdivision",
+      "baselineGrid",
+      "baselineGridColor",
+      "baselineGridIncrement",
+      "baselineGridOffset",
+      "baselineGridViewThreshold",
+      "gridViewThreshold",
+      "gridAlignment"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.set_document_grid_settings",
+    "needs_indesign": true,
+    "one_line_purpose": "Set comprehensive grid settings for the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_document_layout_preferences",
+    "needs_indesign": true,
+    "one_line_purpose": "Get layout preferences and settings for the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "adjustLayout",
+      "adjustLayoutMargins",
+      "adjustLayoutPageBreaks",
+      "adjustLayoutRules",
+      "alignDistributeBounds",
+      "alignDistributeSpacing",
+      "smartGuidePreferences"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.set_document_layout_preferences",
+    "needs_indesign": true,
+    "one_line_purpose": "Set layout preferences for the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "filePath",
+      "quality",
+      "includeMarks",
+      "includeBleed",
+      "pages"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "export",
+    "id": "export.export_pdf",
+    "needs_indesign": true,
+    "one_line_purpose": "Export document to PDF",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "outputPath",
+      "format",
+      "resolution",
+      "pages",
+      "quality"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "export",
+    "id": "export.export_images",
+    "needs_indesign": true,
+    "one_line_purpose": "Export pages as images",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "filePath",
+      "includeImages",
+      "includeStyles"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "export",
+    "id": "export.export_epub",
+    "needs_indesign": true,
+    "one_line_purpose": "Export document to EPUB",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "outputPath",
+      "includeFonts",
+      "includeLinks",
+      "includeProfiles"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "export",
+    "id": "export.package_document",
+    "needs_indesign": true,
+    "one_line_purpose": "Package document for printing",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "code"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "script",
+    "id": "script.execute_indesign_code",
+    "needs_indesign": true,
+    "one_line_purpose": "执行短 inline ExtendScript 探针；长脚本优先用 script.run 文件模式",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.view_document",
+    "needs_indesign": true,
+    "one_line_purpose": "View document information and current state",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "documentPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.add_document_to_book",
+    "needs_indesign": true,
+    "one_line_purpose": "把 InDesign 文档加入指定 Book",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "filePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.create_book",
+    "needs_indesign": true,
+    "one_line_purpose": "新建 InDesign Book（.indb）文件",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "outputPath",
+      "format"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.export_book",
+    "needs_indesign": true,
+    "one_line_purpose": "把整个 Book 导出为 PDF、EPUB 或 HTML",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.get_book_info",
+    "needs_indesign": true,
+    "one_line_purpose": "读取指定 Book 的文档列表和属性信息",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.list_books",
+    "needs_indesign": true,
+    "one_line_purpose": "列出当前 InDesign 打开的 Book",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "filePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.open_book",
+    "needs_indesign": true,
+    "one_line_purpose": "打开已有 InDesign Book 文件",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "outputPath",
+      "copyingFonts",
+      "copyingLinkedGraphics",
+      "copyingProfiles",
+      "updatingGraphics",
+      "includingHiddenLayers",
+      "ignorePreflightErrors",
+      "creatingReport",
+      "includeIdml",
+      "includePdf"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.package_book",
+    "needs_indesign": true,
+    "one_line_purpose": "打包 Book 及其字体、链接图像和报告",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "outputPath",
+      "autoOpen"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.preflight_book",
+    "needs_indesign": true,
+    "one_line_purpose": "预检 Book，并可输出预检报告",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "printDialog",
+      "printerPreset"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.print_book",
+    "needs_indesign": true,
+    "one_line_purpose": "打印 Book，可使用打印预设或系统对话框",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.repaginate_book",
+    "needs_indesign": true,
+    "one_line_purpose": "重新计算 Book 内所有文档页码",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath",
+      "automaticPagination",
+      "automaticDocumentConversion",
+      "insertBlankPage",
+      "mergeIdenticalLayers",
+      "synchronizeBulletNumberingList",
+      "synchronizeCellStyle",
+      "synchronizeCharacterStyle",
+      "synchronizeConditionalText",
+      "synchronizeCrossReferenceFormat",
+      "synchronizeMasterPage",
+      "synchronizeObjectStyle",
+      "synchronizeParagraphStyle",
+      "synchronizeSwatch",
+      "synchronizeTableOfContentStyle",
+      "synchronizeTableStyle",
+      "synchronizeTextVariable",
+      "synchronizeTrapStyle"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.set_book_properties",
+    "needs_indesign": true,
+    "one_line_purpose": "设置 Book 的同步、分页和转换属性",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.synchronize_book",
+    "needs_indesign": true,
+    "one_line_purpose": "同步 Book 内文档的样式、母版和编号设置",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.update_all_cross_references",
+    "needs_indesign": true,
+    "one_line_purpose": "更新 Book 内全部交叉引用",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.update_all_numbers",
+    "needs_indesign": true,
+    "one_line_purpose": "更新 Book 内页码、章节号和段落编号",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "bookPath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "book",
+    "id": "book.update_chapter_and_paragraph_numbers",
+    "needs_indesign": true,
+    "one_line_purpose": "更新 Book 的章节号和段落编号",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.get_session_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get current session information including page dimensions and active document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "title",
+      "subtitle",
+      "bgImagePath"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.add_cover_page",
+    "needs_indesign": true,
+    "one_line_purpose": "新增带标题、副标题和背景图的封面页",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "filePath",
+      "caption"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.add_full_bleed_image",
+    "needs_indesign": true,
+    "one_line_purpose": "新增满版图片页，可附图片说明",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "files",
+      "rows",
+      "columns",
+      "gap"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.add_image_grid",
+    "needs_indesign": true,
+    "one_line_purpose": "新增图片网格页，按行列置入多张图片",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "title"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.add_section_page",
+    "needs_indesign": true,
+    "one_line_purpose": "新增章节分隔页",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "preset",
+      "width",
+      "height",
+      "pages",
+      "facingPages"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.create_presentation_document",
+    "needs_indesign": true,
+    "one_line_purpose": "创建演示汇报型 InDesign 文档",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [
+      "filePath",
+      "preset"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "presentation",
+    "id": "presentation.export_presentation_pdf",
+    "needs_indesign": true,
+    "one_line_purpose": "把当前演示文档导出为 PDF",
+    "source": "hidden_handler"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": true,
+    "domain": "document",
+    "id": "document.clear_session",
+    "needs_indesign": true,
+    "one_line_purpose": "Clear all session data including page dimensions and document information",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.get_page_item_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about a specific page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex",
+      "existingSelection"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.select_page_item",
+    "needs_indesign": true,
+    "one_line_purpose": "Select a specific page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex",
+      "x",
+      "y"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.move_page_item",
+    "needs_indesign": true,
+    "one_line_purpose": "Move a page item to a new position",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex",
+      "width",
+      "height",
+      "anchorPoint"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.resize_page_item",
+    "needs_indesign": true,
+    "one_line_purpose": "Resize a page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex",
+      "fillColor",
+      "strokeColor",
+      "strokeWeight",
+      "visible",
+      "locked"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.set_page_item_properties",
+    "needs_indesign": true,
+    "one_line_purpose": "Set properties of a page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex",
+      "x",
+      "y"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.duplicate_page_item",
+    "needs_indesign": true,
+    "one_line_purpose": "Duplicate a page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "page",
+    "id": "page.delete_page_item",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete a page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "mode",
+      "pageIndex",
+      "itemIndex",
+      "pageNumber",
+      "objectId"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.get_page_item_script_labels",
+    "needs_indesign": true,
+    "one_line_purpose": "Read script labels from page items using selection or explicit identifiers",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "mode",
+      "pageIndex",
+      "itemIndex",
+      "pageNumber",
+      "objectId",
+      "label"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.set_page_item_script_label",
+    "needs_indesign": true,
+    "one_line_purpose": "Overwrite the script label for targeted page items",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.list_page_items",
+    "needs_indesign": true,
+    "one_line_purpose": "List all page items on a specific page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "object",
+    "id": "object.create_group",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a group from currently selected items",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndices"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "object",
+    "id": "object.create_group_from_items",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a group from specific page items by their indices",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "groupIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "object",
+    "id": "object.ungroup",
+    "needs_indesign": true,
+    "one_line_purpose": "Ungroup a group, releasing all its items",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "groupIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "object",
+    "id": "object.get_group_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about a group",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "groupIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.add_item_to_group",
+    "needs_indesign": true,
+    "one_line_purpose": "Add a page item to an existing group",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "groupIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.remove_item_from_group",
+    "needs_indesign": true,
+    "one_line_purpose": "Remove a page item from a group",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "page",
+    "id": "page.list_groups",
+    "needs_indesign": true,
+    "one_line_purpose": "List all groups on a specific page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "groupIndex",
+      "visible",
+      "locked",
+      "name"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "object",
+    "id": "object.set_group_properties",
+    "needs_indesign": true,
+    "one_line_purpose": "Set properties of a group",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "baseName",
+      "namePrefix",
+      "pageColor",
+      "showMasterItems"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.create_master_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a new master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "document",
+    "id": "document.list_master_spreads",
+    "needs_indesign": true,
+    "one_line_purpose": "List all master spreads in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "masterIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "master",
+    "id": "master.delete_master_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "newName",
+      "masterIndex",
+      "position",
+      "referenceMaster"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.duplicate_master_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Duplicate a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "masterName",
+      "pageRange"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.apply_master_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Apply a master spread to pages",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "masterName",
+      "content",
+      "x",
+      "y",
+      "width",
+      "height",
+      "fontSize",
+      "fontFamily",
+      "textColor",
+      "alignment",
+      "isPrimaryTextFrame"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.create_master_text_frame",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a text frame on a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "masterName",
+      "x",
+      "y",
+      "width",
+      "height",
+      "fillColor",
+      "strokeColor",
+      "strokeWidth",
+      "cornerRadius"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.create_master_rectangle",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a rectangle on a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "masterName",
+      "numberOfRows",
+      "numberOfColumns",
+      "rowGutter",
+      "columnGutter",
+      "guideColor",
+      "fitMargins",
+      "removeExisting",
+      "layerName"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.create_master_guides",
+    "needs_indesign": true,
+    "one_line_purpose": "Create guides on a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "masterIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.get_master_spread_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about a master spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.detach_master_items",
+    "needs_indesign": true,
+    "one_line_purpose": "Detach master page items from a page",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "pageIndex",
+      "itemIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "master",
+    "id": "master.remove_master_override",
+    "needs_indesign": true,
+    "one_line_purpose": "Remove override from a master page item",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.list_spreads",
+    "needs_indesign": true,
+    "one_line_purpose": "List all spreads in the document",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.get_spread_info",
+    "needs_indesign": true,
+    "one_line_purpose": "Get detailed information about a specific spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "position",
+      "referenceSpreadIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.duplicate_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Duplicate a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "position",
+      "referenceSpreadIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.move_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Move a spread to a different position",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex"
+    ],
+    "callable": true,
+    "destructive": true,
+    "domain": "spread",
+    "id": "spread.delete_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Delete a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "name",
+      "allowPageShuffle",
+      "showMasterItems",
+      "spreadHidden",
+      "pageTransitionType",
+      "pageTransitionDirection",
+      "pageTransitionDuration"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.set_spread_properties",
+    "needs_indesign": true,
+    "one_line_purpose": "Set properties for a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "numberOfRows",
+      "numberOfColumns",
+      "rowGutter",
+      "columnGutter",
+      "guideColor",
+      "fitMargins",
+      "removeExisting",
+      "layerName"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.create_spread_guides",
+    "needs_indesign": true,
+    "one_line_purpose": "Create guides on a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "filePath",
+      "x",
+      "y",
+      "layerName",
+      "showingOptions",
+      "autoflowing",
+      "pageIndexWithinSpread"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.place_file_on_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Place a file on a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex",
+      "selectionMode"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.select_spread",
+    "needs_indesign": true,
+    "one_line_purpose": "Select a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "spreadIndex"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "spread",
+    "id": "spread.get_spread_content_summary",
+    "needs_indesign": true,
+    "one_line_purpose": "Get a summary of content on a spread",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "name",
+      "visible",
+      "locked",
+      "color"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "layer",
+    "id": "layer.create_layer",
+    "needs_indesign": true,
+    "one_line_purpose": "Create a new layer",
+    "source": "classic"
+  },
+  {
+    "arg_names": [
+      "layerName"
+    ],
+    "callable": true,
+    "destructive": false,
+    "domain": "layer",
+    "id": "layer.set_active_layer",
+    "needs_indesign": true,
+    "one_line_purpose": "Set the active layer",
+    "source": "classic"
+  },
+  {
+    "arg_names": [],
+    "callable": true,
+    "destructive": false,
+    "domain": "layer",
+    "id": "layer.list_layers",
+    "needs_indesign": true,
+    "one_line_purpose": "List all layers in the document",
+    "source": "classic"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "args": {
+      "data": [
+        "golden"
+      ]
+    },
+    "domain": null,
+    "name": "populate_table",
+    "reason": "row.map is not a function",
+    "source": "classic"
+  }
+]

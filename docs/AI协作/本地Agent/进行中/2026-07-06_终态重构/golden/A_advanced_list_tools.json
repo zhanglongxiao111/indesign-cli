@@ -1,0 +1,162 @@
+{
+  "count": 6,
+  "source": "advanced",
+  "tools": [
+    {
+      "description": "新建页面并套用指定母版模板，随后自动 override 母版上的脚本标签元素，返回页面索引等信息。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "description": "可选，为新页面设置脚本标签（label）。",
+            "type": "string"
+          },
+          "position": {
+            "description": "插入位置，默认为 AT_END。",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referencePageIndex": {
+            "description": "当 position 为 BEFORE/AFTER 时使用的参考页索引。",
+            "type": "integer"
+          },
+          "templateName": {
+            "description": "要套用的母版名称，例如 “A-封面”。",
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateName"
+        ],
+        "type": "object"
+      },
+      "name": "create_page_with_template"
+    },
+    {
+      "description": "返回指定页面当前套用的母版及脚本标签槽位详情，包含尺寸、文本预览、是否 override 等信息。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "目标页面的索引（0 基）。",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_page_information"
+    },
+    {
+      "description": "读取指定模板的槽位说明、页面备注以及 PageNotes 图层中的说明信息，输出结构化 JSON。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "templatePath": {
+            "description": "模板 INDD 文件的绝对路径。若省略，则使用当前已打开的文档。",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "inspect_template_blueprint"
+    },
+    {
+      "description": "概览当前文档内所有母版模板，返回每个模板的槽位数量和槽位名称列表，帮助 Agent 快速挑选合适模板。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_template_blueprints"
+    },
+    {
+      "description": "根据 inspect 结果返回的槽位名称，批量填充文本与图片，并可另存为成品文档。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "outputPath": {
+            "description": "可选，保存成品文档的目标路径（未提供时仅在内存中修改后关闭而不保存）。",
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "可选，仅对指定页面的槽位进行填充（0 基）。不提供时将遍历文档全部页面。",
+            "type": "integer"
+          },
+          "templatePath": {
+            "description": "模板 INDD 文件的绝对路径；若省略，则对当前打开的文档进行填充。",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "additionalProperties": false,
+              "properties": {
+                "clearExisting": {
+                  "description": "如果槽位已有图片，是否在放新图前移除旧内容。",
+                  "type": "boolean"
+                },
+                "declaredType": {
+                  "description": "可选——覆盖标签中声明的槽位类型，主要用于提示校验。",
+                  "type": "string"
+                },
+                "fit": {
+                  "description": "图片填充规则，例如 PROPORTIONALLY、FILL_FRAME、FIT_CONTENT、FIT_FRAME、CENTER_CONTENT。",
+                  "enum": [
+                    "PROPORTIONALLY",
+                    "FILL_FRAME",
+                    "FIT_CONTENT",
+                    "FIT_FRAME",
+                    "CENTER_CONTENT"
+                  ],
+                  "type": "string"
+                },
+                "imagePath": {
+                  "description": "要放入图片槽位的文件绝对路径。",
+                  "type": "string"
+                },
+                "text": {
+                  "description": "要填充到文本槽位中的内容。",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "description": "键为模板中“槽位”字段的值，值描述填充内容。",
+            "minProperties": 1,
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "type": "object"
+      },
+      "name": "populate_template_slots"
+    },
+    {
+      "description": "执行本地 .jsx 脚本文件，返回执行结果或错误信息。",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "要执行的 JSX 文件绝对路径。",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "run_jsx_file"
+    }
+  ]
+}

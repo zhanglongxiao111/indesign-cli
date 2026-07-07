@@ -1,0 +1,2034 @@
+{
+  "count": 150,
+  "entries": [
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.add_document_to_book",
+      "mutates_document": true,
+      "name": "add_document_to_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.create_book",
+      "mutates_document": false,
+      "name": "create_book",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.export_book",
+      "mutates_document": false,
+      "name": "export_book",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.get_book_info",
+      "mutates_document": false,
+      "name": "get_book_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.list_books",
+      "mutates_document": false,
+      "name": "list_books",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.open_book",
+      "mutates_document": true,
+      "name": "open_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.package_book",
+      "mutates_document": false,
+      "name": "package_book",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.preflight_book",
+      "mutates_document": false,
+      "name": "preflight_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.print_book",
+      "mutates_document": true,
+      "name": "print_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "print_job"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.repaginate_book",
+      "mutates_document": true,
+      "name": "repaginate_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.set_book_properties",
+      "mutates_document": true,
+      "name": "set_book_properties",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.synchronize_book",
+      "mutates_document": true,
+      "name": "synchronize_book",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.update_all_cross_references",
+      "mutates_document": true,
+      "name": "update_all_cross_references",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.update_all_numbers",
+      "mutates_document": true,
+      "name": "update_all_numbers",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "book",
+      "id": "book.update_chapter_and_paragraph_numbers",
+      "mutates_document": true,
+      "name": "update_chapter_and_paragraph_numbers",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "document",
+      "id": "document.cleanup_document",
+      "mutates_document": true,
+      "name": "cleanup_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "document",
+      "id": "document.clear_session",
+      "mutates_document": true,
+      "name": "clear_session",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "document",
+      "id": "document.close_document",
+      "mutates_document": true,
+      "name": "close_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.create_document",
+      "mutates_document": true,
+      "name": "create_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.create_document_hyperlink",
+      "mutates_document": true,
+      "name": "create_document_hyperlink",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.create_document_section",
+      "mutates_document": true,
+      "name": "create_document_section",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.data_merge",
+      "mutates_document": true,
+      "name": "data_merge",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.export_document_xml",
+      "mutates_document": false,
+      "name": "export_document_xml",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_colors",
+      "mutates_document": false,
+      "name": "get_document_colors",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_elements",
+      "mutates_document": false,
+      "name": "get_document_elements",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_grid_settings",
+      "mutates_document": false,
+      "name": "get_document_grid_settings",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_hyperlinks",
+      "mutates_document": false,
+      "name": "get_document_hyperlinks",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_info",
+      "mutates_document": false,
+      "name": "get_document_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_layers",
+      "mutates_document": false,
+      "name": "get_document_layers",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_layout_preferences",
+      "mutates_document": false,
+      "name": "get_document_layout_preferences",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_preferences",
+      "mutates_document": false,
+      "name": "get_document_preferences",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_sections",
+      "mutates_document": false,
+      "name": "get_document_sections",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_stories",
+      "mutates_document": false,
+      "name": "get_document_stories",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_styles",
+      "mutates_document": false,
+      "name": "get_document_styles",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_document_xml_structure",
+      "mutates_document": false,
+      "name": "get_document_xml_structure",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.get_session_info",
+      "mutates_document": false,
+      "name": "get_session_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.list_master_spreads",
+      "mutates_document": false,
+      "name": "list_master_spreads",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.open_cloud_document",
+      "mutates_document": true,
+      "name": "open_cloud_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.open_document",
+      "mutates_document": true,
+      "name": "open_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.organize_document_layers",
+      "mutates_document": true,
+      "name": "organize_document_layers",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.preflight_document",
+      "mutates_document": true,
+      "name": "preflight_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.save_document",
+      "mutates_document": true,
+      "name": "save_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.save_document_to_cloud",
+      "mutates_document": false,
+      "name": "save_document_to_cloud",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.set_document_grid_settings",
+      "mutates_document": true,
+      "name": "set_document_grid_settings",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.set_document_layout_preferences",
+      "mutates_document": true,
+      "name": "set_document_layout_preferences",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.set_document_preferences",
+      "mutates_document": true,
+      "name": "set_document_preferences",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.validate_document",
+      "mutates_document": true,
+      "name": "validate_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "document",
+      "id": "document.view_document",
+      "mutates_document": true,
+      "name": "view_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "export",
+      "id": "export.export_epub",
+      "mutates_document": false,
+      "name": "export_epub",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "classic",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "export",
+      "id": "export.export_images",
+      "mutates_document": false,
+      "name": "export_images",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "classic",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "export",
+      "id": "export.export_pdf",
+      "mutates_document": false,
+      "name": "export_pdf",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "classic",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "export",
+      "id": "export.package_document",
+      "mutates_document": false,
+      "name": "package_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "classic",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "graphics",
+      "id": "graphics.create_ellipse",
+      "mutates_document": true,
+      "name": "create_ellipse",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "graphics",
+      "id": "graphics.create_polygon",
+      "mutates_document": true,
+      "name": "create_polygon",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "graphics",
+      "id": "graphics.create_rectangle",
+      "mutates_document": true,
+      "name": "create_rectangle",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "graphics",
+      "id": "graphics.get_image_info",
+      "mutates_document": false,
+      "name": "get_image_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "graphics",
+      "id": "graphics.place_image",
+      "mutates_document": true,
+      "name": "place_image",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "layer",
+      "id": "layer.create_layer",
+      "mutates_document": true,
+      "name": "create_layer",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "layer",
+      "id": "layer.list_layers",
+      "mutates_document": false,
+      "name": "list_layers",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "layer",
+      "id": "layer.set_active_layer",
+      "mutates_document": true,
+      "name": "set_active_layer",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.apply_master_spread",
+      "mutates_document": true,
+      "name": "apply_master_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.create_master_guides",
+      "mutates_document": true,
+      "name": "create_master_guides",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.create_master_rectangle",
+      "mutates_document": true,
+      "name": "create_master_rectangle",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.create_master_spread",
+      "mutates_document": true,
+      "name": "create_master_spread",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.create_master_text_frame",
+      "mutates_document": true,
+      "name": "create_master_text_frame",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "master",
+      "id": "master.delete_master_spread",
+      "mutates_document": true,
+      "name": "delete_master_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.detach_master_items",
+      "mutates_document": true,
+      "name": "detach_master_items",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.duplicate_master_spread",
+      "mutates_document": true,
+      "name": "duplicate_master_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.get_master_spread_info",
+      "mutates_document": false,
+      "name": "get_master_spread_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "master",
+      "id": "master.remove_master_override",
+      "mutates_document": true,
+      "name": "remove_master_override",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "object",
+      "id": "object.create_group",
+      "mutates_document": true,
+      "name": "create_group",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "object",
+      "id": "object.create_group_from_items",
+      "mutates_document": true,
+      "name": "create_group_from_items",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "object",
+      "id": "object.get_group_info",
+      "mutates_document": false,
+      "name": "get_group_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "object",
+      "id": "object.set_group_properties",
+      "mutates_document": true,
+      "name": "set_group_properties",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "object",
+      "id": "object.ungroup",
+      "mutates_document": true,
+      "name": "ungroup",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.add_item_to_group",
+      "mutates_document": true,
+      "name": "add_item_to_group",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.add_page",
+      "mutates_document": true,
+      "name": "add_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.adjust_page_layout",
+      "mutates_document": true,
+      "name": "adjust_page_layout",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.create_page_guides",
+      "mutates_document": true,
+      "name": "create_page_guides",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "page",
+      "id": "page.delete_all_page_layout_snapshots",
+      "mutates_document": true,
+      "name": "delete_all_page_layout_snapshots",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "page",
+      "id": "page.delete_page",
+      "mutates_document": true,
+      "name": "delete_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "page",
+      "id": "page.delete_page_item",
+      "mutates_document": true,
+      "name": "delete_page_item",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "page",
+      "id": "page.delete_page_layout_snapshot",
+      "mutates_document": true,
+      "name": "delete_page_layout_snapshot",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.duplicate_page",
+      "mutates_document": true,
+      "name": "duplicate_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.duplicate_page_item",
+      "mutates_document": true,
+      "name": "duplicate_page_item",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.get_page_content_summary",
+      "mutates_document": false,
+      "name": "get_page_content_summary",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.get_page_info",
+      "mutates_document": false,
+      "name": "get_page_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.get_page_information",
+      "mutates_document": false,
+      "name": "get_page_information",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.get_page_item_info",
+      "mutates_document": false,
+      "name": "get_page_item_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.get_page_item_script_labels",
+      "mutates_document": false,
+      "name": "get_page_item_script_labels",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.list_groups",
+      "mutates_document": false,
+      "name": "list_groups",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.list_page_items",
+      "mutates_document": false,
+      "name": "list_page_items",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.move_page",
+      "mutates_document": true,
+      "name": "move_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.move_page_item",
+      "mutates_document": true,
+      "name": "move_page_item",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.navigate_to_page",
+      "mutates_document": true,
+      "name": "navigate_to_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.place_file_on_page",
+      "mutates_document": true,
+      "name": "place_file_on_page",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.place_xml_on_page",
+      "mutates_document": true,
+      "name": "place_xml_on_page",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.reframe_page",
+      "mutates_document": true,
+      "name": "reframe_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.remove_item_from_group",
+      "mutates_document": true,
+      "name": "remove_item_from_group",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.resize_page",
+      "mutates_document": true,
+      "name": "resize_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.resize_page_item",
+      "mutates_document": true,
+      "name": "resize_page_item",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.select_page",
+      "mutates_document": true,
+      "name": "select_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.select_page_item",
+      "mutates_document": true,
+      "name": "select_page_item",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.set_page_background",
+      "mutates_document": true,
+      "name": "set_page_background",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.set_page_item_properties",
+      "mutates_document": true,
+      "name": "set_page_item_properties",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.set_page_item_script_label",
+      "mutates_document": true,
+      "name": "set_page_item_script_label",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.set_page_properties",
+      "mutates_document": true,
+      "name": "set_page_properties",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.snapshot_page_layout",
+      "mutates_document": true,
+      "name": "snapshot_page_layout",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "page",
+      "id": "page.zoom_to_page",
+      "mutates_document": true,
+      "name": "zoom_to_page",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.add_cover_page",
+      "mutates_document": true,
+      "name": "add_cover_page",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.add_full_bleed_image",
+      "mutates_document": true,
+      "name": "add_full_bleed_image",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.add_image_grid",
+      "mutates_document": true,
+      "name": "add_image_grid",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.add_section_page",
+      "mutates_document": true,
+      "name": "add_section_page",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.create_presentation_document",
+      "mutates_document": true,
+      "name": "create_presentation_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "presentation",
+      "id": "presentation.export_presentation_pdf",
+      "mutates_document": false,
+      "name": "export_presentation_pdf",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "filesystem_write"
+      ],
+      "source": "hidden_handler",
+      "writes_filesystem": true
+    },
+    {
+      "destructive": false,
+      "domain": "script",
+      "id": "script.execute_indesign_code",
+      "mutates_document": true,
+      "name": "execute_indesign_code",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.create_spread_guides",
+      "mutates_document": true,
+      "name": "create_spread_guides",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": true,
+      "domain": "spread",
+      "id": "spread.delete_spread",
+      "mutates_document": true,
+      "name": "delete_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.duplicate_spread",
+      "mutates_document": true,
+      "name": "duplicate_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.get_spread_content_summary",
+      "mutates_document": false,
+      "name": "get_spread_content_summary",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.get_spread_info",
+      "mutates_document": false,
+      "name": "get_spread_info",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.list_spreads",
+      "mutates_document": false,
+      "name": "list_spreads",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.move_spread",
+      "mutates_document": true,
+      "name": "move_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.place_file_on_spread",
+      "mutates_document": true,
+      "name": "place_file_on_spread",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.place_xml_on_spread",
+      "mutates_document": true,
+      "name": "place_xml_on_spread",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "switch_only_no_cli_schema",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.select_spread",
+      "mutates_document": true,
+      "name": "select_spread",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "spread",
+      "id": "spread.set_spread_properties",
+      "mutates_document": true,
+      "name": "set_spread_properties",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.apply_character_style",
+      "mutates_document": true,
+      "name": "apply_character_style",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.apply_color",
+      "mutates_document": true,
+      "name": "apply_color",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.apply_object_style",
+      "mutates_document": true,
+      "name": "apply_object_style",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.apply_paragraph_style",
+      "mutates_document": true,
+      "name": "apply_paragraph_style",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.create_character_style",
+      "mutates_document": true,
+      "name": "create_character_style",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.create_color_swatch",
+      "mutates_document": true,
+      "name": "create_color_swatch",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.create_object_style",
+      "mutates_document": true,
+      "name": "create_object_style",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.create_paragraph_style",
+      "mutates_document": true,
+      "name": "create_paragraph_style",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.list_color_swatches",
+      "mutates_document": false,
+      "name": "list_color_swatches",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.list_object_styles",
+      "mutates_document": false,
+      "name": "list_object_styles",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "style",
+      "id": "style.list_styles",
+      "mutates_document": false,
+      "name": "list_styles",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "template",
+      "id": "template.create_page_with_template",
+      "mutates_document": true,
+      "name": "create_page_with_template",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "template",
+      "id": "template.inspect_template_blueprint",
+      "mutates_document": false,
+      "name": "inspect_template_blueprint",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "template",
+      "id": "template.list_template_blueprints",
+      "mutates_document": false,
+      "name": "list_template_blueprints",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "template",
+      "id": "template.populate_template_slots",
+      "mutates_document": true,
+      "name": "populate_template_slots",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "template",
+      "id": "template.run_jsx_file",
+      "mutates_document": true,
+      "name": "run_jsx_file",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "advanced",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.create_table",
+      "mutates_document": true,
+      "name": "create_table",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.create_text_frame",
+      "mutates_document": true,
+      "name": "create_text_frame",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.edit_text_frame",
+      "mutates_document": true,
+      "name": "edit_text_frame",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.find_replace_text",
+      "mutates_document": false,
+      "name": "find_replace_text",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.find_text_in_document",
+      "mutates_document": false,
+      "name": "find_text_in_document",
+      "needs_indesign": true,
+      "requires_active_document": true,
+      "side_effects": [],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "text",
+      "id": "text.populate_table",
+      "mutates_document": true,
+      "name": "populate_table",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    },
+    {
+      "destructive": false,
+      "domain": "utility",
+      "id": "utility.help",
+      "mutates_document": true,
+      "name": "help",
+      "needs_indesign": true,
+      "requires_active_document": false,
+      "side_effects": [
+        "indesign_mutation"
+      ],
+      "source": "classic",
+      "writes_filesystem": false
+    }
+  ],
+  "expected_node_backed_count": 150,
+  "generated_by": "scripts/migration/contract_baseline.py",
+  "schema_version": 1
+}

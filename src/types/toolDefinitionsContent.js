@@ -345,6 +345,8 @@ export const contentToolDefinitions = [
             properties: {
                 objectIndex: { type: 'number', description: 'Object index' },
                 colorName: { type: 'string', description: 'Color swatch name' },
+                targetType: { type: 'string', enum: ['text', 'rectangle', 'ellipse'], default: 'text' },
+                frameIndex: { type: 'number', description: 'Target frame or page item index', default: 0 },
                 colorType: { type: 'string', enum: ['FILL', 'STROKE'], default: 'FILL' },
             },
             required: ['objectIndex', 'colorName'],

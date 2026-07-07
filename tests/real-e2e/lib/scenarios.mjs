@@ -1171,7 +1171,10 @@ export async function runDestructiveScratch(run) {
   await callRequired(run, 'document.organize_document_layers', { deleteEmptyLayers: false, sortLayers: true });
   await callRequired(run, 'document.get_session_info', {});
   await callRequired(run, 'document.clear_session', {});
-  await callRequired(run, 'document.close_document', {});
+  await callRequired(run, 'document.close_document', {
+    expectedDocumentName: path.basename(scratchPath),
+    allowDiscard: true,
+  });
 
   await callRequired(run, 'document.open_document', { filePath: mainPath }, {
     artifact_paths: [relativeToRun(run, mainPath)],
@@ -1249,7 +1252,10 @@ export async function runPresentationHidden(run) {
     artifact_paths: [relativeToRun(run, presentationPdfPath)],
     note: 'verify presentation hidden handler PDF',
   });
-  await callRequired(run, 'document.close_document', {});
+  await callRequired(run, 'document.close_document', {
+    expectedDocumentName: path.basename(presentationPath),
+    allowDiscard: true,
+  });
   await callRequired(run, 'document.open_document', { filePath: mainPath }, {
     artifact_paths: [relativeToRun(run, mainPath)],
   });

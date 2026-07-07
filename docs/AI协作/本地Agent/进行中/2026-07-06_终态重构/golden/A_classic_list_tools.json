@@ -1,0 +1,3564 @@
+{
+  "count": 114,
+  "source": "classic",
+  "tools": [
+    {
+      "description": "Add a page item to an existing group",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "groupIndex": {
+            "description": "Index of the group to add the item to",
+            "type": "integer"
+          },
+          "itemIndex": {
+            "description": "Index of the page item to add to the group",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the group and item",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "groupIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "add_item_to_group"
+    },
+    {
+      "description": "Add a new page to the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referencePage": {
+            "description": "Reference page index (for BEFORE/AFTER positioning)",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "add_page"
+    },
+    {
+      "description": "Adjust page layout with new dimensions and margins",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "bleedBottom": {
+            "description": "Bottom bleed (e.g., \"3mm\")",
+            "type": "string"
+          },
+          "bleedInside": {
+            "description": "Inside bleed (e.g., \"3mm\")",
+            "type": "string"
+          },
+          "bleedOutside": {
+            "description": "Outside bleed (e.g., \"3mm\")",
+            "type": "string"
+          },
+          "bleedTop": {
+            "description": "Top bleed (e.g., \"3mm\")",
+            "type": "string"
+          },
+          "bottomMargin": {
+            "description": "Bottom margin (e.g., \"20mm\")",
+            "type": "string"
+          },
+          "height": {
+            "description": "Page height (e.g., \"800px\", \"11in\")",
+            "type": "string"
+          },
+          "leftMargin": {
+            "description": "Left margin (e.g., \"20mm\")",
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "rightMargin": {
+            "description": "Right margin (e.g., \"20mm\")",
+            "type": "string"
+          },
+          "topMargin": {
+            "description": "Top margin (e.g., \"20mm\")",
+            "type": "string"
+          },
+          "width": {
+            "description": "Page width (e.g., \"600px\", \"8.5in\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "adjust_page_layout"
+    },
+    {
+      "description": "Apply a character style to text",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "endIndex": {
+            "default": -1,
+            "description": "End character index (-1 for all)",
+            "type": "number"
+          },
+          "frameIndex": {
+            "default": 0,
+            "description": "Text frame index (0-based)",
+            "type": "number"
+          },
+          "startIndex": {
+            "default": 0,
+            "description": "Start character index",
+            "type": "number"
+          },
+          "styleName": {
+            "description": "Character style name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "styleName"
+        ],
+        "type": "object"
+      },
+      "name": "apply_character_style"
+    },
+    {
+      "description": "Apply color to an object",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "colorName": {
+            "description": "Color swatch name",
+            "type": "string"
+          },
+          "colorType": {
+            "default": "FILL",
+            "enum": [
+              "FILL",
+              "STROKE"
+            ],
+            "type": "string"
+          },
+          "frameIndex": {
+            "default": 0,
+            "description": "Target frame or page item index",
+            "type": "number"
+          },
+          "objectIndex": {
+            "description": "Object index",
+            "type": "number"
+          },
+          "targetType": {
+            "default": "text",
+            "enum": [
+              "text",
+              "rectangle",
+              "ellipse"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "objectIndex",
+          "colorName"
+        ],
+        "type": "object"
+      },
+      "name": "apply_color"
+    },
+    {
+      "description": "Apply a master spread to pages",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "masterName": {
+            "description": "Master spread name to apply",
+            "type": "string"
+          },
+          "pageRange": {
+            "default": "all",
+            "description": "Page range (e.g., \"1-5\", \"all\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "masterName"
+        ],
+        "type": "object"
+      },
+      "name": "apply_master_spread"
+    },
+    {
+      "description": "Apply an object style to a page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "default": 0,
+            "description": "Item index",
+            "type": "number"
+          },
+          "itemType": {
+            "default": "rectangle",
+            "enum": [
+              "rectangle",
+              "ellipse",
+              "polygon"
+            ],
+            "type": "string"
+          },
+          "styleName": {
+            "description": "Object style name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "styleName"
+        ],
+        "type": "object"
+      },
+      "name": "apply_object_style"
+    },
+    {
+      "description": "Apply a paragraph style to text",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "frameIndex": {
+            "default": 0,
+            "description": "Text frame index",
+            "type": "number"
+          },
+          "paragraphIndex": {
+            "default": 0,
+            "description": "Paragraph index within the frame (0-based)",
+            "type": "number"
+          },
+          "styleName": {
+            "description": "Paragraph style name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "styleName"
+        ],
+        "type": "object"
+      },
+      "name": "apply_paragraph_style"
+    },
+    {
+      "description": "Clear all session data including page dimensions and document information",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "clear_session"
+    },
+    {
+      "description": "Close a document only when the target is unambiguous. Modified documents require allowDiscard.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "allowDiscard": {
+            "default": false,
+            "description": "Explicitly discard unsaved changes when closing the target document",
+            "type": "boolean"
+          },
+          "expectedDocumentName": {
+            "description": "Optional document name to close when multiple documents are open",
+            "type": "string"
+          },
+          "forceActiveDocument": {
+            "default": false,
+            "description": "Explicitly close the active document even when multiple documents are open",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "close_document"
+    },
+    {
+      "description": "Create a character style",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "bold": {
+            "default": false,
+            "description": "Bold text",
+            "type": "boolean"
+          },
+          "fontFamily": {
+            "default": "Arial\\tRegular",
+            "description": "Font family (use format: FontName\\tStyle)",
+            "type": "string"
+          },
+          "fontSize": {
+            "default": 12,
+            "description": "Font size in points",
+            "type": "number"
+          },
+          "italic": {
+            "default": false,
+            "description": "Italic text",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Style name",
+            "type": "string"
+          },
+          "textColor": {
+            "default": "Black",
+            "description": "Text color",
+            "type": "string"
+          },
+          "underline": {
+            "default": false,
+            "description": "Underline text",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "create_character_style"
+    },
+    {
+      "description": "Create a color swatch",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "blue": {
+            "description": "Blue value (0-255)",
+            "type": "number"
+          },
+          "colorType": {
+            "default": "PROCESS",
+            "enum": [
+              "PROCESS",
+              "SPOT"
+            ],
+            "type": "string"
+          },
+          "green": {
+            "description": "Green value (0-255)",
+            "type": "number"
+          },
+          "name": {
+            "description": "Swatch name",
+            "type": "string"
+          },
+          "red": {
+            "description": "Red value (0-255)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "red",
+          "green",
+          "blue"
+        ],
+        "type": "object"
+      },
+      "name": "create_color_swatch"
+    },
+    {
+      "description": "Create a new document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "bleedBottom": {
+            "default": 3,
+            "description": "Bottom bleed in mm",
+            "type": "number"
+          },
+          "bleedInside": {
+            "default": 3,
+            "description": "Inside bleed in mm",
+            "type": "number"
+          },
+          "bleedOutside": {
+            "default": 3,
+            "description": "Outside bleed in mm",
+            "type": "number"
+          },
+          "bleedTop": {
+            "default": 3,
+            "description": "Top bleed in mm",
+            "type": "number"
+          },
+          "facingPages": {
+            "default": false,
+            "description": "Enable facing pages",
+            "type": "boolean"
+          },
+          "height": {
+            "default": 297,
+            "description": "Document height in mm",
+            "type": "number"
+          },
+          "marginBottom": {
+            "default": 20,
+            "description": "Bottom margin in mm",
+            "type": "number"
+          },
+          "marginLeft": {
+            "default": 20,
+            "description": "Left margin in mm",
+            "type": "number"
+          },
+          "marginRight": {
+            "default": 20,
+            "description": "Right margin in mm",
+            "type": "number"
+          },
+          "marginTop": {
+            "default": 20,
+            "description": "Top margin in mm",
+            "type": "number"
+          },
+          "pageOrientation": {
+            "default": "PORTRAIT",
+            "enum": [
+              "PORTRAIT",
+              "LANDSCAPE"
+            ],
+            "type": "string"
+          },
+          "pages": {
+            "default": 1,
+            "description": "Number of pages",
+            "type": "number"
+          },
+          "width": {
+            "default": 210,
+            "description": "Document width in mm",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "create_document"
+    },
+    {
+      "description": "Create a hyperlink in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "description": "URL or destination",
+            "type": "string"
+          },
+          "linkType": {
+            "default": "URL",
+            "description": "Type of hyperlink",
+            "enum": [
+              "URL",
+              "PAGE",
+              "TEXT"
+            ],
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Target page index (for page links)",
+            "type": "number"
+          },
+          "sourceText": {
+            "description": "Text to link",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceText",
+          "destination"
+        ],
+        "type": "object"
+      },
+      "name": "create_document_hyperlink"
+    },
+    {
+      "description": "Create a new section in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "numberingStyle": {
+            "default": "ARABIC",
+            "description": "Numbering style",
+            "enum": [
+              "ARABIC",
+              "ROMAN_UPPER",
+              "ROMAN_LOWER",
+              "LETTER_UPPER",
+              "LETTER_LOWER"
+            ],
+            "type": "string"
+          },
+          "sectionPrefix": {
+            "description": "Section prefix",
+            "type": "string"
+          },
+          "startNumber": {
+            "default": 1,
+            "description": "Starting page number",
+            "type": "number"
+          },
+          "startPage": {
+            "description": "Page to start section on",
+            "type": "number"
+          }
+        },
+        "required": [
+          "startPage"
+        ],
+        "type": "object"
+      },
+      "name": "create_document_section"
+    },
+    {
+      "description": "Create an ellipse on the active page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "fillColor": {
+            "description": "Fill color (RGB hex or swatch name)",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "strokeColor": {
+            "description": "Stroke color",
+            "type": "string"
+          },
+          "strokeWidth": {
+            "default": 1,
+            "description": "Stroke width in points",
+            "type": "number"
+          },
+          "width": {
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "name": "create_ellipse"
+    },
+    {
+      "description": "Create a group from currently selected items",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Index of the page where the group will be created",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "create_group"
+    },
+    {
+      "description": "Create a group from specific page items by their indices",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndices": {
+            "description": "Array of item indices to group together",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the items",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndices"
+        ],
+        "type": "object"
+      },
+      "name": "create_group_from_items"
+    },
+    {
+      "description": "Create a new layer",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "default": "BLUE",
+            "description": "Layer color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "locked": {
+            "default": false,
+            "description": "Layer locked state",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Layer name",
+            "type": "string"
+          },
+          "visible": {
+            "default": true,
+            "description": "Layer visibility",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "create_layer"
+    },
+    {
+      "description": "Create guides on a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "columnGutter": {
+            "default": 5,
+            "description": "Column gutter in mm",
+            "type": "number"
+          },
+          "fitMargins": {
+            "default": true,
+            "description": "Fit guides to margins",
+            "type": "boolean"
+          },
+          "guideColor": {
+            "default": "BLUE",
+            "description": "Guide color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "layerName": {
+            "description": "Layer name to create guides on",
+            "type": "string"
+          },
+          "masterName": {
+            "description": "Master spread name",
+            "type": "string"
+          },
+          "numberOfColumns": {
+            "default": 0,
+            "description": "Number of columns",
+            "type": "number"
+          },
+          "numberOfRows": {
+            "default": 0,
+            "description": "Number of rows",
+            "type": "number"
+          },
+          "removeExisting": {
+            "default": false,
+            "description": "Remove existing guides",
+            "type": "boolean"
+          },
+          "rowGutter": {
+            "default": 5,
+            "description": "Row gutter in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "masterName"
+        ],
+        "type": "object"
+      },
+      "name": "create_master_guides"
+    },
+    {
+      "description": "Create a rectangle on a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cornerRadius": {
+            "default": 0,
+            "description": "Corner radius in mm",
+            "type": "number"
+          },
+          "fillColor": {
+            "description": "Fill color (RGB hex or swatch name)",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "masterName": {
+            "description": "Master spread name",
+            "type": "string"
+          },
+          "strokeColor": {
+            "description": "Stroke color",
+            "type": "string"
+          },
+          "strokeWidth": {
+            "default": 1,
+            "description": "Stroke width in points",
+            "type": "number"
+          },
+          "width": {
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "masterName",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "name": "create_master_rectangle"
+    },
+    {
+      "description": "Create a new master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "baseName": {
+            "description": "Base name for the master spread",
+            "type": "string"
+          },
+          "name": {
+            "description": "Master spread name",
+            "type": "string"
+          },
+          "namePrefix": {
+            "description": "Name prefix for the master spread",
+            "type": "string"
+          },
+          "pageColor": {
+            "description": "Page color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "showMasterItems": {
+            "default": true,
+            "description": "Show master items on document pages",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "create_master_spread"
+    },
+    {
+      "description": "Create a text frame on a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "default": "LEFT_ALIGN",
+            "enum": [
+              "LEFT_ALIGN",
+              "CENTER_ALIGN",
+              "RIGHT_ALIGN",
+              "JUSTIFY"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "description": "Text content for the frame",
+            "type": "string"
+          },
+          "fontFamily": {
+            "default": "Helvetica Neue",
+            "description": "Font family name",
+            "type": "string"
+          },
+          "fontSize": {
+            "default": 12,
+            "description": "Font size in points",
+            "type": "number"
+          },
+          "height": {
+            "default": 50,
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "isPrimaryTextFrame": {
+            "default": false,
+            "description": "Set as primary text frame",
+            "type": "boolean"
+          },
+          "masterName": {
+            "description": "Master spread name",
+            "type": "string"
+          },
+          "textColor": {
+            "default": "Black",
+            "description": "Text color (RGB hex or name)",
+            "type": "string"
+          },
+          "width": {
+            "default": 100,
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "masterName",
+          "content"
+        ],
+        "type": "object"
+      },
+      "name": "create_master_text_frame"
+    },
+    {
+      "description": "Create an object style for consistent formatting",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cornerRadius": {
+            "default": 0,
+            "description": "Corner radius in mm",
+            "type": "number"
+          },
+          "fillColor": {
+            "description": "Fill color (swatch name)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Object style name",
+            "type": "string"
+          },
+          "strokeColor": {
+            "description": "Stroke color (swatch name)",
+            "type": "string"
+          },
+          "strokeWeight": {
+            "default": 1,
+            "description": "Stroke weight in points",
+            "type": "number"
+          },
+          "transparency": {
+            "default": 100,
+            "description": "Transparency percentage (0-100)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "create_object_style"
+    },
+    {
+      "description": "Create guides on a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "columnGutter": {
+            "default": 5,
+            "description": "Column gutter in mm",
+            "type": "number"
+          },
+          "fitMargins": {
+            "default": true,
+            "description": "Fit guides to margins",
+            "type": "boolean"
+          },
+          "guideColor": {
+            "default": "BLUE",
+            "description": "Guide color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "layerName": {
+            "description": "Layer name to create guides on",
+            "type": "string"
+          },
+          "numberOfColumns": {
+            "default": 0,
+            "description": "Number of columns",
+            "type": "number"
+          },
+          "numberOfRows": {
+            "default": 0,
+            "description": "Number of rows",
+            "type": "number"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "removeExisting": {
+            "default": false,
+            "description": "Remove existing guides",
+            "type": "boolean"
+          },
+          "rowGutter": {
+            "default": 5,
+            "description": "Row gutter in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "create_page_guides"
+    },
+    {
+      "description": "Create a paragraph style",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "default": "LEFT_ALIGN",
+            "enum": [
+              "LEFT_ALIGN",
+              "CENTER_ALIGN",
+              "RIGHT_ALIGN",
+              "JUSTIFY"
+            ],
+            "type": "string"
+          },
+          "fontFamily": {
+            "default": "Arial\\tRegular",
+            "description": "Font family (use format: FontName\\tStyle)",
+            "type": "string"
+          },
+          "fontSize": {
+            "default": 12,
+            "description": "Font size in points",
+            "type": "number"
+          },
+          "leading": {
+            "description": "Line spacing in points",
+            "type": "number"
+          },
+          "name": {
+            "description": "Style name",
+            "type": "string"
+          },
+          "spaceAfter": {
+            "description": "Space after paragraph in points",
+            "type": "number"
+          },
+          "spaceBefore": {
+            "description": "Space before paragraph in points",
+            "type": "number"
+          },
+          "textColor": {
+            "default": "Black",
+            "description": "Text color",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "create_paragraph_style"
+    },
+    {
+      "description": "Create a polygon on the active page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "fillColor": {
+            "description": "Fill color (RGB hex or swatch name)",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "sides": {
+            "default": 6,
+            "description": "Number of sides",
+            "type": "number"
+          },
+          "strokeColor": {
+            "description": "Stroke color",
+            "type": "string"
+          },
+          "strokeWidth": {
+            "default": 1,
+            "description": "Stroke width in points",
+            "type": "number"
+          },
+          "width": {
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "name": "create_polygon"
+    },
+    {
+      "description": "Create a rectangle on the active page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "cornerRadius": {
+            "default": 0,
+            "description": "Corner radius in mm",
+            "type": "number"
+          },
+          "fillColor": {
+            "description": "Fill color (RGB hex or swatch name)",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "strokeColor": {
+            "description": "Stroke color",
+            "type": "string"
+          },
+          "strokeWidth": {
+            "default": 1,
+            "description": "Stroke width in points",
+            "type": "number"
+          },
+          "width": {
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "name": "create_rectangle"
+    },
+    {
+      "description": "Create guides on a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "columnGutter": {
+            "default": 5,
+            "description": "Column gutter in mm",
+            "type": "number"
+          },
+          "fitMargins": {
+            "default": true,
+            "description": "Fit guides to margins",
+            "type": "boolean"
+          },
+          "guideColor": {
+            "default": "BLUE",
+            "description": "Guide color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "layerName": {
+            "description": "Layer name to create guides on",
+            "type": "string"
+          },
+          "numberOfColumns": {
+            "default": 0,
+            "description": "Number of columns",
+            "type": "number"
+          },
+          "numberOfRows": {
+            "default": 0,
+            "description": "Number of rows",
+            "type": "number"
+          },
+          "removeExisting": {
+            "default": false,
+            "description": "Remove existing guides",
+            "type": "boolean"
+          },
+          "rowGutter": {
+            "default": 5,
+            "description": "Row gutter in mm",
+            "type": "number"
+          },
+          "spreadIndex": {
+            "description": "Spread index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "create_spread_guides"
+    },
+    {
+      "description": "Create a table on the active page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "default": 3,
+            "description": "Number of columns",
+            "type": "number"
+          },
+          "headerColumns": {
+            "default": 0,
+            "description": "Number of header columns",
+            "type": "number"
+          },
+          "headerRows": {
+            "default": 1,
+            "description": "Number of header rows",
+            "type": "number"
+          },
+          "height": {
+            "description": "Table height in mm",
+            "type": "number"
+          },
+          "rows": {
+            "default": 3,
+            "description": "Number of rows",
+            "type": "number"
+          },
+          "width": {
+            "description": "Table width in mm",
+            "type": "number"
+          },
+          "x": {
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rows",
+          "columns"
+        ],
+        "type": "object"
+      },
+      "name": "create_table"
+    },
+    {
+      "description": "Create a text frame on the active page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "default": "LEFT",
+            "enum": [
+              "LEFT",
+              "CENTER",
+              "RIGHT",
+              "JUSTIFY"
+            ],
+            "type": "string"
+          },
+          "characterStyle": {
+            "description": "Character style name to apply during creation",
+            "type": "string"
+          },
+          "content": {
+            "description": "Text content for the frame",
+            "type": "string"
+          },
+          "fontName": {
+            "default": "Arial\\tRegular",
+            "description": "Font name (use format: FontName\\tStyle)",
+            "type": "string"
+          },
+          "fontSize": {
+            "default": 12,
+            "description": "Font size in points",
+            "type": "number"
+          },
+          "height": {
+            "default": 50,
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "paragraphStyle": {
+            "description": "Paragraph style name to apply during creation",
+            "type": "string"
+          },
+          "textColor": {
+            "default": "Black",
+            "description": "Text color (RGB hex or name)",
+            "type": "string"
+          },
+          "width": {
+            "default": 100,
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
+      "name": "create_text_frame"
+    },
+    {
+      "description": "Delete all layout snapshots for a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "delete_all_page_layout_snapshots"
+    },
+    {
+      "description": "Delete a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "masterIndex": {
+            "description": "Master spread index to delete",
+            "type": "number"
+          },
+          "name": {
+            "description": "Master spread name to delete",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "delete_master_spread"
+    },
+    {
+      "description": "Delete a page from the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Index of the page to delete",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "delete_page"
+    },
+    {
+      "description": "Delete a page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Index of the page item to delete",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "delete_page_item"
+    },
+    {
+      "description": "Delete the layout snapshot for a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "delete_page_layout_snapshot"
+    },
+    {
+      "description": "Delete a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "spreadIndex": {
+            "description": "Spread index to delete",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "delete_spread"
+    },
+    {
+      "description": "Detach master page items from a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Master item index to detach (optional, detaches all if not specified)",
+            "type": "number"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "detach_master_items"
+    },
+    {
+      "description": "Duplicate a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "masterIndex": {
+            "description": "Master spread index to duplicate",
+            "type": "number"
+          },
+          "name": {
+            "description": "Master spread name to duplicate",
+            "type": "string"
+          },
+          "newName": {
+            "description": "Name for the duplicated master spread",
+            "type": "string"
+          },
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referenceMaster": {
+            "description": "Reference master spread index for BEFORE/AFTER placement",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "newName"
+        ],
+        "type": "object"
+      },
+      "name": "duplicate_master_spread"
+    },
+    {
+      "description": "Duplicate a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index to duplicate",
+            "type": "number"
+          },
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referencePageIndex": {
+            "description": "Reference page index (for BEFORE/AFTER positioning)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "duplicate_page"
+    },
+    {
+      "description": "Duplicate a page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Index of the page item to duplicate",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          },
+          "x": {
+            "description": "X coordinate for the duplicate",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y coordinate for the duplicate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex",
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "name": "duplicate_page_item"
+    },
+    {
+      "description": "Duplicate a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referenceSpreadIndex": {
+            "description": "Reference spread index (for BEFORE/AFTER positioning)",
+            "type": "number"
+          },
+          "spreadIndex": {
+            "description": "Spread index to duplicate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "duplicate_spread"
+    },
+    {
+      "description": "Edit an existing text frame",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "alignment": {
+            "enum": [
+              "LEFT",
+              "CENTER",
+              "RIGHT",
+              "JUSTIFY"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "description": "New text content",
+            "type": "string"
+          },
+          "fontName": {
+            "description": "Font name",
+            "type": "string"
+          },
+          "fontSize": {
+            "description": "Font size in points",
+            "type": "number"
+          },
+          "frameIndex": {
+            "description": "Index of the text frame to edit",
+            "type": "number"
+          },
+          "textColor": {
+            "description": "Text color (RGB hex or name)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frameIndex"
+        ],
+        "type": "object"
+      },
+      "name": "edit_text_frame"
+    },
+    {
+      "description": "Execute custom InDesign ExtendScript code",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "ExtendScript code to execute",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "name": "execute_indesign_code"
+    },
+    {
+      "description": "Export document to EPUB",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "Output EPUB file path",
+            "type": "string"
+          },
+          "includeImages": {
+            "default": true,
+            "description": "Include images",
+            "type": "boolean"
+          },
+          "includeStyles": {
+            "default": true,
+            "description": "Include styles",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "export_epub"
+    },
+    {
+      "description": "Export pages as images",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "default": "JPEG",
+            "enum": [
+              "JPEG"
+            ],
+            "type": "string"
+          },
+          "outputPath": {
+            "description": "Output directory path",
+            "type": "string"
+          },
+          "pages": {
+            "default": "all",
+            "description": "Page range (e.g., \"1-5\", \"all\")",
+            "type": "string"
+          },
+          "quality": {
+            "default": 80,
+            "description": "Quality (1-100 for JPEG)",
+            "type": "number"
+          },
+          "resolution": {
+            "default": 300,
+            "description": "Resolution in DPI",
+            "type": "number"
+          }
+        },
+        "required": [
+          "outputPath"
+        ],
+        "type": "object"
+      },
+      "name": "export_images"
+    },
+    {
+      "description": "Export document to PDF",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "Output PDF file path",
+            "type": "string"
+          },
+          "includeBleed": {
+            "default": false,
+            "description": "Include bleed",
+            "type": "boolean"
+          },
+          "includeMarks": {
+            "default": false,
+            "description": "Include printer marks",
+            "type": "boolean"
+          },
+          "pages": {
+            "default": "all",
+            "description": "Page range (e.g., \"1-5\", \"all\")",
+            "type": "string"
+          },
+          "quality": {
+            "default": "PRINT",
+            "enum": [
+              "PRESS",
+              "PRINT",
+              "SCREEN",
+              "DIGITAL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "export_pdf"
+    },
+    {
+      "description": "Find and replace text in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "caseSensitive": {
+            "default": false,
+            "description": "Case sensitive search",
+            "type": "boolean"
+          },
+          "findText": {
+            "description": "Text to find",
+            "type": "string"
+          },
+          "replaceText": {
+            "description": "Text to replace with",
+            "type": "string"
+          },
+          "wholeWord": {
+            "default": false,
+            "description": "Whole word search",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "findText",
+          "replaceText"
+        ],
+        "type": "object"
+      },
+      "name": "find_replace_text"
+    },
+    {
+      "description": "Find text across the entire document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "caseSensitive": {
+            "default": false,
+            "description": "Case sensitive search",
+            "type": "boolean"
+          },
+          "replaceText": {
+            "description": "Text to replace with (optional)",
+            "type": "string"
+          },
+          "searchText": {
+            "description": "Text to search for",
+            "type": "string"
+          },
+          "useRegex": {
+            "default": false,
+            "description": "Use regular expressions",
+            "type": "boolean"
+          },
+          "wholeWord": {
+            "default": false,
+            "description": "Whole word search",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "searchText"
+        ],
+        "type": "object"
+      },
+      "name": "find_text_in_document"
+    },
+    {
+      "description": "Get all colors and swatches in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "includeGradients": {
+            "default": true,
+            "description": "Include gradients",
+            "type": "boolean"
+          },
+          "includeSwatches": {
+            "default": true,
+            "description": "Include swatches",
+            "type": "boolean"
+          },
+          "includeTints": {
+            "default": true,
+            "description": "Include tints",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_colors"
+    },
+    {
+      "description": "Get all elements in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "elementType": {
+            "default": "all",
+            "description": "Type of elements to get (e.g., \"all\", \"text\", \"graphics\", \"tables\")",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_elements"
+    },
+    {
+      "description": "Get comprehensive grid settings for the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_document_grid_settings"
+    },
+    {
+      "description": "Get all hyperlinks in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "includeDestinations": {
+            "default": true,
+            "description": "Include link destinations",
+            "type": "boolean"
+          },
+          "includeSources": {
+            "default": true,
+            "description": "Include link sources",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_hyperlinks"
+    },
+    {
+      "description": "Get information about the active document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_document_info"
+    },
+    {
+      "description": "Get all layers in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "includeHidden": {
+            "default": true,
+            "description": "Include hidden layers",
+            "type": "boolean"
+          },
+          "includeLocked": {
+            "default": true,
+            "description": "Include locked layers",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_layers"
+    },
+    {
+      "description": "Get layout preferences and settings for the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_document_layout_preferences"
+    },
+    {
+      "description": "Get document preferences and settings",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "preferenceType": {
+            "default": "GENERAL",
+            "description": "Type of preferences to get",
+            "enum": [
+              "GENERAL",
+              "GRID",
+              "GUIDES",
+              "HYPHENATION",
+              "STORY",
+              "TEXT",
+              "VIEW"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_preferences"
+    },
+    {
+      "description": "Get all sections in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_document_sections"
+    },
+    {
+      "description": "Get all stories in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "includeHidden": {
+            "default": false,
+            "description": "Include hidden text",
+            "type": "boolean"
+          },
+          "includeOverset": {
+            "default": true,
+            "description": "Include overset text",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_stories"
+    },
+    {
+      "description": "Get all styles in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "styleType": {
+            "default": "PARAGRAPH",
+            "description": "Type of styles to get",
+            "enum": [
+              "PARAGRAPH",
+              "CHARACTER",
+              "OBJECT",
+              "TABLE",
+              "CELL"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_document_styles"
+    },
+    {
+      "description": "Get detailed information about a group",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "groupIndex": {
+            "description": "Index of the group to get info for",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the group",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "groupIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_group_info"
+    },
+    {
+      "description": "Get detailed information about an image",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "default": 0,
+            "description": "Image index",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_image_info"
+    },
+    {
+      "description": "Get detailed information about a master spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "masterIndex": {
+            "description": "Master spread index",
+            "type": "number"
+          },
+          "name": {
+            "description": "Master spread name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "get_master_spread_info"
+    },
+    {
+      "description": "Get a summary of content on a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_page_content_summary"
+    },
+    {
+      "description": "Get detailed information about a specific page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index (0-based)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_page_info"
+    },
+    {
+      "description": "Get detailed information about a specific page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Index of the page item to get info for",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_page_item_info"
+    },
+    {
+      "description": "Read script labels from page items using selection or explicit identifiers",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "When mode=PAGE_ITEM, index of the page item (zero-based)",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "CURRENT_SELECTION",
+            "description": "Selection mode: current selection, page/item indices, page number and object id, or sweep all labelled items",
+            "enum": [
+              "CURRENT_SELECTION",
+              "PAGE_ITEM",
+              "PAGE_NUMBER_AND_OBJECT_ID",
+              "ALL_WITH_LABELS"
+            ],
+            "type": "string"
+          },
+          "objectId": {
+            "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, InDesign object id of the page item",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "When mode=PAGE_ITEM, index of the page containing the item (zero-based)",
+            "type": "integer"
+          },
+          "pageNumber": {
+            "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, page number using documentOffset+1",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_page_item_script_labels"
+    },
+    {
+      "description": "Get current session information including page dimensions and active document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_session_info"
+    },
+    {
+      "description": "Get a summary of content on a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "spreadIndex": {
+            "description": "Spread index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_spread_content_summary"
+    },
+    {
+      "description": "Get detailed information about a specific spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "spreadIndex": {
+            "description": "Spread index (0-based)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "get_spread_info"
+    },
+    {
+      "description": "Get help information about available tools and their usage",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "default": "all",
+            "description": "Category of tools to list (optional)",
+            "enum": [
+              "document",
+              "page",
+              "text",
+              "graphics",
+              "styles",
+              "layout",
+              "export",
+              "all"
+            ],
+            "type": "string"
+          },
+          "format": {
+            "default": "summary",
+            "description": "Output format",
+            "enum": [
+              "summary",
+              "detailed",
+              "examples"
+            ],
+            "type": "string"
+          },
+          "tool": {
+            "default": null,
+            "description": "Specific tool name to get help for (optional)",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "help"
+    },
+    {
+      "description": "List all color swatches",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_color_swatches"
+    },
+    {
+      "description": "List all groups on a specific page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Index of the page to list groups from",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "list_groups"
+    },
+    {
+      "description": "List all layers in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_layers"
+    },
+    {
+      "description": "List all master spreads in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_master_spreads"
+    },
+    {
+      "description": "List all object styles in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_object_styles"
+    },
+    {
+      "description": "List all page items on a specific page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Index of the page to list items from",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "list_page_items"
+    },
+    {
+      "description": "List all spreads in the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_spreads"
+    },
+    {
+      "description": "List all paragraph and character styles",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "styleType": {
+            "default": "ALL",
+            "enum": [
+              "PARAGRAPH",
+              "CHARACTER",
+              "ALL"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_styles"
+    },
+    {
+      "description": "Move a page to a different position",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "binding": {
+            "default": "DEFAULT_VALUE",
+            "enum": [
+              "DEFAULT_VALUE",
+              "LEFT_ALIGN",
+              "RIGHT_ALIGN"
+            ],
+            "type": "string"
+          },
+          "newPosition": {
+            "description": "LocationOptions value used by the current handler",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Page index to move",
+            "type": "number"
+          },
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referencePageIndex": {
+            "description": "Reference page index (for BEFORE/AFTER positioning)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "move_page"
+    },
+    {
+      "description": "Move a page item to a new position",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Index of the page item to move",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          },
+          "x": {
+            "description": "New X coordinate",
+            "type": "number"
+          },
+          "y": {
+            "description": "New Y coordinate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex",
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "name": "move_page_item"
+    },
+    {
+      "description": "Move a spread to a different position",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "default": "AT_END",
+            "enum": [
+              "AT_END",
+              "AT_BEGINNING",
+              "BEFORE",
+              "AFTER"
+            ],
+            "type": "string"
+          },
+          "referenceSpreadIndex": {
+            "description": "Reference spread index (for BEFORE/AFTER positioning)",
+            "type": "number"
+          },
+          "spreadIndex": {
+            "description": "Spread index to move",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "move_spread"
+    },
+    {
+      "description": "Navigate to a specific page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index to navigate to",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "navigate_to_page"
+    },
+    {
+      "description": "Open an existing document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "Path to the document file",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "open_document"
+    },
+    {
+      "description": "Organize and clean up document layers",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "deleteEmptyLayers": {
+            "default": false,
+            "description": "Delete empty layers",
+            "type": "boolean"
+          },
+          "mergeSimilarLayers": {
+            "default": false,
+            "description": "Merge layers with similar names",
+            "type": "boolean"
+          },
+          "sortLayers": {
+            "default": false,
+            "description": "Sort layers alphabetically",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "organize_document_layers"
+    },
+    {
+      "description": "Package document for printing",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "includeFonts": {
+            "default": true,
+            "description": "Include fonts",
+            "type": "boolean"
+          },
+          "includeLinks": {
+            "default": true,
+            "description": "Include linked files",
+            "type": "boolean"
+          },
+          "includeProfiles": {
+            "default": true,
+            "description": "Include color profiles",
+            "type": "boolean"
+          },
+          "outputPath": {
+            "description": "Output directory path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outputPath"
+        ],
+        "type": "object"
+      },
+      "name": "package_document"
+    },
+    {
+      "description": "Place a file on a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "autoflowing": {
+            "default": false,
+            "description": "Autoflow placed text",
+            "type": "boolean"
+          },
+          "filePath": {
+            "description": "Path to file to place",
+            "type": "string"
+          },
+          "layerName": {
+            "description": "Layer name to place on",
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "showingOptions": {
+            "default": false,
+            "description": "Show import options dialog",
+            "type": "boolean"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "place_file_on_page"
+    },
+    {
+      "description": "Place a file on a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "autoflowing": {
+            "default": false,
+            "description": "Autoflow placed text",
+            "type": "boolean"
+          },
+          "filePath": {
+            "description": "Path to file to place",
+            "type": "string"
+          },
+          "layerName": {
+            "description": "Layer name to place on",
+            "type": "string"
+          },
+          "pageIndexWithinSpread": {
+            "default": 0,
+            "description": "Page index within the spread (0-based)",
+            "type": "number"
+          },
+          "showingOptions": {
+            "default": false,
+            "description": "Show import options dialog",
+            "type": "boolean"
+          },
+          "spreadIndex": {
+            "description": "Spread index",
+            "type": "number"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex",
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "place_file_on_spread"
+    },
+    {
+      "description": "Place an image on the active page with scaling and fitting options",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "Path to the image file",
+            "type": "string"
+          },
+          "fitMode": {
+            "default": "PROPORTIONALLY",
+            "description": "Image fitting mode",
+            "enum": [
+              "PROPORTIONALLY",
+              "FILL_FRAME",
+              "FIT_CONTENT",
+              "FIT_FRAME"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "description": "Height in mm",
+            "type": "number"
+          },
+          "linkImage": {
+            "default": true,
+            "description": "Link the image",
+            "type": "boolean"
+          },
+          "scale": {
+            "default": 100,
+            "description": "Scale percentage (1-1000)",
+            "type": "number"
+          },
+          "width": {
+            "description": "Width in mm",
+            "type": "number"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "place_image"
+    },
+    {
+      "description": "Place XML content on a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "autoflowing": {
+            "default": false,
+            "description": "Autoflow placed text",
+            "type": "boolean"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "x": {
+            "default": 10,
+            "description": "X position in mm",
+            "type": "number"
+          },
+          "xmlElementName": {
+            "description": "XML element name to place",
+            "type": "string"
+          },
+          "y": {
+            "default": 10,
+            "description": "Y position in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "xmlElementName"
+        ],
+        "type": "object"
+      },
+      "name": "place_xml_on_page"
+    },
+    {
+      "description": "Populate a table with data",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "description": "Array of arrays containing table data",
+            "type": "array"
+          },
+          "startColumn": {
+            "default": 0,
+            "description": "Starting column index",
+            "type": "number"
+          },
+          "startRow": {
+            "default": 0,
+            "description": "Starting row index",
+            "type": "number"
+          },
+          "tableIndex": {
+            "default": 0,
+            "description": "Table index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "name": "populate_table"
+    },
+    {
+      "description": "Reframe (resize) a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "coordinateSpace": {
+            "default": "PAGE_COORDINATES",
+            "enum": [
+              "PAGE_COORDINATES",
+              "SPREAD_COORDINATES",
+              "PASTEBOARD_COORDINATES"
+            ],
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "x1": {
+            "description": "Top-left X coordinate in mm",
+            "type": "number"
+          },
+          "x2": {
+            "description": "Bottom-right X coordinate in mm",
+            "type": "number"
+          },
+          "y1": {
+            "description": "Top-left Y coordinate in mm",
+            "type": "number"
+          },
+          "y2": {
+            "description": "Bottom-right Y coordinate in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "type": "object"
+      },
+      "name": "reframe_page"
+    },
+    {
+      "description": "Remove a page item from a group",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "groupIndex": {
+            "description": "Index of the group to remove the item from",
+            "type": "integer"
+          },
+          "itemIndex": {
+            "description": "Index of the item within the group to remove",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the group",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "groupIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "remove_item_from_group"
+    },
+    {
+      "description": "Remove override from a master page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "Master item index to remove override from",
+            "type": "number"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "remove_master_override"
+    },
+    {
+      "description": "Resize a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "anchorPoint": {
+            "default": "CENTER_ANCHOR",
+            "enum": [
+              "TOP_LEFT_ANCHOR",
+              "TOP_CENTER_ANCHOR",
+              "TOP_RIGHT_ANCHOR",
+              "LEFT_CENTER_ANCHOR",
+              "CENTER_ANCHOR",
+              "RIGHT_CENTER_ANCHOR",
+              "BOTTOM_LEFT_ANCHOR",
+              "BOTTOM_CENTER_ANCHOR",
+              "BOTTOM_RIGHT_ANCHOR"
+            ],
+            "type": "string"
+          },
+          "coordinateSpace": {
+            "default": "PAGE_COORDINATES",
+            "enum": [
+              "PAGE_COORDINATES",
+              "SPREAD_COORDINATES",
+              "PASTEBOARD_COORDINATES"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "description": "New height in mm",
+            "type": "number"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "resizeMethod": {
+            "default": "REPLACING_CURRENT_DIMENSIONS_WITH",
+            "enum": [
+              "REPLACING_CURRENT_DIMENSIONS_WITH",
+              "MULTIPLYING_CURRENT_DIMENSIONS_BY",
+              "ADDING_CURRENT_DIMENSIONS_TO",
+              "RESHAPING_AREA_TO_RATIO",
+              "RESHAPING_BORDER_TO_RATIO"
+            ],
+            "type": "string"
+          },
+          "width": {
+            "description": "New width in mm",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "resize_page"
+    },
+    {
+      "description": "Resize a page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "anchorPoint": {
+            "default": "CENTER_ANCHOR",
+            "description": "Anchor point for resizing",
+            "enum": [
+              "CENTER_ANCHOR",
+              "TOP_LEFT_ANCHOR",
+              "TOP_CENTER_ANCHOR",
+              "TOP_RIGHT_ANCHOR",
+              "LEFT_CENTER_ANCHOR",
+              "RIGHT_CENTER_ANCHOR",
+              "BOTTOM_LEFT_ANCHOR",
+              "BOTTOM_CENTER_ANCHOR",
+              "BOTTOM_RIGHT_ANCHOR"
+            ],
+            "type": "string"
+          },
+          "height": {
+            "description": "New height",
+            "type": "number"
+          },
+          "itemIndex": {
+            "description": "Index of the page item to resize",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          },
+          "width": {
+            "description": "New width",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "name": "resize_page_item"
+    },
+    {
+      "description": "Save the active document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "filePath": {
+            "description": "Path where to save the document",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "type": "object"
+      },
+      "name": "save_document"
+    },
+    {
+      "description": "Select a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "selectionMode": {
+            "default": "REPLACE_WITH",
+            "enum": [
+              "REPLACE_WITH",
+              "ADD_TO",
+              "REMOVE_FROM"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "select_page"
+    },
+    {
+      "description": "Select a specific page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "existingSelection": {
+            "default": "REPLACE_WITH",
+            "description": "How to handle existing selection",
+            "enum": [
+              "REPLACE_WITH",
+              "ADD_TO",
+              "REMOVE_FROM"
+            ],
+            "type": "string"
+          },
+          "itemIndex": {
+            "description": "Index of the page item to select",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "select_page_item"
+    },
+    {
+      "description": "Select a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "selectionMode": {
+            "default": "REPLACE_WITH",
+            "enum": [
+              "REPLACE_WITH",
+              "ADD_TO",
+              "REMOVE_FROM",
+              "SET_KEY"
+            ],
+            "type": "string"
+          },
+          "spreadIndex": {
+            "description": "Spread index to select",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "select_spread"
+    },
+    {
+      "description": "Set the active layer",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "layerName": {
+            "description": "Layer name to activate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "layerName"
+        ],
+        "type": "object"
+      },
+      "name": "set_active_layer"
+    },
+    {
+      "description": "Set comprehensive grid settings for the document",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "baselineGrid": {
+            "description": "Enable/disable baseline grid",
+            "type": "boolean"
+          },
+          "baselineGridColor": {
+            "description": "Baseline grid color",
+            "type": "string"
+          },
+          "baselineGridIncrement": {
+            "description": "Baseline grid increment (e.g., \"12pt\")",
+            "type": "string"
+          },
+          "baselineGridOffset": {
+            "description": "Baseline grid offset (e.g., \"0pt\")",
+            "type": "string"
+          },
+          "baselineGridViewThreshold": {
+            "description": "Baseline grid view threshold",
+            "type": "number"
+          },
+          "documentGrid": {
+            "description": "Enable/disable document grid",
+            "type": "boolean"
+          },
+          "documentGridColor": {
+            "description": "Document grid color",
+            "type": "string"
+          },
+          "documentGridIncrement": {
+            "description": "Document grid increment (e.g., \"12pt\")",
+            "type": "string"
+          },
+          "documentGridSubdivision": {
+            "description": "Document grid subdivision",
+            "type": "number"
+          },
+          "gridAlignment": {
+            "description": "Grid alignment option",
+            "enum": [
+              "ALIGN_TO_GRID",
+              "ALIGN_TO_BASELINE_GRID",
+              "ALIGN_TO_DOCUMENT_GRID"
+            ],
+            "type": "string"
+          },
+          "gridViewThreshold": {
+            "description": "Grid view threshold",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "set_document_grid_settings"
+    },
+    {
+      "description": "Set layout preferences for the document",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "adjustLayout": {
+            "description": "Enable/disable adjust layout",
+            "type": "boolean"
+          },
+          "adjustLayoutMargins": {
+            "description": "Enable/disable adjust layout margins",
+            "type": "boolean"
+          },
+          "adjustLayoutPageBreaks": {
+            "description": "Enable/disable adjust layout page breaks",
+            "type": "boolean"
+          },
+          "adjustLayoutRules": {
+            "description": "Adjust layout rules",
+            "type": "string"
+          },
+          "alignDistributeBounds": {
+            "description": "Align distribute bounds",
+            "enum": [
+              "ALIGN_TO_SELECTION",
+              "ALIGN_TO_MARGINS",
+              "ALIGN_TO_PAGE"
+            ],
+            "type": "string"
+          },
+          "alignDistributeSpacing": {
+            "description": "Align distribute spacing",
+            "enum": [
+              "DISTRIBUTE_SPACE_BETWEEN",
+              "DISTRIBUTE_SPACE_AROUND"
+            ],
+            "type": "string"
+          },
+          "smartGuidePreferences": {
+            "description": "Enable/disable smart guide preferences",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "set_document_layout_preferences"
+    },
+    {
+      "description": "Set document preferences",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "preferenceType": {
+            "description": "Type of preferences to set",
+            "enum": [
+              "GENERAL",
+              "GRID",
+              "GUIDES",
+              "HYPHENATION",
+              "STORY",
+              "TEXT",
+              "VIEW"
+            ],
+            "type": "string"
+          },
+          "preferences": {
+            "additionalProperties": false,
+            "description": "Preference values to set",
+            "type": "object"
+          }
+        },
+        "required": [
+          "preferenceType",
+          "preferences"
+        ],
+        "type": "object"
+      },
+      "name": "set_document_preferences"
+    },
+    {
+      "description": "Set properties of a group",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "groupIndex": {
+            "description": "Index of the group to modify",
+            "type": "integer"
+          },
+          "locked": {
+            "description": "Whether the group is locked",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Name for the group",
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the group",
+            "type": "integer"
+          },
+          "visible": {
+            "description": "Whether the group is visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "groupIndex"
+        ],
+        "type": "object"
+      },
+      "name": "set_group_properties"
+    },
+    {
+      "description": "Set page background by creating a full-page rectangle with specified color",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "backgroundColor": {
+            "default": "White",
+            "description": "Background color name (must be a color swatch in the document)",
+            "type": "string"
+          },
+          "opacity": {
+            "default": 100,
+            "description": "Background opacity percentage (0-100)",
+            "type": "number"
+          },
+          "pageIndex": {
+            "default": 0,
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "set_page_background"
+    },
+    {
+      "description": "Set properties of a page item",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "fillColor": {
+            "description": "Fill color name",
+            "type": "string"
+          },
+          "itemIndex": {
+            "description": "Index of the page item to modify",
+            "type": "integer"
+          },
+          "locked": {
+            "description": "Whether the item is locked",
+            "type": "boolean"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the item",
+            "type": "integer"
+          },
+          "strokeColor": {
+            "description": "Stroke color name",
+            "type": "string"
+          },
+          "strokeWeight": {
+            "description": "Stroke weight",
+            "type": "number"
+          },
+          "visible": {
+            "description": "Whether the item is visible",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "itemIndex"
+        ],
+        "type": "object"
+      },
+      "name": "set_page_item_properties"
+    },
+    {
+      "description": "Overwrite the script label for targeted page items",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "itemIndex": {
+            "description": "When mode=PAGE_ITEM, index of the page item (zero-based)",
+            "type": "integer"
+          },
+          "label": {
+            "default": "",
+            "description": "Script label to assign; use empty string to clear",
+            "type": "string"
+          },
+          "mode": {
+            "default": "CURRENT_SELECTION",
+            "description": "Selection mode: current selection, page/item indices, or page number plus object id",
+            "enum": [
+              "CURRENT_SELECTION",
+              "PAGE_ITEM",
+              "PAGE_NUMBER_AND_OBJECT_ID"
+            ],
+            "type": "string"
+          },
+          "objectId": {
+            "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, InDesign object id of the page item",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "When mode=PAGE_ITEM, index of the page containing the item (zero-based)",
+            "type": "integer"
+          },
+          "pageNumber": {
+            "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, page number using documentOffset+1",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "type": "object"
+      },
+      "name": "set_page_item_script_label"
+    },
+    {
+      "description": "Set properties for a page",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "appliedTrapPreset": {
+            "description": "Trap preset name to apply",
+            "type": "string"
+          },
+          "label": {
+            "description": "Page label",
+            "type": "string"
+          },
+          "layoutRule": {
+            "description": "Layout rule",
+            "enum": [
+              "GUIDE_BASED",
+              "OBJECT_BASED",
+              "OFF",
+              "PRESERVE_EXISTING",
+              "RECENTER",
+              "SCALE",
+              "USE_MASTER"
+            ],
+            "type": "string"
+          },
+          "optionalPage": {
+            "description": "Optional page for HTML5 pagination",
+            "type": "boolean"
+          },
+          "pageColor": {
+            "description": "Page color (RGB values as comma-separated string or UI color name)",
+            "type": "string"
+          },
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          },
+          "snapshotBlendingMode": {
+            "description": "Snapshot blending mode",
+            "enum": [
+              "FULL_SNAPSHOT_BLENDING",
+              "IGNORE_LAYOUT_SNAPSHOTS",
+              "LIMITED_SNAPSHOT_BLENDING",
+              "USE_NEAREST_SNAPSHOT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "set_page_properties"
+    },
+    {
+      "description": "Set properties for a spread",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "allowPageShuffle": {
+            "description": "Allow page shuffle",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Spread name/label",
+            "type": "string"
+          },
+          "pageTransitionDirection": {
+            "description": "Page transition direction",
+            "enum": [
+              "HORIZONTAL",
+              "VERTICAL",
+              "HORIZONTAL_IN",
+              "HORIZONTAL_OUT",
+              "VERTICAL_IN",
+              "VERTICAL_OUT",
+              "LEFT_TO_RIGHT",
+              "RIGHT_TO_LEFT",
+              "UP",
+              "DOWN",
+              "LEFT_UP",
+              "LEFT_DOWN",
+              "RIGHT_UP",
+              "RIGHT_DOWN",
+              "IN",
+              "OUT",
+              "NOT_APPLICABLE"
+            ],
+            "type": "string"
+          },
+          "pageTransitionDuration": {
+            "description": "Page transition duration",
+            "enum": [
+              "FAST",
+              "MEDIUM",
+              "SLOW"
+            ],
+            "type": "string"
+          },
+          "pageTransitionType": {
+            "description": "Page transition type",
+            "enum": [
+              "NONE",
+              "BLINDS_TRANSITION",
+              "BOX_TRANSITION",
+              "COMB_TRANSITION",
+              "COVER_TRANSITION",
+              "DISSOLVE_TRANSITION",
+              "FADE_TRANSITION",
+              "PUSH_TRANSITION",
+              "SPLIT_TRANSITION",
+              "UNCOVER_TRANSITION",
+              "WIPE_TRANSITION",
+              "ZOOM_IN_TRANSITION",
+              "ZOOM_OUT_TRANSITION"
+            ],
+            "type": "string"
+          },
+          "showMasterItems": {
+            "description": "Show master items",
+            "type": "boolean"
+          },
+          "spreadHidden": {
+            "description": "Hide/show spread",
+            "type": "boolean"
+          },
+          "spreadIndex": {
+            "description": "Spread index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "spreadIndex"
+        ],
+        "type": "object"
+      },
+      "name": "set_spread_properties"
+    },
+    {
+      "description": "Create a snapshot of the current page layout",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "snapshot_page_layout"
+    },
+    {
+      "description": "Ungroup a group, releasing all its items",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "groupIndex": {
+            "description": "Index of the group to ungroup",
+            "type": "integer"
+          },
+          "pageIndex": {
+            "description": "Index of the page containing the group",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pageIndex",
+          "groupIndex"
+        ],
+        "type": "object"
+      },
+      "name": "ungroup"
+    },
+    {
+      "description": "View document information and current state",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "view_document"
+    },
+    {
+      "description": "Zoom to fit page in view",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "pageIndex": {
+            "description": "Page index to zoom to",
+            "type": "number"
+          },
+          "zoomLevel": {
+            "default": 100,
+            "description": "Zoom level (percentage)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageIndex"
+        ],
+        "type": "object"
+      },
+      "name": "zoom_to_page"
+    }
+  ]
+}

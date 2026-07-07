@@ -69,6 +69,7 @@ export const pageToolDefinitions = [
             type: 'object',
             properties: {
                 pageIndex: { type: 'number', description: 'Page index to move' },
+                newPosition: { type: 'string', enum: ['AT_END', 'AT_BEGINNING', 'BEFORE', 'AFTER'], description: 'LocationOptions value used by the current handler' },
                 position: { type: 'string', enum: ['AT_END', 'AT_BEGINNING', 'BEFORE', 'AFTER'], default: 'AT_END' },
                 referencePageIndex: { type: 'number', description: 'Reference page index (for BEFORE/AFTER positioning)' },
                 binding: { type: 'string', enum: ['DEFAULT_VALUE', 'LEFT_ALIGN', 'RIGHT_ALIGN'], default: 'DEFAULT_VALUE' },
@@ -268,4 +269,4 @@ export const pageToolDefinitions = [
             required: [],
         },
     },
-]; 
+];

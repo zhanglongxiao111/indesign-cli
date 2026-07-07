@@ -1,0 +1,13 @@
+{
+  "branch": "refactor/terminal-architecture",
+  "counts": {
+    "advancedListTools": 6,
+    "classicListTools": 114,
+    "cliDiscoverableTools": 150,
+    "schemaNetNewWhitelist": 9,
+    "skips": 1,
+    "toolCallSnapshots": 149
+  },
+  "generatedBy": "scripts/migration/record_golden.mjs",
+  "schemaVersion": 1
+}

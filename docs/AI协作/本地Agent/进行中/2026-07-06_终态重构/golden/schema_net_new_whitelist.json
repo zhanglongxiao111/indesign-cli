@@ -1,0 +1,56 @@
+[
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: preflightDocument destructures profile/includeWarnings; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "preflight_document",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: dataMerge destructures dataSource/targetPage/createNewPages/removeUnusedPages; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "data_merge",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: getDocumentXmlStructure destructures includeTags/includeElements; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "get_document_xml_structure",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: exportDocumentXml destructures filePath/includeImages/includeStyles; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "export_document_xml",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: saveDocumentToCloud destructures cloudName/includeAssets; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "save_document_to_cloud",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: openCloudDocument destructures cloudDocumentId; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "open_cloud_document",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: validateDocument destructures checkLinks/checkFonts/checkImages/checkStyles; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "validate_document",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "document",
+    "evidence": "src/handlers/documentHandlers.js: cleanupDocument destructures removeUnusedStyles/removeUnusedColors/removeUnusedLayers/removeHiddenElements; old commented schema in src/types/toolDefinitionsDocument.js.",
+    "name": "cleanup_document",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  },
+  {
+    "domain": "spread",
+    "evidence": "src/handlers/spreadHandlers.js: placeXmlOnSpread destructures spreadIndex/xmlElementName/x/y/autoflowing/pageIndexWithinSpread.",
+    "name": "place_xml_on_spread",
+    "reason": "current switch-only handler has no CLI/MCP schema; terminal architecture will add schema"
+  }
+]

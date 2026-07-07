@@ -1,0 +1,170 @@
+#!/usr/bin/env python
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "agent-harness"))
+
+from cli_anything.indesign.core.catalog import Catalog, _with_agent_contract  # noqa: E402
+from cli_anything.indesign.core.mcp_backend import McpBackend  # noqa: E402
+
+
+GOLDEN_DIR = (
+    REPO_ROOT
+    / "docs"
+    / "AI协作"
+    / "本地Agent"
+    / "进行中"
+    / "2026-07-06_终态重构"
+    / "golden"
+)
+
+SWITCH_ONLY_TOOLS: dict[str, dict[str, Any]] = {
+    "preflight_document": {"domain": "document", "handler": "DocumentHandlers.preflightDocument"},
+    "data_merge": {"domain": "document", "handler": "DocumentHandlers.dataMerge"},
+    "get_document_xml_structure": {"domain": "document", "handler": "DocumentHandlers.getDocumentXmlStructure"},
+    "export_document_xml": {"domain": "document", "handler": "DocumentHandlers.exportDocumentXml"},
+    "save_document_to_cloud": {"domain": "document", "handler": "DocumentHandlers.saveDocumentToCloud"},
+    "open_cloud_document": {"domain": "document", "handler": "DocumentHandlers.openCloudDocument"},
+    "validate_document": {"domain": "document", "handler": "DocumentHandlers.validateDocument"},
+    "cleanup_document": {"domain": "document", "handler": "DocumentHandlers.cleanupDocument"},
+    "place_xml_on_spread": {"domain": "spread", "handler": "SpreadHandlers.placeXmlOnSpread"},
+}
+
+
+def build_current_node_catalog(timeout_seconds: int) -> list[dict[str, Any]]:
+    classic_tools = McpBackend(REPO_ROOT, "src/index.js", timeout_seconds=timeout_seconds).list_tools()
+    advanced_tools = McpBackend(REPO_ROOT, "src/advanced/index.js", timeout_seconds=timeout_seconds).list_tools()
+    catalog = Catalog(repo_root=REPO_ROOT).with_exposed_tools(
+        classic_tools=classic_tools,
+        advanced_tools=advanced_tools,
+        plugin_tools=[],
+        plugin_domain_summaries={},
+        plugin_records={},
+    )
+    entries = [
+        tool
+        for tool in catalog.list_tools(callable_only=False)
+        if tool.get("source") in {"classic", "advanced", "hidden_handler"}
+    ]
+    existing_names = {tool["name"] for tool in entries}
+    for name, info in SWITCH_ONLY_TOOLS.items():
+        if name in existing_names:
+            continue
+        entries.append(
+            _with_agent_contract(
+                {
+                    "id": f"{info['domain']}.{name}",
+                    "domain": info["domain"],
+                    "name": name,
+                    "one_line_purpose": f"switch-only handler: {info['handler']}",
+                    "arg_names": [],
+                    "source": "switch_only_no_cli_schema",
+                    "rank": 95,
+                    "schema_size": "unknown",
+                    "availability": "hidden_handler",
+                    "callable": False,
+                    "requires": ["indesign_com"],
+                    "side_effects": side_effects(name, info["domain"]),
+                    "artifact_kinds": artifact_kinds(name),
+                    "destructive": any(part in name for part in ("delete", "clear", "close", "cleanup")),
+                    "target_scope": target_scope(info["domain"], name),
+                    "needs_indesign": True,
+                    "produces_artifacts": bool(artifact_kinds(name)),
+                }
+            )
+        )
+    return sorted(entries, key=lambda item: item["id"])
+
+
+def side_effects(tool_name: str, domain: str) -> list[str]:
+    if tool_name.startswith(("get_", "list_", "inspect_", "find_", "search_")):
+        return []
+    if domain == "export" or "export" in tool_name or "package" in tool_name or "save" in tool_name:
+        return ["filesystem_write"]
+    return ["indesign_mutation"]
+
+
+def artifact_kinds(tool_name: str) -> list[str]:
+    lowered = tool_name.lower()
+    kinds: list[str] = []
+    if "pdf" in lowered:
+        kinds.append("pdf")
+    if "idml" in lowered:
+        kinds.append("idml")
+    if "image" in lowered or "png" in lowered or "jpg" in lowered:
+        kinds.append("image")
+    if "epub" in lowered:
+        kinds.append("epub")
+    if "xml" in lowered:
+        kinds.append("xml")
+    return kinds
+
+
+def target_scope(domain: str, tool_name: str) -> str:
+    if domain == "export" or "export" in tool_name or "save" in tool_name:
+        return "filesystem"
+    if "document" in tool_name or domain in {"document", "spread"}:
+        return "active_document"
+    return "indesign"
+
+
+def assert_switch_cases_present() -> None:
+    content = (REPO_ROOT / "src" / "core" / "InDesignMCPServer.js").read_text(encoding="utf-8")
+    cases = set(re.findall(r"case\s+'([^']+)'\s*:", content))
+    missing = sorted(set(SWITCH_ONLY_TOOLS) - cases)
+    if missing:
+        raise RuntimeError(f"switch-only baseline tools missing from InDesignMCPServer.js: {missing}")
+
+
+def baseline_entry(tool: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": tool["id"],
+        "name": tool["name"],
+        "domain": tool["domain"],
+        "source": tool["source"],
+        "side_effects": list(tool.get("side_effects") or []),
+        "destructive": bool(tool.get("destructive", False)),
+        "mutates_document": bool(tool.get("mutates_document", False)),
+        "writes_filesystem": bool(tool.get("writes_filesystem", False)),
+        "needs_indesign": bool(tool.get("needs_indesign", False)),
+        "requires_active_document": bool(tool.get("requires_active_document", False)),
+    }
+
+
+def write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Export terminal architecture contract baseline.")
+    parser.add_argument("--output", default=str(GOLDEN_DIR / "contract_baseline.json"))
+    parser.add_argument("--timeout-seconds", type=int, default=30)
+    args = parser.parse_args()
+
+    assert_switch_cases_present()
+    entries = [baseline_entry(tool) for tool in build_current_node_catalog(args.timeout_seconds)]
+    payload = {
+        "schema_version": 1,
+        "generated_by": "scripts/migration/contract_baseline.py",
+        "expected_node_backed_count": 150,
+        "count": len(entries),
+        "entries": entries,
+    }
+    if len(entries) != 150:
+        payload["warning"] = f"expected 150 Node-backed tools, got {len(entries)}"
+    write_json(Path(args.output), payload)
+    print(json.dumps({"output": args.output, "count": len(entries)}, ensure_ascii=False, sort_keys=True))
+    return 0 if len(entries) == 150 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

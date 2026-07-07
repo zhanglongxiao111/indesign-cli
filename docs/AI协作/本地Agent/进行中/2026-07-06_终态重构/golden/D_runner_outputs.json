@@ -1,0 +1,553 @@
+[
+  {
+    "command": "node tests/real-e2e/run-architecture-presentation.mjs --full --offline --run-id terminal_architecture_golden_architecture_presentation",
+    "exitCode": 0,
+    "id": "architecture_presentation_full_offline",
+    "stderrTail": [],
+    "stdoutJson": {
+      "ok": true,
+      "phases": [
+        {
+          "catalogSummary": {
+            "byDomain": {
+              "book": 15,
+              "document": 25,
+              "export": 5,
+              "graphics": 5,
+              "layer": 3,
+              "master": 10,
+              "object": 5,
+              "page": 34,
+              "presentation": 6,
+              "script": 2,
+              "server": 2,
+              "session": 3,
+              "spread": 10,
+              "style": 11,
+              "template": 5,
+              "text": 6,
+              "tool": 1,
+              "utility": 1
+            },
+            "bySource": {
+              "advanced": 6,
+              "classic": 114,
+              "cli": 7,
+              "hidden_handler": 21,
+              "script": 1
+            },
+            "schemaVersion": 1,
+            "total": 149,
+            "warnings": []
+          },
+          "phase": "inventory"
+        },
+        {
+          "assetReport": {
+            "assets": [
+              {
+                "description": "Waterfront city skyline context image.",
+                "id": "hero-waterfront",
+                "intendedDeckPages": [
+                  1,
+                  2
+                ],
+                "license": "CC0",
+                "relativePath": "photos/hero-waterfront.jpg",
+                "runPath": "assets/photos/hero-waterfront.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jersey_City_skyline,_Exchange_Place_waterfront_at_sunset.jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Industrial building reference image for adaptive reuse pages.",
+                "id": "industrial-site",
+                "intendedDeckPages": [
+                  1,
+                  5
+                ],
+                "license": "CC BY 2.0",
+                "relativePath": "photos/industrial-site.jpg",
+                "runPath": "assets/photos/industrial-site.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Industrial_Building_(54182239356).jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Architecture facade reference for elevation and facade layout tests.",
+                "id": "architecture-facade",
+                "intendedDeckPages": [
+                  3,
+                  6
+                ],
+                "license": "CC0",
+                "relativePath": "photos/architecture-facade.jpg",
+                "runPath": "assets/photos/architecture-facade.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Facade_of_St._John%27s_Co-Cathedral,_Valletta,_Malta.jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Urban skyline and green infrastructure context image.",
+                "id": "urban-site",
+                "intendedDeckPages": [
+                  2,
+                  4
+                ],
+                "license": "Public domain",
+                "relativePath": "photos/urban-site.jpg",
+                "runPath": "assets/photos/urban-site.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Urban_Forestry_(20150916-OSEC-LSC-0268).jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Brick material texture for material palette tests.",
+                "id": "brick-material",
+                "intendedDeckPages": [
+                  6,
+                  7
+                ],
+                "license": "CC0",
+                "relativePath": "photos/brick-material.jpg",
+                "runPath": "assets/photos/brick-material.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brick_wall_texture_image.jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Green roof and landscape image for sustainability pages.",
+                "id": "green-roof",
+                "intendedDeckPages": [
+                  7,
+                  8
+                ],
+                "license": "CC BY-SA 4.0",
+                "relativePath": "photos/green-roof.jpg",
+                "runPath": "assets/photos/green-roof.jpg",
+                "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kingsland_Wildflowers_Green_Roof_top.jpg",
+                "type": "photo"
+              },
+              {
+                "description": "Simplified location map with roads, river, site highlight, north arrow, and legend.",
+                "id": "location-map",
+                "intendedDeckPages": [
+                  2
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/location-map.svg",
+                "runPath": "assets/svg/location-map.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Block masterplan with masses, open space, green spine, and legend.",
+                "id": "masterplan",
+                "intendedDeckPages": [
+                  4
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/masterplan.svg",
+                "runPath": "assets/svg/masterplan.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Ground floor plan with rooms, cores, grid lines, and north arrow.",
+                "id": "floor-01",
+                "intendedDeckPages": [
+                  5
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/floor-01.svg",
+                "runPath": "assets/svg/floor-01.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Upper floor plan with terrace, void, rooms, and egress arrows.",
+                "id": "floor-02",
+                "intendedDeckPages": [
+                  5
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/floor-02.svg",
+                "runPath": "assets/svg/floor-02.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Building section with slabs, atrium, masonry, green roof, and daylight arc.",
+                "id": "section",
+                "intendedDeckPages": [
+                  6
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/section.svg",
+                "runPath": "assets/svg/section.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Sun path diagram testing arcs, fills, labels, and shadows.",
+                "id": "sun-path",
+                "intendedDeckPages": [
+                  7
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/sun-path.svg",
+                "runPath": "assets/svg/sun-path.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Route diagram with pedestrian, bicycle, service, and emergency circulation.",
+                "id": "circulation",
+                "intendedDeckPages": [
+                  4,
+                  8
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/circulation.svg",
+                "runPath": "assets/svg/circulation.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Material palette icons testing patterns, labels, colors, and grouped symbols.",
+                "id": "material-icons",
+                "intendedDeckPages": [
+                  6,
+                  7
+                ],
+                "license": "generated test fixture",
+                "relativePath": "svg/material-icons.svg",
+                "runPath": "assets/svg/material-icons.svg",
+                "sourceUrl": "generated",
+                "type": "svg"
+              },
+              {
+                "description": "Architecture report metrics table for CSV import and table placement tests.",
+                "id": "metrics",
+                "intendedDeckPages": [
+                  3,
+                  8
+                ],
+                "license": "generated test fixture",
+                "relativePath": "data/metrics.csv",
+                "runPath": "assets/data/metrics.csv",
+                "sourceUrl": "generated",
+                "type": "csv"
+              },
+              {
+                "description": "Structured site report data for XML import and tagged text workflows.",
+                "id": "site-data",
+                "intendedDeckPages": [
+                  3,
+                  4,
+                  8
+                ],
+                "license": "generated test fixture",
+                "relativePath": "data/site-data.xml",
+                "runPath": "assets/data/site-data.xml",
+                "sourceUrl": "generated",
+                "type": "xml"
+              }
+            ],
+            "deckBrief": {
+              "missingDeckAssets": [],
+              "pages": 28,
+              "project": "东岸文化中心更新方案"
+            },
+            "mode": "offline",
+            "pathStress": {
+              "image": "assets/路径 测试/滨水 图片.jpg",
+              "xml": "assets/路径 测试/site data 中文.xml"
+            },
+            "schemaVersion": 1,
+            "seedRoot": "D:\\AI\\mcp-indesign\\tests\\real-e2e\\seed-assets"
+          },
+          "phase": "assets"
+        },
+        {
+          "phase": "bootstrap_contract",
+          "status": "passed"
+        },
+        {
+          "auditPath": "reports/main-deck-structure-audit.json",
+          "mainDocumentPath": "D:\\AI\\mcp-indesign\\.indesign-e2e-runs\\terminal_architecture_golden_architecture_presentation\\outputs\\architecture-presentation.indd",
+          "phase": "main_deck_setup",
+          "status": "passed"
+        },
+        {
+          "auditPath": "reports/content-assets-audit.json",
+          "phase": "content_text_table",
+          "status": "passed"
+        },
+        {
+          "phase": "template_flow",
+          "status": "passed"
+        },
+        {
+          "phase": "destructive_scratch",
+          "scratchPath": "outputs/destructive-scratch.indd",
+          "status": "passed"
+        },
+        {
+          "phase": "presentation_hidden",
+          "presentationPath": "outputs/presentation-hidden.indd",
+          "presentationPdfPath": "outputs/presentation-hidden.pdf",
+          "status": "passed"
+        },
+        {
+          "bookPath": "outputs/architecture-book.indb",
+          "bookPdfPath": "outputs/architecture-book.pdf",
+          "phase": "book_hidden",
+          "status": "passed"
+        },
+        {
+          "epubPath": "outputs/architecture-presentation.epub",
+          "imagesPath": "outputs/page-images",
+          "packagePath": "outputs/路径 测试/package out",
+          "pdfPath": "outputs/architecture-presentation.pdf",
+          "phase": "export_package",
+          "status": "passed"
+        }
+      ],
+      "runId": "terminal_architecture_golden_architecture_presentation",
+      "runRoot": "D:\\AI\\mcp-indesign\\.indesign-e2e-runs\\terminal_architecture_golden_architecture_presentation"
+    }
+  },
+  {
+    "command": "node tests/real-e2e/run-agent-ux-hardening.mjs --offline --run-id terminal_architecture_golden_agent_ux_hardening",
+    "exitCode": 0,
+    "id": "agent_ux_hardening_offline",
+    "stderrTail": [],
+    "stdoutJson": {
+      "checks": [
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0001.log",
+            "stdout_path": "logs/stdout/0001.json",
+            "tool_id": "server.health"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "com_probe",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0002.log",
+            "stdout_path": "logs/stdout/0002.json",
+            "tool_id": "document.create_document"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "create_document",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0003.log",
+            "stdout_path": "logs/stdout/0003.json",
+            "tool_id": "document.get_document_info"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "document_info_without_args",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0004.log",
+            "stdout_path": "logs/stdout/0004.json",
+            "tool_id": "graphics.create_rectangle"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "create_rectangle",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0005.log",
+            "stdout_path": "logs/stdout/0005.json",
+            "tool_id": "text.create_text_frame"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "create_text_frame",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0006.log",
+            "stdout_path": "logs/stdout/0006.json",
+            "tool_id": "export.export_images"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "export_jpeg",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": "ARTIFACT_FORMAT_UNSUPPORTED",
+            "exit_code": 1,
+            "failed_step": null,
+            "ok": false,
+            "stderr_path": "logs/stderr/0007.log",
+            "stdout_path": "logs/stdout/0007.json",
+            "tool_id": "export.export_images"
+          },
+          "expected_code": "ARTIFACT_FORMAT_UNSUPPORTED",
+          "expected_failed_step": null,
+          "expected_ok": false,
+          "name": "export_png_rejected",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": "INDESIGN_SCRIPT_FAILED",
+            "exit_code": 1,
+            "failed_step": null,
+            "ok": false,
+            "stderr_path": "logs/stderr/0008.log",
+            "stdout_path": "logs/stdout/0008.json",
+            "tool_id": null
+          },
+          "expected_code": "INDESIGN_SCRIPT_FAILED",
+          "expected_failed_step": null,
+          "expected_ok": false,
+          "name": "wrapper_failure",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": "BATCH_STEP_FAILED",
+            "exit_code": 1,
+            "failed_step": "bad-step",
+            "ok": false,
+            "stderr_path": "logs/stderr/0009.log",
+            "stdout_path": "logs/stdout/0009.json",
+            "tool_id": "tool.batch"
+          },
+          "expected_code": "BATCH_STEP_FAILED",
+          "expected_failed_step": "bad-step",
+          "expected_ok": false,
+          "name": "batch_failed_step",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0010.log",
+            "stdout_path": "logs/stdout/0010.json",
+            "tool_id": "session.doctor"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "session_doctor",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0011.log",
+            "stdout_path": "logs/stdout/0011.json",
+            "tool_id": "document.create_document"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "create_second_document",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": "DOCUMENT_TARGET_AMBIGUOUS",
+            "exit_code": 1,
+            "failed_step": null,
+            "ok": false,
+            "stderr_path": "logs/stderr/0012.log",
+            "stdout_path": "logs/stdout/0012.json",
+            "tool_id": "document.close_document"
+          },
+          "expected_code": "DOCUMENT_TARGET_AMBIGUOUS",
+          "expected_failed_step": null,
+          "expected_ok": false,
+          "name": "close_document_requires_explicit_target",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0013.log",
+            "stdout_path": "logs/stdout/0013.json",
+            "tool_id": "document.close_document"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "close_second_document_by_name",
+          "passed": true
+        },
+        {
+          "evidence": {
+            "code": null,
+            "exit_code": 0,
+            "failed_step": null,
+            "ok": true,
+            "stderr_path": "logs/stderr/0014.log",
+            "stdout_path": "logs/stdout/0014.json",
+            "tool_id": "document.close_document"
+          },
+          "expected_code": null,
+          "expected_failed_step": null,
+          "expected_ok": true,
+          "name": "close_first_document_by_name",
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "runId": "terminal_architecture_golden_agent_ux_hardening",
+      "runRoot": "D:\\AI\\mcp-indesign\\.indesign-e2e-runs\\terminal_architecture_golden_agent_ux_hardening"
+    }
+  }
+]

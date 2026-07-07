@@ -34,6 +34,7 @@ export const masterSpreadToolDefinitions = [
             type: 'object',
             properties: {
                 name: { type: 'string', description: 'Master spread name to delete' },
+                masterIndex: { type: 'number', description: 'Master spread index to delete' },
             },
             required: ['name'],
         },
@@ -46,7 +47,9 @@ export const masterSpreadToolDefinitions = [
             properties: {
                 name: { type: 'string', description: 'Master spread name to duplicate' },
                 newName: { type: 'string', description: 'Name for the duplicated master spread' },
+                masterIndex: { type: 'number', description: 'Master spread index to duplicate' },
                 position: { type: 'string', enum: ['AT_END', 'AT_BEGINNING', 'BEFORE', 'AFTER'], default: 'AT_END' },
+                referenceMaster: { type: 'number', description: 'Reference master spread index for BEFORE/AFTER placement' },
             },
             required: ['name', 'newName'],
         },
@@ -129,6 +132,7 @@ export const masterSpreadToolDefinitions = [
             type: 'object',
             properties: {
                 name: { type: 'string', description: 'Master spread name' },
+                masterIndex: { type: 'number', description: 'Master spread index' },
             },
             required: ['name'],
         },
@@ -157,4 +161,4 @@ export const masterSpreadToolDefinitions = [
             required: ['pageIndex', 'itemIndex'],
         },
     },
-]; 
+];
