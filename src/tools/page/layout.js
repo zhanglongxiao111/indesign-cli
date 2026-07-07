@@ -254,7 +254,7 @@ export const createPageGuides = definePageTool({
             ...(escapedLayerName ? [`      var layer = doc.layers.itemByName("${escapedLayerName}");`] : []),
             ...(removeExisting ? ['      page.guides.everyItem().remove();'] : []),
             '      var guideTarget = (typeof page.createGuides === "function") ? page : page.parent;',
-            `      guideTarget.createGuides(${numberOfRows}, ${numberOfColumns}, "${rowGutterUnit}", "${columnGutterUnit}", ${guideColorLiteral}, ${fitMargins}${escapedLayerName ? ', layer' : ''});`,
+            `      guideTarget.createGuides(${numberOfRows}, ${numberOfColumns}, "${rowGutterUnit}", "${columnGutterUnit}", ${guideColorLiteral}, ${fitMargins}, ${removeExisting}${escapedLayerName ? ', layer' : ''});`,
             '      "Page guides created successfully";',
             '    } catch (error) {',
             '      "Error creating page guides: " + error.message;',
