@@ -17,7 +17,7 @@ const REMOVED_PATHS = [
   'src/types'
 ];
 
-const SCAN_ROOTS = ['src', 'tests', 'scripts'];
+const SCAN_ROOTS = ['src', 'tests', 'scripts', 'agent-harness'];
 const SCAN_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.py']);
 const OLD_IMPORT_PATTERNS = [
   /from\s+['"][^'"]*(?:src\/)?handlers\//,
@@ -32,6 +32,11 @@ const OLD_RUNTIME_TOKENS = [
   /\bAdvancedTemplateHandlers\b/,
   /\ballToolDefinitions\b/,
   /\bTOOL_MAP\b/
+];
+const TASK4_LEGACY_TOKENS = [
+  ['hidden_handler', 'schemas'].join('_'),
+  ['infer', 'domain'].join('_'),
+  ['hidden_handler', 'bridge'].join('_')
 ];
 const FILE_SIZE_WARNING_BYTES = 60 * 1024;
 
@@ -65,6 +70,15 @@ function isHistoricalWhitelist(relPath, line) {
     return true;
   }
   return false;
+}
+
+function isTask4LegacyWhitelist(relPath, line, token) {
+  return (
+    token === ['hidden_handler', 'bridge'].join('_') &&
+    relPath === 'agent-harness/cli_anything/indesign/tests/test_core.py' &&
+    line.includes('assert not') &&
+    line.includes('exists()')
+  );
 }
 
 function assertRegistryLoads() {
@@ -121,6 +135,34 @@ function assertNoOldRuntimeReferences() {
   }
 }
 
+function assertNoTask4LegacyTokens() {
+  const violations = [];
+  const whitelisted = [];
+  for (const root of SCAN_ROOTS) {
+    for (const filePath of walkFiles(path.join(repoRoot, root))) {
+      const rel = relativePath(filePath);
+      const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+      lines.forEach((line, index) => {
+        for (const token of TASK4_LEGACY_TOKENS) {
+          if (!line.includes(token)) continue;
+          const hit = `${rel}:${index + 1}: ${line.trim()}`;
+          if (isTask4LegacyWhitelist(rel, line, token)) {
+            whitelisted.push(hit);
+            continue;
+          }
+          violations.push(hit);
+        }
+      });
+    }
+  }
+  if (whitelisted.length) {
+    console.error(`Task 4 legacy whitelist entries: ${whitelisted.length}`);
+  }
+  if (violations.length) {
+    throw new Error(`Task 4 legacy tokens found:\n${violations.join('\n')}`);
+  }
+}
+
 function warnLargeFiles() {
   const warnings = [];
   for (const root of SCAN_ROOTS) {
@@ -141,6 +183,7 @@ try {
   assertArtifactCurrent();
   assertRemovedPathsAbsent();
   assertNoOldRuntimeReferences();
+  assertNoTask4LegacyTokens();
   warnLargeFiles();
   console.log('Architecture check passed');
 } catch (error) {

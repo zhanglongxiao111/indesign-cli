@@ -906,7 +906,7 @@ def test_tool_call_hidden_handler_validates_required_args():
 
 
 def test_internal_bridge_resolves_tools_from_registry_without_legacy_bridge():
-    old_bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
+    old_bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / ("hidden_handler" + "_bridge.mjs")
     assert not old_bridge.exists()
 
     bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs"

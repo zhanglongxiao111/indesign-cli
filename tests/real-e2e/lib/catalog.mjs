@@ -6,7 +6,7 @@ import { writeJson } from './run-dir.mjs';
 const SOURCES = ['cli', 'cli.primitive', 'script', 'advanced', 'classic', 'hidden_handler'];
 
 function backendFor(source) {
-  if (source === 'hidden_handler') return 'hidden_handler_bridge';
+  if (source === 'hidden_handler') return 'internal_tool_bridge';
   if (source === 'advanced') return 'mcp_advanced';
   if (source === 'classic') return 'mcp_classic';
   if (source === 'script') return 'script_bridge';

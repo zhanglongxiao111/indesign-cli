@@ -370,18 +370,22 @@ print(json.dumps({
   return JSON.parse(result.stdout);
 }
 
-async function dumpHiddenSchemas() {
-  const code = String.raw`
-import json
-from cli_anything.indesign.core.hidden_handler_schemas import HIDDEN_HANDLER_METADATA, HIDDEN_HANDLER_SCHEMAS
-print(json.dumps({"schemas": HIDDEN_HANDLER_SCHEMAS, "metadata": HIDDEN_HANDLER_METADATA}, ensure_ascii=False, sort_keys=True))
-`;
-  const result = await runProcess('python', ['-c', code]);
-  if (result.exitCode !== 0) {
-    throw new Error(`hidden schema dump failed: ${result.stderr || result.stdout}`);
+function internalSchemasFromCliDump(cliDump) {
+  const schemas = {};
+  const metadata = {};
+  for (const tool of cliDump.tool_list) {
+    if (tool.source !== 'hidden_handler' || tool.callable === false) continue;
+    const schemaPayload = cliDump.schemas[tool.id];
+    const inputSchema = schemaPayload?.data?.inputSchema;
+    if (!inputSchema) {
+      throw new Error(`CLI schema dump is missing internal schema for ${tool.id}`);
+    }
+    schemas[tool.id] = inputSchema;
+    metadata[tool.id] = schemaPayload.data.metadata || {};
   }
-  return JSON.parse(result.stdout);
+  return { schemas, metadata };
 }
+
 
 function sampleArgs(schema) {
   const properties = schema?.properties && typeof schema.properties === 'object' ? schema.properties : {};
@@ -683,7 +687,7 @@ async function main() {
   }));
   await writeJson('schema_net_new_whitelist.json', whitelist);
 
-  const hiddenDump = await dumpHiddenSchemas();
+  const hiddenDump = internalSchemasFromCliDump(cliDump);
   const { snapshots, skips } = await buildToolCallSnapshots(classicTools, advancedTools, hiddenDump);
   await writeJson('C_tool_call_snapshots.json', {
     count: snapshots.length,
