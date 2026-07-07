@@ -174,6 +174,7 @@ export async function prepareDArtifactPublish(targetGoldenDir = goldenDir) {
   await Promise.all(
     [...D_SUCCESS_ARTIFACTS].map((name) => unlinkIfExists(path.join(targetGoldenDir, name))),
   );
+  await cleanupDCommandFailureArtifacts(targetGoldenDir);
 }
 
 async function cleanupDCommandFailureArtifacts(targetGoldenDir = goldenDir) {

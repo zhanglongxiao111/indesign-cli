@@ -35,7 +35,7 @@ test('D golden evidence is backed by normalized raw runner reports', async () =>
   assert.ok(!JSON.stringify(evidence).includes('actualRunId'));
 });
 
-test('D artifact publish clears old successful evidence before runner execution', async (t) => {
+test('D artifact publish clears old success and failure evidence before runner execution', async (t) => {
   const tempDir = await fs.mkdtemp(path.join(repoRoot, '.indesign-cli', 'record-golden-test-'));
   t.after(async () => {
     await fs.rm(tempDir, { recursive: true, force: true });
@@ -51,5 +51,5 @@ test('D artifact publish clears old successful evidence before runner execution'
   await assert.rejects(fs.access(path.join(tempDir, 'D_runner_outputs.json')), { code: 'ENOENT' });
   await assert.rejects(fs.access(path.join(tempDir, 'D_architecture_presentation_catalog_summary.json')), { code: 'ENOENT' });
   await assert.rejects(fs.access(path.join(tempDir, 'D_architecture_presentation_catalog_evidence.json')), { code: 'ENOENT' });
-  await fs.access(path.join(tempDir, 'D_architecture_presentation_full_offline.json'));
+  await assert.rejects(fs.access(path.join(tempDir, 'D_architecture_presentation_full_offline.json')), { code: 'ENOENT' });
 });
