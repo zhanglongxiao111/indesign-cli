@@ -15,8 +15,8 @@
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
 | Task 0 冻结、快照与基线导出 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 与 code quality rereview 已通过；stabilized golden baseline 可作为 Task 1+ 对比基线 |
-| Task 1 终态骨架 + layer 试点域 | review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | `d7968bc` 已修复二轮复审项：移除 `toolRouter.call` classic fallback、补齐 profile gate 测试、强化 artifact 未写入断言、补 Task 1 CLI 单测验证 |
-| Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
+| Task 1 终态骨架 + layer 试点域 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；layer 试点、profile gate、artifact 幂等和 Task 1 验证清单均已通过 |
+| Task 2 15 个域并行迁移 | in_progress | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | Task 1 已打穿；启动 15 个域并行迁移，域 agent 只写本域 `src/tools/<domain>/`，全局聚合由 controller 串行接入 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 4 CLI artifact-only 终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 5 测试架构终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 可在 Task 4 阶段并行评估，未启动 |
