@@ -16,7 +16,7 @@
 | ---- | ---- | ------ | -------- | ---- |
 | Task 0 冻结、快照与基线导出 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 与 code quality rereview 已通过；stabilized golden baseline 可作为 Task 1+ 对比基线 |
 | Task 1 终态骨架 + layer 试点域 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；layer 试点、profile gate、artifact 幂等和 Task 1 验证清单均已通过 |
-| Task 2 15 个域并行迁移 | review | per-domain implementation subagents (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 15 域迁移完成并串行聚合；registry 已达 150 = 114 classic + 30 internal + 6 advanced，artifact 已更新，等待复审 |
+| Task 2 15 个域并行迁移 | fixing | per-domain implementation subagents (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 复审未通过：需修正 CLI catalog `domain`/`cli.id` SSOT、help 手写目录残留、全量双轨对账测试覆盖、`page`/`group` 大模块拆分 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 4 CLI artifact-only 终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 5 测试架构终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 可在 Task 4 阶段并行评估，未启动 |
