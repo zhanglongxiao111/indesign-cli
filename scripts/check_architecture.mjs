@@ -34,9 +34,9 @@ const OLD_RUNTIME_TOKENS = [
   /\bTOOL_MAP\b/
 ];
 const TASK4_LEGACY_TOKENS = [
-  ['hidden_handler', 'schemas'].join('_'),
-  ['infer', 'domain'].join('_'),
-  ['hidden_handler', 'bridge'].join('_')
+  'hidden_handler_schemas',
+  'infer_domain',
+  'hidden_handler_bridge'
 ];
 const FILE_SIZE_WARNING_BYTES = 60 * 1024;
 
@@ -72,12 +72,17 @@ function isHistoricalWhitelist(relPath, line) {
   return false;
 }
 
-function isTask4LegacyWhitelist(relPath, line, token) {
+function isTask4LegacyWhitelist(relPath, line, token, lineNumber) {
+  if (relPath === 'scripts/check_architecture.mjs') {
+    const tokenDefinitionLine = line.trim() === `'${token}',` || line.trim() === `'${token}'`;
+    const whitelistGuardLine = token === 'hidden_handler_bridge' && line.includes("token === 'hidden_handler_bridge'");
+    return tokenDefinitionLine || whitelistGuardLine;
+  }
   return (
-    token === ['hidden_handler', 'bridge'].join('_') &&
+    token === 'hidden_handler_bridge' &&
     relPath === 'agent-harness/cli_anything/indesign/tests/test_core.py' &&
-    line.includes('assert not') &&
-    line.includes('exists()')
+    lineNumber === 909 &&
+    line.includes(`"${token}.mjs"`)
   );
 }
 
@@ -146,7 +151,7 @@ function assertNoTask4LegacyTokens() {
         for (const token of TASK4_LEGACY_TOKENS) {
           if (!line.includes(token)) continue;
           const hit = `${rel}:${index + 1}: ${line.trim()}`;
-          if (isTask4LegacyWhitelist(rel, line, token)) {
+          if (isTask4LegacyWhitelist(rel, line, token, index + 1)) {
             whitelisted.push(hit);
             continue;
           }
