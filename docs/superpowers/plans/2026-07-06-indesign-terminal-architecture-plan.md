@@ -21,7 +21,7 @@
 | Task 4 CLI artifact-only 终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二次复审 PASS；artifact-only catalog/internal bridge、legacy token 门禁、E2E backend 口径和 Task 4 验证清单均已通过 |
 | Task 5 测试架构终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；测试拆分、旧入口删除、artifact-driven tool-suite、硬失败语义和 InDesign document cleanup 均已通过 |
 | Task 6 终局验收 | completed | controller + implementation fix subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | `d1caa23` 修复 5 项门禁并完成验收报告；复审 PASS，full offline / full real / CLI full E2E / legacy zero-hit / required suite 均已通过 |
-| Task 7 文档与治理同步 | in_progress | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 已启动：同步 `AGENTS.md`、README / Skill / MCP docs / LLM prompt / docs index，并沉淀终态架构技术决策；不在本步合并 |
+| Task 7 文档与治理同步 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 终态架构治理文档已同步；`SYNC.md` 已按终态重写并修正 CLI 示例；复审 PASS，语义计划可在本分支合并 `master` 后执行 |
 
 ## 计划口径
 
