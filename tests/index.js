@@ -48,6 +48,16 @@ class ProgressBar {
 // Comprehensive test suite configuration
 const TEST_SUITES = [
     {
+        name: 'Architecture Registry',
+        description: 'Tests terminal architecture registry, artifact projection, and required runner coverage',
+        tests: [
+            'architecture/registry.test.mjs',
+            'architecture/required-runner.test.mjs'
+        ],
+        required: true,
+        category: 'architecture'
+    },
+    {
         name: 'Response Semantics',
         description: 'Tests handler response success and failure classification',
         tests: [

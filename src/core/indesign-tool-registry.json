@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-07T09:01:44.434Z",
+  "registry_hash": "cd2f588009b045b47fa7e2eb7c129493f977a1aa9aacbc9bac478824e9df2263",
+  "tool_count": 3,
+  "sources": {
+    "classic": [
+      {
+        "name": "create_layer",
+        "source": "classic",
+        "domain": "layer",
+        "cli": {
+          "id": "layer.create_layer",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "color": {
+              "default": "BLUE",
+              "description": "Layer color (RGB values as comma-separated string or UI color name)",
+              "type": "string"
+            },
+            "locked": {
+              "default": false,
+              "description": "Layer locked state",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Layer name",
+              "type": "string"
+            },
+            "visible": {
+              "default": true,
+              "description": "Layer visibility",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "list_layers",
+        "source": "classic",
+        "domain": "layer",
+        "cli": {
+          "id": "layer.list_layers",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "set_active_layer",
+        "source": "classic",
+        "domain": "layer",
+        "cli": {
+          "id": "layer.set_active_layer",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "layerName": {
+              "description": "Layer name to activate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "layerName"
+          ]
+        }
+      }
+    ]
+  }
+}
