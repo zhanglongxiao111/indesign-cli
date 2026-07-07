@@ -10,6 +10,19 @@
 
 ---
 
+## 执行进度
+
+| Task | 状态 | 负责人 | 更新时间 | 备注 |
+| ---- | ---- | ------ | -------- | ---- |
+| Task 0 冻结、快照与基线导出 | in_progress | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 已开始；先录制 golden master 和 contract baseline |
+| Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
+| Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
+| Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
+| Task 4 CLI artifact-only 终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
+| Task 5 测试架构终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 可在 Task 4 阶段并行评估，未启动 |
+| Task 6 终局验收 | pending | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 未启动 |
+| Task 7 文档与治理同步 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
+
 ## 计划口径
 
 - 本计划取代 `docs/superpowers/plans/2026-07-05-indesign-architecture-refactor-plan.md`。
