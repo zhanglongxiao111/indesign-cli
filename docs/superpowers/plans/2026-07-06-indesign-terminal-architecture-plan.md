@@ -19,7 +19,7 @@
 | Task 2 15 个域并行迁移 | completed | per-domain implementation subagents (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；15 域迁移、150-tool 聚合、CLI metadata 对账、help registry 派生、`page`/`group` 顺序与拆分均已通过 |
 | Task 3 原子切换与物理删除 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二轮复审 PASS；入口切换、旧结构物理删除、full golden A 门禁和旧口径清理均已通过 |
 | Task 4 CLI artifact-only 终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二次复审 PASS；artifact-only catalog/internal bridge、legacy token 门禁、E2E backend 口径和 Task 4 验证清单均已通过 |
-| Task 5 测试架构终态 | review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | P0 修复已提交：`tool-suite` 区分 skipped/expectedFailure/failed，runner error 或 unexpected failure 非零退出，最新 artifact-driven run 为 114/114 passed；待复审 |
+| Task 5 测试架构终态 | fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二次复审未通过：`tool-suite` 最新实跑仍有 `export_epub`/`export_pdf` 输出路径冲突，且 `success:true` 但消息为 `Error...` 的工具仍被记 passed；需继续收口 |
 | Task 6 终局验收 | pending | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 未启动 |
 | Task 7 文档与治理同步 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 
