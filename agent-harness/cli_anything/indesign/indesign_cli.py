@@ -234,19 +234,9 @@ def build_parser() -> argparse.ArgumentParser:
 def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
     base = Catalog(repo_root=repo_root())
     warnings: list[str] = []
-    advanced_tools: list[dict[str, Any]] = []
-    classic_tools: list[dict[str, Any]] = []
     plugin_tools: list[dict[str, Any]] = []
     plugin_domain_summaries: dict[str, str] = {}
     plugin_records = {}
-    for source, entry, sink in (
-        ("advanced", "src/advanced/index.js", advanced_tools),
-        ("classic", "src/index.js", classic_tools),
-    ):
-        try:
-            sink.extend(McpBackend(repo_root=repo_root(), entry=entry).list_tools())
-        except CliError as exc:
-            warnings.append(f"{source} backend unavailable: {exc.code}; run `indesign-cli server health` to diagnose")
     try:
         discovered, plugin_warnings = discover_plugins(Path.cwd(), host_version=__version__)
         warnings.extend(plugin_warnings)
@@ -264,8 +254,6 @@ def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
             warnings.append(f"plugin {record.id} unavailable: {exc.code}")
     return (
         base.with_exposed_tools(
-            advanced_tools=advanced_tools,
-            classic_tools=classic_tools,
             plugin_tools=plugin_tools,
             plugin_domain_summaries=plugin_domain_summaries,
             plugin_records=plugin_records,

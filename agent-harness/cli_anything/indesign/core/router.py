@@ -8,7 +8,7 @@ from typing import Any
 
 from .catalog import Catalog
 from .errors import CliError
-from .hidden_backend import HiddenHandlerBackend
+from .internal_backend import InternalToolBackend
 from .mcp_backend import McpBackend
 from .plugins.backend import PluginBackend
 from .plugins.host_actions import ALLOWED_HOST_ACTIONS, HostActionExecutor
@@ -109,7 +109,7 @@ class Router:
         if tool["source"] in {"cli", "cli.primitive", "script"}:
             return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}}), "metadata": metadata}
         if tool["source"] == "hidden_handler":
-            return {"tool": tool, "inputSchema": HiddenHandlerBackend(self.repo_root).schema(tool_id), "metadata": metadata}
+            return {"tool": tool, "inputSchema": InternalToolBackend(self.repo_root, catalog=self.catalog).schema(tool_id), "metadata": metadata}
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
             payload = backend.schema(tool_id)
@@ -150,7 +150,11 @@ class Router:
         if tool["source"] == "script":
             return self._call_script_primitive(args)
         if tool["source"] == "hidden_handler":
-            return HiddenHandlerBackend(self.repo_root).call_tool(tool, args)
+            return InternalToolBackend(
+                self.repo_root,
+                catalog=self.catalog,
+                timeout_seconds=self.backend_timeout_seconds or 60,
+            ).call_tool(tool, args)
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
             result = backend.call_tool(tool_id, args, self._plugin_context())

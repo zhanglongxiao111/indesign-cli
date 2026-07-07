@@ -15,9 +15,6 @@ HARNESS_ROOT = REPO_ROOT / "agent-harness"
 FAKE_PLUGIN_ROOT = HARNESS_ROOT / "cli_anything" / "indesign" / "tests" / "fixtures" / "plugins" / "fake-html-plugin"
 sys.path.insert(0, str(HARNESS_ROOT))
 
-TASK4_HIDDEN_HANDLER_REASON = "Task 4 migrates CLI hidden_handler backend to registry artifact after Task 3 removes legacy handlers"
-
-
 def run_module(*args: str, cwd: Path = REPO_ROOT, env_overrides: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
@@ -81,6 +78,46 @@ def test_pypi_source_distribution_includes_node_server_assets():
     assert 'requires = ["setuptools>=77", "wheel"]' in pyproject
     assert 'license = "MIT"' in pyproject
     assert 'exclude = ["cli_anything.indesign.tests*"]' in pyproject
+    assert '"cli_anything.indesign" = ["skills/*.md", "node/*.mjs", "server/src/core/indesign-tool-registry.json"]' in pyproject
+
+
+def test_packaging_smoke_embeds_registry_artifact_with_current_hash(tmp_path):
+    import tarfile
+    import zipfile
+
+    out_dir = tmp_path / "dist"
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--sdist", "--wheel", "--outdir", str(out_dir)],
+        cwd=REPO_ROOT,
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    current_artifact = json.loads((REPO_ROOT / "src" / "core" / "indesign-tool-registry.json").read_text(encoding="utf-8"))
+    expected_hash = current_artifact["registry_hash"]
+
+    wheel = next(out_dir.glob("*.whl"))
+    with zipfile.ZipFile(wheel) as archive:
+        wheel_name = "cli_anything/indesign/server/src/core/indesign-tool-registry.json"
+        assert wheel_name in archive.namelist()
+        wheel_artifact = json.loads(archive.read(wheel_name).decode("utf-8"))
+    assert wheel_artifact["registry_hash"] == expected_hash
+
+    sdist = next(out_dir.glob("*.tar.gz"))
+    with tarfile.open(sdist) as archive:
+        artifact_members = [
+            member for member in archive.getmembers()
+            if member.name.endswith("/src/core/indesign-tool-registry.json")
+        ]
+        assert artifact_members
+        extracted = archive.extractfile(artifact_members[0])
+        assert extracted is not None
+        sdist_artifact = json.loads(extracted.read().decode("utf-8"))
+    assert sdist_artifact["registry_hash"] == expected_hash
 
 
 def test_readmes_describe_manual_skill_install_only():
@@ -312,6 +349,55 @@ def test_tool_domains_are_compact():
     assert "summary" in export
     assert "top_tools" in export
     assert "tools" not in export
+
+
+def test_catalog_loads_node_backed_tools_from_registry_artifact(monkeypatch):
+    from cli_anything.indesign import indesign_cli
+
+    def fail_backend(*args, **kwargs):
+        raise AssertionError("catalog must not query MCP backends for Node-backed tools")
+
+    monkeypatch.setattr(indesign_cli.McpBackend, "list_tools", fail_backend)
+
+    catalog, warnings = indesign_cli.build_catalog_with_backends()
+    tools = catalog.list_tools(callable_only=True)
+    source_counts = {}
+    for tool in tools:
+        source_counts[tool["source"]] = source_counts.get(tool["source"], 0) + 1
+
+    assert warnings == []
+    assert source_counts["classic"] == 114
+    assert source_counts["advanced"] == 6
+    assert source_counts["hidden_handler"] == 30
+    assert source_counts["cli"] == 7
+    assert source_counts["cli.primitive"] == 1
+    assert source_counts["script"] == 1
+
+
+def test_registry_artifact_missing_or_stale_is_a_hard_error(tmp_path):
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.errors import CliError
+
+    server_root = tmp_path / "server"
+    (server_root / "src" / "core").mkdir(parents=True)
+    (server_root / "src" / "index.js").write_text("// classic", encoding="utf-8")
+    (server_root / "src" / "advanced").mkdir(parents=True)
+    (server_root / "src" / "advanced" / "index.js").write_text("// advanced", encoding="utf-8")
+    (server_root / "package.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(CliError) as missing:
+        Catalog(repo_root=server_root)
+    assert missing.value.code == "REGISTRY_ARTIFACT_NOT_FOUND"
+    assert "node src/core/artifact.js --write" in (missing.value.hint or "")
+
+    artifact = json.loads((REPO_ROOT / "src" / "core" / "indesign-tool-registry.json").read_text(encoding="utf-8"))
+    artifact["registry_hash"] = "0" * 64
+    (server_root / "src" / "core" / "indesign-tool-registry.json").write_text(json.dumps(artifact), encoding="utf-8")
+
+    with pytest.raises(CliError) as stale:
+        Catalog(repo_root=server_root)
+    assert stale.value.code == "REGISTRY_ARTIFACT_HASH_MISMATCH"
+    assert "node src/core/artifact.js --write" in (stale.value.hint or "")
 
 
 def test_root_command_missing_still_returns_json_failure():
@@ -719,17 +805,15 @@ def test_run_stdin_script_reads_utf8_bytes(tmp_path, monkeypatch):
 
 
 def test_domain_top_tools_include_exposed_hidden_handlers():
-    pytest.skip(TASK4_HIDDEN_HANDLER_REASON)
     from cli_anything.indesign.core.catalog import Catalog
 
     catalog = Catalog(repo_root=REPO_ROOT)
     book = next(item for item in catalog.domains() if item["domain"] == "book")
     assert "book.create_book" in book["top_tools"]
-    assert book["count_by_source"]["hidden_handler"] > 0
+    assert book["count_by_source"]["hidden_handler"] == 15
 
 
 def test_hidden_handlers_are_listed_callable_and_schema_backed():
-    pytest.skip(TASK4_HIDDEN_HANDLER_REASON)
     from cli_anything.indesign.core.catalog import Catalog
 
     expected = {
@@ -754,11 +838,20 @@ def test_hidden_handlers_are_listed_callable_and_schema_backed():
         "presentation.add_full_bleed_image",
         "presentation.add_image_grid",
         "presentation.export_presentation_pdf",
+        "document.cleanup_document",
+        "document.data_merge",
+        "document.export_document_xml",
+        "document.get_document_xml_structure",
+        "document.open_cloud_document",
+        "document.preflight_document",
+        "document.save_document_to_cloud",
+        "document.validate_document",
+        "spread.place_xml_on_spread",
     }
     catalog = Catalog(repo_root=REPO_ROOT)
     hidden_tools = catalog.list_tools(source="hidden_handler", callable_only=True)
     assert {item["id"] for item in hidden_tools} == expected
-    assert len(hidden_tools) == 21
+    assert len(hidden_tools) == 30
     assert all(item["availability"] == "exposed" for item in hidden_tools)
     assert all(item["schema_size"] != "unknown" for item in hidden_tools)
     assert "filePath" in next(item for item in hidden_tools if item["id"] == "book.create_book")["arg_names"]
@@ -780,9 +873,12 @@ def test_hidden_handlers_are_listed_callable_and_schema_backed():
     assert export_presentation["artifact_kinds"] == ["pdf"]
     assert export_presentation["target_scope"] == "filesystem"
 
+    cleanup = next(item for item in hidden_tools if item["id"] == "document.cleanup_document")
+    assert cleanup["arg_names"] == ["removeUnusedStyles", "removeUnusedColors", "removeUnusedLayers", "removeHiddenElements"]
+    assert cleanup["source"] == "hidden_handler"
+
 
 def test_tool_schema_supports_hidden_handler():
-    pytest.skip(TASK4_HIDDEN_HANDLER_REASON)
     from cli_anything.indesign.core.catalog import Catalog
     from cli_anything.indesign.core.router import Router
 
@@ -795,7 +891,6 @@ def test_tool_schema_supports_hidden_handler():
 
 
 def test_tool_call_hidden_handler_validates_required_args():
-    pytest.skip(TASK4_HIDDEN_HANDLER_REASON)
     from cli_anything.indesign.core.catalog import Catalog
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.router import Router
@@ -810,16 +905,20 @@ def test_tool_call_hidden_handler_validates_required_args():
         raise AssertionError("hidden handler should reject missing required argument")
 
 
-def test_hidden_bridge_resolves_acronym_handler_names():
-    pytest.skip(TASK4_HIDDEN_HANDLER_REASON)
-    bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
+def test_internal_bridge_resolves_tools_from_registry_without_legacy_bridge():
+    old_bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
+    assert not old_bridge.exists()
+
+    bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs"
+    assert bridge.exists()
+    assert "src/handlers" not in bridge.read_text(encoding="utf-8")
+
     result = subprocess.run(
         ["node", str(bridge)],
         cwd=REPO_ROOT,
         input=json.dumps(
             {
-                "domain": "presentation",
-                "name": "export_presentation_pdf",
+                "toolId": "presentation.export_presentation_pdf",
                 "args": {},
                 "resolveOnly": True,
             }
@@ -833,20 +932,14 @@ def test_hidden_bridge_resolves_acronym_handler_names():
     assert result.returncode == 0
     payload = json.loads(result.stdout)
     assert payload["ok"] is True
-    assert payload["methodName"] == "exportPresentationPDF"
+    assert payload["toolId"] == "presentation.export_presentation_pdf"
+    assert payload["source"] == "hidden_handler"
 
 
-def test_catalog_infers_expected_domains_from_tool_names():
+def test_catalog_preserves_artifact_domains_for_node_backed_tools():
     from cli_anything.indesign.core.catalog import Catalog
 
-    catalog = Catalog(repo_root=REPO_ROOT).with_exposed_tools(
-        classic_tools=[
-            {"name": "add_page", "description": "Add a new page to the document", "inputSchema": {}},
-            {"name": "create_master_spread", "description": "Create a master spread", "inputSchema": {}},
-            {"name": "export_pdf", "description": "Export document to PDF", "inputSchema": {}},
-            {"name": "create_rectangle", "description": "Create rectangle", "inputSchema": {}},
-        ]
-    )
+    catalog = Catalog(repo_root=REPO_ROOT)
     ids = {tool["id"] for tool in catalog.list_tools(callable_only=True)}
     assert "page.add_page" in ids
     assert "master.create_master_spread" in ids

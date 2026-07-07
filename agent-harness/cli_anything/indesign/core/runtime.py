@@ -111,10 +111,10 @@ def resolve_server_root() -> Path:
     )
 
 
-def hidden_handler_bridge_path() -> Path:
-    bridge = package_root() / "node" / "hidden_handler_bridge.mjs"
+def internal_tool_bridge_path() -> Path:
+    bridge = package_root() / "node" / "internal_tool_bridge.mjs"
     if not bridge.exists():
-        raise CliError("Hidden handler bridge not found", code="HIDDEN_HANDLER_BRIDGE_NOT_FOUND")
+        raise CliError("Internal tool bridge not found", code="INTERNAL_TOOL_BRIDGE_NOT_FOUND")
     return bridge
 
 

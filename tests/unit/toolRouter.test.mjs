@@ -79,10 +79,13 @@ try {
         () => call('create_layer', { name: 'missing-profile' }),
         /Invalid profile: undefined/
     );
-    await assert.rejects(
-        () => call('create_layer', { name: 'bad-profile' }, { profile: 'internal' }),
-        /Invalid profile: internal/
-    );
+    const internalFromInternal = await call('synthetic_internal', {}, { registry: syntheticRegistry, profile: 'internal' });
+    assert.equal(internalFromInternal.success, true);
+    assert.equal(internalFromInternal.operation, 'synthetic_internal');
+
+    const publicFromInternal = await call('synthetic_classic', {}, { registry: syntheticRegistry, profile: 'internal' });
+    assert.equal(publicFromInternal.success, false);
+    assert.match(publicFromInternal.result, /not available for profile 'internal'/);
 
     assert.throws(
         () => createMcpServer({ profile: 'internal', registry: syntheticRegistry }),

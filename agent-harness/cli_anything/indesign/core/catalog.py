@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import re
+import hashlib
+import json
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .domains import DOMAINS, infer_domain
 from .errors import CliError
-from .hidden_handler_schemas import HIDDEN_HANDLER_METADATA, HIDDEN_HANDLER_SCHEMAS
 from .plugins.manifest import PluginRecord
 
 
@@ -186,21 +185,41 @@ CLI_PRIMITIVES = [
 ]
 
 
-HIDDEN_HANDLER_FILES = {
-    "book": "src/handlers/bookHandlers.js",
-    "presentation": "src/handlers/presentationHandlers.js",
-}
-
 VALID_SOURCES = {"cli", "cli.primitive", "script", "advanced", "classic", "hidden_handler", "plugin"}
+ARTIFACT_RELATIVE_PATH = Path("src") / "core" / "indesign-tool-registry.json"
+ARTIFACT_FIX_HINT = "运行 `node src/core/artifact.js --write` 重新生成 registry artifact，然后重试。"
 
 PURPOSE_OVERRIDES = {
     "execute_indesign_code": "执行短 inline ExtendScript 探针；长脚本优先用 script.run 文件模式",
 }
 
+DOMAIN_SUMMARY_OVERRIDES = {
+    "template": "模板槽位、脚本标签、母版占位和模板填充",
+    "document": "打开、保存、关闭、文档信息",
+    "page": "页面、页面尺寸和页面基础操作",
+    "spread": "跨页、跨页布局和跨页范围操作",
+    "master": "母版、母版跨页和母版对象",
+    "layer": "图层创建、查询、锁定、显示和删除",
+    "object": "页面对象、对象组、几何位置、脚本标签",
+    "text": "文本框、文本内容、段落和字符操作",
+    "graphics": "图片、图形框、适配和基础绘制",
+    "style": "段落样式、字符样式、对象样式",
+    "export": "PDF、IDML、图片等导出和产物验证",
+    "book": "InDesign Book 文件、章节和书籍级同步",
+    "presentation": "演示型版面、页面序列和 internal handler 能力",
+    "tool": "工具发现、schema、调用和批处理编排",
+    "script": "JSX 文件执行和 stdin 临时脚本",
+    "session": "CLI 本地状态、最近文档和最近输出",
+    "feedback": "Agent 使用摩擦上报和反馈闭环",
+    "server": "依赖、后端、InDesign COM 健康检查",
+    "utility": "难以归入以上域的辅助能力",
+}
 
-def _camel_to_snake(value: str) -> str:
-    value = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", value)
-    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value).lower()
+SOURCE_RANK_BASE = {
+    "advanced": 10,
+    "classic": 20,
+    "hidden_handler": 90,
+}
 
 
 def _schema_size(schema: dict[str, Any]) -> str:
@@ -234,13 +253,34 @@ def _artifact_kinds(tool_name: str) -> list[str]:
     return kinds
 
 
+def _artifact_kinds_from_schema(tool_name: str, schema: dict[str, Any]) -> list[str]:
+    kinds = _artifact_kinds(tool_name)
+    properties = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
+    format_schema = properties.get("format") if isinstance(properties.get("format"), dict) else {}
+    for item in format_schema.get("enum", []):
+        lowered = str(item).lower()
+        if lowered and lowered not in kinds:
+            kinds.append(lowered)
+    if tool_name == "create_book" and "indb" not in kinds:
+        kinds.append("indb")
+    if "preflight" in tool_name and "report" not in kinds:
+        kinds.append("report")
+    return kinds
+
+
 def _destructive(tool_name: str) -> bool:
     return any(part in tool_name for part in ("delete", "clear", "close"))
 
 
 def _target_scope(domain: str, tool_name: str) -> str:
-    if domain == "export":
+    if domain == "export" or "export" in tool_name or "package" in tool_name:
         return "filesystem"
+    if domain == "book":
+        if "export" in tool_name or "package" in tool_name or tool_name == "create_book":
+            return "filesystem"
+        if "print" in tool_name:
+            return "printer"
+        return "indesign_book"
     if "document" in tool_name or domain == "document":
         return "active_document"
     if domain in {"server", "session"}:
@@ -356,39 +396,139 @@ def _with_agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
-def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[str, Any]]:
-    entries: list[dict[str, Any]] = []
-    for index, tool in enumerate(tools):
-        name = tool["name"]
-        description = tool.get("description", "")
-        domain = infer_domain(name, description)
-        schema = tool.get("inputSchema", {})
-        arg_names = list(schema.get("properties", {}).keys())
-        artifact_kinds = _artifact_kinds(name)
-        entries.append(
-            _with_agent_contract(
-            {
-                "id": f"{domain}.{name}",
-                "domain": domain,
-                "name": name,
-                "one_line_purpose": PURPOSE_OVERRIDES.get(name, description.splitlines()[0] if description else name),
-                "arg_names": arg_names,
-                "source": source,
-                "rank": (10 if source == "advanced" else 20) + index,
-                "schema_size": _schema_size(schema),
-                "availability": "exposed",
-                "callable": True,
-                "requires": ["indesign_com"],
-                "side_effects": _side_effects(name, domain),
-                "artifact_kinds": artifact_kinds,
-                "destructive": _destructive(name),
-                "target_scope": _target_scope(domain, name),
-                "needs_indesign": True,
-                "produces_artifacts": bool(artifact_kinds),
-            }
-            )
+def _stable_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _read_registry_artifact(repo_root: Path) -> dict[str, Any]:
+    artifact_path = repo_root / ARTIFACT_RELATIVE_PATH
+    if not artifact_path.exists():
+        raise CliError(
+            "Registry artifact is missing",
+            code="REGISTRY_ARTIFACT_NOT_FOUND",
+            details={"path": str(artifact_path)},
+            hint=ARTIFACT_FIX_HINT,
         )
-    return entries
+    try:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise CliError(
+            "Registry artifact is not valid JSON",
+            code="REGISTRY_ARTIFACT_INVALID",
+            details={"path": str(artifact_path)},
+            hint=ARTIFACT_FIX_HINT,
+        ) from exc
+    if not isinstance(artifact, dict) or not isinstance(artifact.get("sources"), dict):
+        raise CliError(
+            "Registry artifact has an invalid shape",
+            code="REGISTRY_ARTIFACT_INVALID",
+            details={"path": str(artifact_path)},
+            hint=ARTIFACT_FIX_HINT,
+        )
+    hash_input = {
+        "schema_version": artifact.get("schema_version"),
+        "tool_count": artifact.get("tool_count"),
+        "sources": artifact.get("sources"),
+    }
+    actual_hash = hashlib.sha256(_stable_json(hash_input).encode("utf-8")).hexdigest()
+    if artifact.get("registry_hash") != actual_hash:
+        raise CliError(
+            "Registry artifact hash does not match its contents",
+            code="REGISTRY_ARTIFACT_HASH_MISMATCH",
+            details={
+                "path": str(artifact_path),
+                "expected": artifact.get("registry_hash"),
+                "actual": actual_hash,
+            },
+            hint=ARTIFACT_FIX_HINT,
+        )
+    return artifact
+
+
+def _contract_side_effects(contract: dict[str, Any]) -> list[str]:
+    effects: list[str] = []
+    if contract.get("writesFilesystem"):
+        effects.append("filesystem_write")
+    if contract.get("mutatesDocument"):
+        effects.append("indesign_mutation")
+    return effects
+
+
+def _artifact_entry(tool: dict[str, Any], *, source: str, index: int) -> tuple[dict[str, Any], dict[str, Any]]:
+    schema = tool.get("inputSchema") if isinstance(tool.get("inputSchema"), dict) else {"type": "object", "properties": {}}
+    cli = tool.get("cli") if isinstance(tool.get("cli"), dict) else {}
+    contract = tool.get("contract") if isinstance(tool.get("contract"), dict) else {}
+    tool_id = str(cli.get("id") or f"{tool.get('domain')}.{tool.get('name')}")
+    name = str(tool.get("name") or tool_id.split(".", 1)[-1])
+    domain = str(tool.get("domain") or cli.get("domain") or tool_id.split(".", 1)[0])
+    artifact_kinds = _artifact_kinds_from_schema(name, schema)
+    entry = _with_agent_contract(
+        {
+            "id": tool_id,
+            "domain": domain,
+            "name": name,
+            "one_line_purpose": PURPOSE_OVERRIDES.get(name, f"{domain.title()} tool {name}"),
+            "arg_names": list(schema.get("properties", {}).keys()),
+            "source": source,
+            "rank": SOURCE_RANK_BASE.get(source, 50) + index,
+            "schema_size": _schema_size(schema),
+            "availability": "exposed",
+            "callable": True,
+            "requires": ["indesign_com"] if contract.get("needsInDesign", True) else [],
+            "side_effects": _contract_side_effects(contract),
+            "artifact_kinds": artifact_kinds,
+            "destructive": bool(contract.get("destructive", False)),
+            "target_scope": _target_scope(domain, name),
+            "needs_indesign": bool(contract.get("needsInDesign", True)),
+            "produces_artifacts": bool(contract.get("producesArtifacts", False)),
+        }
+    )
+    entry.update(
+        {
+            "requires_active_document": bool(contract.get("requiresActiveDocument", entry.get("requires_active_document", False))),
+            "mutates_document": bool(contract.get("mutatesDocument", entry.get("mutates_document", False))),
+            "writes_filesystem": bool(contract.get("writesFilesystem", entry.get("writes_filesystem", False))),
+            "returns_artifacts": bool(contract.get("producesArtifacts", entry.get("returns_artifacts", False))),
+        }
+    )
+    return entry, schema
+
+
+def artifact_tool_entries(repo_root: Path) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], dict[str, str]]:
+    artifact = _read_registry_artifact(repo_root)
+    entries: list[dict[str, Any]] = []
+    schemas: dict[str, dict[str, Any]] = {}
+    domains: dict[str, str] = {}
+    count = 0
+    for source, tools in artifact["sources"].items():
+        if source not in {"advanced", "classic", "hidden_handler"}:
+            raise CliError(
+                "Registry artifact contains an unsupported source",
+                code="REGISTRY_ARTIFACT_INVALID",
+                details={"source": source},
+                hint=ARTIFACT_FIX_HINT,
+            )
+        if not isinstance(tools, list):
+            raise CliError(
+                "Registry artifact source group must be an array",
+                code="REGISTRY_ARTIFACT_INVALID",
+                details={"source": source},
+                hint=ARTIFACT_FIX_HINT,
+            )
+        for index, tool in enumerate(tools):
+            entry, schema = _artifact_entry(tool, source=source, index=index)
+            entries.append(entry)
+            schemas[entry["id"]] = schema
+            domains.setdefault(entry["domain"], DOMAIN_SUMMARY_OVERRIDES.get(entry["domain"], f"{entry['domain']} tools"))
+            count += 1
+    if count != artifact.get("tool_count"):
+        raise CliError(
+            "Registry artifact tool count does not match source groups",
+            code="REGISTRY_ARTIFACT_INVALID",
+            details={"expected": artifact.get("tool_count"), "actual": count},
+            hint=ARTIFACT_FIX_HINT,
+        )
+    return entries, schemas, domains
 
 
 def plugin_tool_entries(record: PluginRecord, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -432,11 +572,19 @@ class Catalog:
         repo_root: Path,
         tools: list[dict[str, Any]] | None = None,
         domains: dict[str, str] | None = None,
+        schemas: dict[str, dict[str, Any]] | None = None,
         plugin_records: dict[str, PluginRecord] | None = None,
     ) -> None:
         self.repo_root = repo_root
-        self._tools = [_with_agent_contract(tool) for tool in (tools or [*CLI_PRIMITIVES, *self._hidden_handler_entries()])]
-        self._domains = domains or dict(DOMAINS)
+        if tools is None:
+            artifact_tools, artifact_schemas, artifact_domains = artifact_tool_entries(repo_root)
+            self._tools = [_with_agent_contract(tool) for tool in [*CLI_PRIMITIVES, *artifact_tools]]
+            self._schemas = dict(artifact_schemas)
+            self._domains = self._domain_summaries(self._tools, artifact_domains)
+        else:
+            self._tools = [_with_agent_contract(tool) for tool in tools]
+            self._schemas = dict(schemas or {})
+            self._domains = self._domain_summaries(self._tools, domains or {})
         self._plugin_records = plugin_records or {}
 
     def with_exposed_tools(
@@ -448,20 +596,32 @@ class Catalog:
         plugin_domain_summaries: dict[str, str] | None = None,
         plugin_records: dict[str, PluginRecord] | None = None,
     ) -> "Catalog":
-        tools = [_with_agent_contract(tool) for tool in CLI_PRIMITIVES]
-        tools.extend(exposed_tool_entries(advanced_tools or [], "advanced"))
-        tools.extend(exposed_tool_entries(classic_tools or [], "classic"))
-        exposed_ids = {tool["id"] for tool in tools}
-        tools.extend(tool for tool in self._hidden_handler_entries() if tool["id"] not in exposed_ids)
+        if advanced_tools or classic_tools:
+            raise CliError(
+                "Node-backed tools must come from the registry artifact",
+                code="CATALOG_ARTIFACT_ONLY",
+                hint=ARTIFACT_FIX_HINT,
+            )
+        tools = list(self._tools)
+        schemas = dict(self._schemas)
         existing_ids = {tool["id"] for tool in tools}
         for plugin_tool in plugin_tools or []:
             if plugin_tool["id"] in existing_ids:
                 raise CliError("Plugin tool id conflicts with an existing tool", code="PLUGIN_TOOL_CONFLICT", details={"tool_id": plugin_tool["id"]})
             existing_ids.add(plugin_tool["id"])
             tools.append(plugin_tool)
-        domains = dict(DOMAINS)
+        domains = dict(self._domains)
         domains.update(plugin_domain_summaries or {})
-        return Catalog(repo_root=self.repo_root, tools=tools, domains=domains, plugin_records=plugin_records or {})
+        return Catalog(repo_root=self.repo_root, tools=tools, domains=domains, schemas=schemas, plugin_records=plugin_records or {})
+
+    @staticmethod
+    def _domain_summaries(tools: list[dict[str, Any]], existing: dict[str, str]) -> dict[str, str]:
+        domains = dict(existing)
+        for tool in tools:
+            domain = str(tool.get("domain") or "")
+            if domain:
+                domains.setdefault(domain, DOMAIN_SUMMARY_OVERRIDES.get(domain, f"{domain} tools"))
+        return domains
 
     def domains(self) -> list[dict[str, Any]]:
         source_counts: dict[str, Counter[str]] = {domain: Counter() for domain in self._domains}
@@ -531,42 +691,8 @@ class Catalog:
         except KeyError as exc:
             raise CliError("Plugin record missing from catalog", code="PLUGIN_RECORD_NOT_FOUND", details={"plugin": plugin_id}) from exc
 
-    def _hidden_handler_entries(self) -> list[dict[str, Any]]:
-        entries: list[dict[str, Any]] = []
-        for domain, relative_path in HIDDEN_HANDLER_FILES.items():
-            path = self.repo_root / relative_path
-            if not path.exists():
-                continue
-            content = path.read_text(encoding="utf-8")
-            for method in re.findall(r"static\s+async\s+([A-Za-z0-9_]+)\s*\(", content):
-                name = _camel_to_snake(method)
-                tool_id = f"{domain}.{name}"
-                schema = HIDDEN_HANDLER_SCHEMAS.get(tool_id, {"type": "object", "properties": {}})
-                metadata = HIDDEN_HANDLER_METADATA.get(tool_id, {})
-                arg_names = list(schema.get("properties", {}).keys())
-                callable_handler = tool_id in HIDDEN_HANDLER_SCHEMAS
-                artifact_kinds = list(metadata.get("artifact_kinds", _artifact_kinds(name)))
-                entries.append(
-                    _with_agent_contract(
-                    {
-                        "id": tool_id,
-                        "domain": domain,
-                        "name": name,
-                        "one_line_purpose": str(metadata.get("one_line_purpose") or f"调用已有 {domain} handler 能力"),
-                        "arg_names": arg_names,
-                        "source": "hidden_handler",
-                        "rank": 90,
-                        "schema_size": _schema_size(schema) if callable_handler else "unknown",
-                        "availability": "exposed" if callable_handler else "hidden_handler",
-                        "callable": callable_handler,
-                        "requires": ["indesign_com"],
-                        "side_effects": list(metadata.get("side_effects", ["indesign_mutation"])),
-                        "artifact_kinds": artifact_kinds,
-                        "destructive": _destructive(name),
-                        "target_scope": str(metadata.get("target_scope") or _target_scope(domain, name)),
-                        "needs_indesign": True,
-                        "produces_artifacts": bool(metadata.get("produces_artifacts", bool(artifact_kinds))),
-                    }
-                    )
-                )
-        return entries
+    def schema(self, tool_id: str) -> dict[str, Any]:
+        try:
+            return self._schemas[tool_id]
+        except KeyError as exc:
+            raise CliError(f"Registry artifact schema missing: {tool_id}", code="SCHEMA_NOT_FOUND") from exc
