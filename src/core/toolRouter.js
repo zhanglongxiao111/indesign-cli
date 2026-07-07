@@ -4,7 +4,7 @@ import { formatErrorResponse } from './runtime.js';
 
 export async function call(name, args = {}, options = {}) {
     const activeRegistry = options.registry || defaultRegistry;
-    const profile = options.profile || 'classic';
+    const profile = options.profile;
     assertPublicProfile(profile);
     const tool = activeRegistry.byName.get(name);
     if (!tool) {

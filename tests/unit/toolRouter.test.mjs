@@ -52,13 +52,13 @@ try {
         return 'Layer created: golden';
     };
 
-    const result = await call('create_layer', { name: 'golden' });
+    const result = await call('create_layer', { name: 'golden' }, { profile: 'classic' });
 
     assert.equal(result.success, true);
     assert.equal(result.operation, 'Create Layer');
     assert.equal(capturedScript.includes('var layer = doc.layers.add({name: "golden"});'), true);
 
-    const unknown = await call('missing_tool', {});
+    const unknown = await call('missing_tool', {}, { profile: 'classic' });
     assert.equal(unknown.success, false);
     assert.equal(unknown.operation, 'Tool Call');
     assert.match(unknown.result, /Tool 'missing_tool' not found or not implemented/);
@@ -75,8 +75,25 @@ try {
     assert.equal(classicFromAdvanced.success, false);
     assert.match(classicFromAdvanced.result, /not available for profile 'advanced'/);
 
+    await assert.rejects(
+        () => call('create_layer', { name: 'missing-profile' }),
+        /Invalid profile: undefined/
+    );
+    await assert.rejects(
+        () => call('create_layer', { name: 'bad-profile' }, { profile: 'internal' }),
+        /Invalid profile: internal/
+    );
+
+    assert.throws(
+        () => createMcpServer({ profile: 'internal', registry: syntheticRegistry }),
+        /Invalid profile: internal/
+    );
+
     const classicServer = createMcpServer({ profile: 'classic', registry: syntheticRegistry });
     assert.deepEqual(classicServer.listTools().map((tool) => tool.name), ['synthetic_classic']);
+
+    const advancedServer = createMcpServer({ profile: 'advanced', registry: syntheticRegistry });
+    assert.deepEqual(advancedServer.listTools().map((tool) => tool.name), ['synthetic_advanced']);
 
     const serverAdvancedReject = await classicServer.callTool('synthetic_advanced', {});
     assert.equal(serverAdvancedReject.success, false);
@@ -85,6 +102,10 @@ try {
     const serverInternalReject = await classicServer.callTool('synthetic_internal', {});
     assert.equal(serverInternalReject.success, false);
     assert.match(serverInternalReject.result, /not available for profile 'classic'/);
+
+    const advancedInternalReject = await advancedServer.callTool('synthetic_internal', {});
+    assert.equal(advancedInternalReject.success, false);
+    assert.match(advancedInternalReject.result, /not available for profile 'advanced'/);
 } finally {
     ScriptExecutor.executeInDesignScript = originalExecute;
 }

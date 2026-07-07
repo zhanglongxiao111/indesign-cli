@@ -42,6 +42,11 @@ const serverLayerOrder = createMcpServer({ profile: 'classic' })
     .filter((name) => layerNames.includes(name));
 assert.deepEqual(serverLayerOrder, goldenLayerOrder, 'classic mcpServer layer tool order should match golden A');
 
+function artifactModifiedTime() {
+    const stats = fs.statSync('src/core/indesign-tool-registry.json', { bigint: true });
+    return stats.mtimeNs ?? stats.mtimeMs;
+}
+
 const validTool = {
     name: 'synthetic_profile_tool',
     description: 'Synthetic profile validation tool',
@@ -76,10 +81,13 @@ for (const name of layerNames) {
 }
 
 const beforeWrite = JSON.parse(fs.readFileSync('src/core/indesign-tool-registry.json', 'utf8'));
+const beforeWriteMtime = artifactModifiedTime();
 writeArtifact();
 const afterWrite = JSON.parse(fs.readFileSync('src/core/indesign-tool-registry.json', 'utf8'));
+const afterWriteMtime = artifactModifiedTime();
 assert.equal(afterWrite.generated_at, beforeWrite.generated_at, 'artifact --write should keep generated_at when payload is unchanged');
 assert.deepEqual(afterWrite, beforeWrite, 'artifact --write should not rewrite unchanged artifact payload');
+assert.equal(afterWriteMtime, beforeWriteMtime, 'artifact --write should not touch artifact file when payload is unchanged');
 
 const currentArtifact = generateArtifact();
 assert.equal(currentArtifact.generated_at, beforeWrite.generated_at, 'generateArtifact should preserve generated_at for unchanged payload');

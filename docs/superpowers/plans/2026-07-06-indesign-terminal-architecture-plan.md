@@ -167,6 +167,7 @@ Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline 
 - [ ] `node tests/unit/toolRouter.test.mjs`
 - [ ] `node tests/unit/handlerRuntime.test.mjs`
 - [ ] `node src/core/artifact.js --write && node src/core/artifact.js --check`
+- [ ] `python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q`
 - [ ] `node tests/index.js --required`
 
 **Complete when:**
