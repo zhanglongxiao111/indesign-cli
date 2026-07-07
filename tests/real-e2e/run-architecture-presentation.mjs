@@ -5,16 +5,14 @@ import { prepareOfflineAssets } from './lib/assets.mjs';
 import { captureCatalog } from './lib/catalog.mjs';
 import { buildCoverageBaseline } from './lib/coverage.mjs';
 import { createRunContext, writeCheckpoint, writeJson } from './lib/run-dir.mjs';
-import {
-  runBootstrapContract,
-  runBookHidden,
-  runContentTextAndAssets,
-  runDestructiveScratch,
-  runExportPackage,
-  runMainDeckSetup,
-  runPresentationHidden,
-  runTemplateAndScriptTransport,
-} from './lib/scenarios.mjs';
+import { runBootstrapContract } from './scenarios/bootstrap_contract.mjs';
+import { runBookHidden } from './scenarios/book_hidden.mjs';
+import { runContentTextAndAssets } from './scenarios/content_text_table.mjs';
+import { runDestructiveScratch } from './scenarios/destructive_scratch.mjs';
+import { runExportPackage } from './scenarios/export_package.mjs';
+import { runMainDeckSetup } from './scenarios/main_deck_setup.mjs';
+import { runPresentationHidden } from './scenarios/presentation_hidden.mjs';
+import { runTemplateAndScriptTransport } from './scenarios/template_flow.mjs';
 
 function parseArgs(argv) {
   const options = {

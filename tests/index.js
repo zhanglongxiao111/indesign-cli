@@ -2,7 +2,8 @@
 
 /**
  * Master Test Index
- * Runs all InDesign MCP Server tests in logical order with comprehensive coverage
+ * Runs InDesign MCP Server smoke and optional suites.
+ * --required is the baseline gate, not full behavior coverage.
  */
 
 import { spawn } from 'child_process';
@@ -50,7 +51,7 @@ class ProgressBar {
 const TEST_SUITES = [
     {
         name: 'Architecture Registry',
-        description: 'Tests terminal architecture registry, artifact projection, and required runner coverage',
+        description: 'Baseline gate for terminal architecture registry, artifact projection, and required runner wiring',
         tests: [
             'architecture/registry.test.mjs',
             'architecture/required-runner.test.mjs'
@@ -528,6 +529,9 @@ function selectTestSuites(args) {
 
 async function runAllTests(selectedSuites = TEST_SUITES) {
     log('InDesign MCP Server - Master Test Suite', 'header');
+    if (process.argv.slice(2).includes('--required')) {
+        log('--required runs the baseline gate only; it is not full behavior coverage.', 'warning');
+    }
     log(`Server Path: ${TEST_CONFIG.serverPath}`, 'info');
     log(`Total Test Suites: ${selectedSuites.length}`, 'info');
 

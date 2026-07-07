@@ -4,13 +4,12 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 
-import { registry } from "../../src/tools/index.js";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const LOG_DIR = path.resolve(__dirname, "logs");
 const OUTPUT_DIR = path.resolve(__dirname, "output");
+const REGISTRY_ARTIFACT_PATH = path.resolve(__dirname, "../../src/core/indesign-tool-registry.json");
 const SAMPLE_IMAGE = path.resolve(__dirname, "../../docs/image/MCP_INSTRUCTIONS/1756796820062.png");
 const SAMPLE_DATA_SOURCE = path.resolve(__dirname, "../test-data.csv");
 const SAMPLE_SAVE_PATH = path.resolve(OUTPUT_DIR, "tool-suite-sample.indd");
@@ -20,9 +19,13 @@ const LOG_PATH = path.join(LOG_DIR, `tool-suite-run-${TIMESTAMP}.json`);
 await fs.mkdir(LOG_DIR, { recursive: true });
 await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-function gatherToolDefinitions() {
+async function gatherToolDefinitions() {
+    const artifact = JSON.parse(await fs.readFile(REGISTRY_ARTIFACT_PATH, "utf8"));
+    if (!artifact?.sources?.classic || !artifact.registry_hash) {
+        throw new Error(`Invalid registry artifact: ${REGISTRY_ARTIFACT_PATH}`);
+    }
     const map = new Map();
-    for (const def of registry.tools.filter((tool) => tool.profiles.includes("classic"))) {
+    for (const def of artifact.sources.classic) {
         if (!def?.name) continue;
         if (!map.has(def.name)) {
             map.set(def.name, def);
@@ -30,8 +33,6 @@ function gatherToolDefinitions() {
     }
     return map;
 }
-
-const TOOL_DEFINITIONS = gatherToolDefinitions();
 
 const CUSTOM_ARG_BUILDERS = new Map([
     ["create_document", () => ({ width: 210, height: 297, pages: 2, facingPages: true })],
@@ -325,6 +326,7 @@ class ToolSuiteRunner {
 }
 
 async function main() {
+    const TOOL_DEFINITIONS = await gatherToolDefinitions();
     const runner = new ToolSuiteRunner(TOOL_DEFINITIONS);
     try {
         await runner.startServer();

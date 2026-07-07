@@ -80,8 +80,7 @@ function isTask4LegacyWhitelist(relPath, line, token, lineNumber) {
   }
   return (
     token === 'hidden_handler_bridge' &&
-    relPath === 'agent-harness/cli_anything/indesign/tests/test_core.py' &&
-    lineNumber === 909 &&
+    relPath === 'agent-harness/cli_anything/indesign/tests/test_catalog_router.py' &&
     line.includes(`"${token}.mjs"`)
   );
 }
