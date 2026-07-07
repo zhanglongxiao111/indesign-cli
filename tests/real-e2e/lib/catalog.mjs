@@ -3,7 +3,7 @@ import path from 'node:path';
 import { runCli } from './cli.mjs';
 import { writeJson } from './run-dir.mjs';
 
-const SOURCES = ['cli', 'script', 'advanced', 'classic', 'hidden_handler'];
+const SOURCES = ['cli', 'cli.primitive', 'script', 'advanced', 'classic', 'hidden_handler'];
 
 function backendFor(source) {
   if (source === 'hidden_handler') return 'hidden_handler_bridge';

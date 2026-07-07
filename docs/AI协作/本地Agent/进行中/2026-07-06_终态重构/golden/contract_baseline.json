@@ -208,7 +208,7 @@
       "writes_filesystem": false
     },
     {
-      "destructive": true,
+      "destructive": false,
       "domain": "document",
       "id": "document.cleanup_document",
       "mutates_document": true,

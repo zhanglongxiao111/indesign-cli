@@ -234,6 +234,10 @@ def _artifact_kinds(tool_name: str) -> list[str]:
     return kinds
 
 
+def _destructive(tool_name: str) -> bool:
+    return any(part in tool_name for part in ("delete", "clear", "close"))
+
+
 def _target_scope(domain: str, tool_name: str) -> str:
     if domain == "export":
         return "filesystem"
@@ -352,7 +356,7 @@ def exposed_tool_entries(tools: list[dict[str, Any]], source: str) -> list[dict[
                 "requires": ["indesign_com"],
                 "side_effects": _side_effects(name, domain),
                 "artifact_kinds": artifact_kinds,
-                "destructive": any(part in name for part in ("delete", "clear", "close")),
+                "destructive": _destructive(name),
                 "target_scope": _target_scope(domain, name),
                 "needs_indesign": True,
                 "produces_artifacts": bool(artifact_kinds),
@@ -533,7 +537,7 @@ class Catalog:
                         "requires": ["indesign_com"],
                         "side_effects": list(metadata.get("side_effects", ["indesign_mutation"])),
                         "artifact_kinds": artifact_kinds,
-                        "destructive": any(part in name for part in ("delete", "clear", "close")),
+                        "destructive": _destructive(name),
                         "target_scope": str(metadata.get("target_scope") or _target_scope(domain, name)),
                         "needs_indesign": True,
                         "produces_artifacts": bool(metadata.get("produces_artifacts", bool(artifact_kinds))),

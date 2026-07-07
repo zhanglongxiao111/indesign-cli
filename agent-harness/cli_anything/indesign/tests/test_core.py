@@ -845,6 +845,15 @@ def test_catalog_infers_expected_domains_from_tool_names():
     assert "graphics.create_rectangle" in ids
 
 
+def test_catalog_destructive_helper_is_canonical_for_cleanup_tools():
+    from cli_anything.indesign.core.catalog import _destructive
+
+    assert _destructive("cleanup_document") is False
+    assert _destructive("close_document") is True
+    assert _destructive("delete_layer") is True
+    assert _destructive("create_document") is False
+
+
 def test_router_calls_export_verify_cli_primitive(tmp_path):
     from cli_anything.indesign.core.catalog import Catalog
     from cli_anything.indesign.core.router import Router
