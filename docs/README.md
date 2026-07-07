@@ -33,7 +33,7 @@
 | ---- | ---- |
 | `MCP_INSTRUCTIONS.md` | MCP 接入、工具能力、使用说明 |
 | `LLM_PROMPT.md` | 给 LLM 使用 MCP 工具的提示词示例 |
-| `SYNC.md` | Windows COM 适配、迁移和运行说明 |
+| `SYNC.md` | Windows COM 执行通道、MCP / CLI 运行同步和终态架构入口说明 |
 | `template-blueprint.md` | 模板槽位导出示例和母版槽位清单 |
 | `agent-template-flow.md` | AI Agent 使用模板槽位生成页面的流程图 |
 

@@ -1,113 +1,239 @@
-# InDesign MCP Server 项目同步文档（Windows 适配版）
+# InDesign MCP Server Windows COM 与运行同步说明
 
-更新时间：{自动生成于提交时}
+更新时间：2026-07-08
 
-## 1. 项目概览
-- 名称：InDesign MCP Server（基于 Model Context Protocol 的 InDesign 自动化服务）
-- 目标：让 Agent/脚本以“工具调用”的方式操控 Adobe InDesign，完成文档创建、内容编排、样式管理、导出等专业工作流
-- 技术栈：Node.js + MCP SDK；脚本在 InDesign 端执行 ExtendScript（JavaScript）
-- 目录结构（简）：
-  - src/core：MCP 服务器、脚本执行器、会话管理
-  - src/handlers：各类功能处理器（文档/页面/文本/图形/样式/导出等）
-  - src/types：工具定义（约 135+）
-  - tests：基础与集成测试
-  - docs：文档
+## 1. 用途
 
-## 2. 本次改造内容（Windows 适配）
-- 背景：原项目在 macOS 上通过 AppleScript 调用 InDesign；Windows 无 AppleScript，需替换执行通道
-- 方案：采用 Windows COM + DoScript 直连 InDesign.Application（通过 winax）
-- 实施要点：
-  - 在 src/core/scriptExecutor.js 中新增 Windows 分支：
-    - 自动检测 InDesign ProgID（优先 InDesign.Application.2025）
-    - 通过 COM 调用 app.DoScript 执行 ExtendScript
-    - 强制无界面（UserInteractionLevels.NEVER_INTERACT）
-  - 保留 macOS 分支（AppleScript + 临时 JSX），实现跨平台透明切换
-  - 路径与字符串转义适配，确保中文/空格/反斜杠路径稳定
+本文是当前 Windows 环境下运行、迁移和排查 InDesign MCP / CLI 的同步说明。它记录的是终态架构下的现状，不是历史迁移计划。
 
-## 3. 当前进度与状态
-- 已完成
-  - Windows COM 执行通道打通（winax）
-  - 基础端到端用例验证：新建文档 → 添加文本 → 导出 PDF
-  - 基础工作流测试通过（创建文档/翻页/文本/图形/保存）
-  - 导出时自动创建目标文件夹
-- 待完善（进行中）
-  - place_image：在多类型路径（中文/网络盘/空格）下的稳健性
-  - export_images、package_document：Windows 下的路径与目标目录创建细节
-  - ProgID 探测与报错信息进一步增强
+适用场景：
 
-## 4. 运行与配置（Windows）
-- 前置条件
-  - Windows 10/11
-  - Adobe InDesign 2025（常规桌面版）已安装并能正常启动
-  - Node.js 18+（建议 18 或 20 LTS）
-- 安装依赖
-  - 在项目根目录执行：
-    - npm install
-    - npm install winax
-- 启动 MCP 服务器
-  - node src/index.js
-  - 该服务使用 MCP Stdio Transport，对接支持 MCP 的 Agent 即可（以命令行进程方式启动）
-- 快速自测（示例）
-  - 端到端（示例导出到 D:/Indesign-Exports/mcp-demo.pdf）：
-    1) create_document: { width: 210, height: 297, pages: 1 }
-    2) create_text_frame: { content: "Hello Windows!", x: 30, y: 30, width: 120, height: 30, fontSize: 14 }
-    3) export_pdf: { filePath: "D:/Indesign-Exports/mcp-demo.pdf", preset: "High Quality Print" }
-- 路径规范
-  - 建议使用绝对路径，分隔符可用 `/` 或 `\`（内部已做兼容与转义）
-  - 中文/空格路径支持；建议避免过长路径和受限权限目录
+- 在 Windows 机器上通过 MCP stdio 启动 InDesign 自动化服务。
+- 通过 `indesign-cli` 调用同一套工具能力。
+- 排查 `winax`、COM、路径转义、registry artifact 或 CLI catalog 同步问题。
 
-## 5. 在不同电脑之间迁移（环境准备）
-- 必备软件
-  1) Adobe InDesign 2025（桌面版）
-  2) Node.js 18+
-- 项目拉取与依赖
-  1) git clone <repo>
-  2) cd indesign-cli && npm install
-- 可能的系统依赖（仅在个别机器上需要）
-  - 若安装 winax 失败：
-    - 安装 Visual Studio Build Tools（含“Desktop development with C++”）或 Microsoft C++ 运行库
-    - 确保 Python（用于 node-gyp）和必要的编译工具可用
-- 权限与首次运行
-  - 首次通过 COM 启动 InDesign 可能较慢，耐心等待
-  - 如杀毒/管控软件拦截 COM，请加入信任/白名单
+## 2. 当前架构真相
 
-## 6. 与 MCP 客户端对接说明
-- 该服务器走标准 MCP Stdio，建议在 Agent 侧以“启动一个进程并通过 stdio 通信”的方式接入
-- 启动命令：node src/index.js
-- 工具列表：调用 ListTools（tools/list）可获取；或参阅 src/types 下的定义
+工具能力只有一条权威链路：
 
-## 7. 常见问题与排查
-- “ActiveXObject is not a constructor / 无法创建 InDesign COM 对象”
-  - 可能原因：winax 加载异常或系统缺组件；或 InDesign 未正确注册 COM ProgID
-  - 处理：重装/修复 winax；检查 InDesign 安装；尝试管理员终端运行；安装 VC++ 运行库
-- “Syntax error / 语法错误（DoScript）”
-  - 多因注入的 ExtendScript 文本被额外转义或不完整导致
-  - 处理：确保不要对代码做重复的引号/换行转义；优先使用项目内置 handler 的工具
-- 导出失败/路径错误
-  - 确认导出目录是否存在；目前已内置“若不存在则创建目录”的逻辑
-  - 使用绝对路径；避免受限目录（如系统盘敏感位置）
-- 字体/颜色名无效
-  - 若指定字体/色板不存在，将回退默认值；可先创建/导入所需资源
+```text
+src/tools/index.js
+  -> src/tools/<domain>/ tool-module
+  -> src/core/mcpServer.js
+  -> src/core/toolRouter.js
+  -> src/core/scriptExecutor.js
+  -> winax / Windows COM
+  -> Adobe InDesign DoScript
+```
 
-## 8. 代码层关键改动点
-- src/core/scriptExecutor.js
-  - Windows 分支：通过 winax 创建 InDesign.Application.2025（含回退列表），调用 app.DoScript
-  - 强制无界面执行；错误捕获并向上返回
-  - macOS 分支：保留 AppleScript 通道
-- 处理器中的路径与字符串
-  - 对 open/save/export 等涉及 File/Folder 的参数，统一走 escape 处理
-  - 导出类工具在执行前会尝试创建目标目录
+关键边界：
 
-## 9. 推荐使用方式（设计团队）
-- 把 MCP Server 作为“设计自动化底座”，由 Agent 编排工具链（创建文档→导入素材→自动排版→导出）
-- 模板/样式的维护：统一在 InDesign 模板中维护样式与色板，由工具对其引用与应用
-- 对外部资源（图片、字体、CSV 数据等）使用稳定的绝对路径与结构化目录
+- `src/tools/index.js` 是当前工具 registry 真相。
+- `src/tools/<domain>/` 内共置工具名、domain、profiles、CLI id、contract、JSON Schema 和 handler。
+- `src/core/mcpServer.js` 是唯一 MCP server 工厂。
+- `src/core/toolRouter.js` 是唯一 registry dispatch 入口。
+- `src/core/scriptExecutor.js` 负责跨平台脚本执行；Windows 通过 `winax` 和 COM 调用 InDesign `DoScript`。
+- `src/core/indesign-tool-registry.json` 是 Node registry 到 Python CLI 的 checked-in artifact。
+- Python CLI 只读 `src/core/indesign-tool-registry.json`，再叠加 CLI primitives 和项目插件工具；不扫描 Node 源码目录。
+- 旧 `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 已删除且不得恢复。
 
-## 10. 后续路线图
-- 完成图片放置与批量导出在 Windows 下的增强测试
-- 扩展测试覆盖到全部核心工具分类
-- 提供更清晰的错误代码与故障自诊建议
+## 3. MCP 入口
 
----
+经典服务器入口：
 
-如需定制更多工具（如数据合并、特定导出预设、品牌手册模板自动化），请在 issues 中提交需求或直接联系维护者。
+```powershell
+node src/index.js
+```
+
+高级模板服务器入口：
+
+```powershell
+node src/advanced/index.js
+```
+
+运行约束：
+
+- MCP 使用 stdio transport，`stdout` 只给 MCP 协议使用。
+- 日志、诊断和本地排错信息必须写入 `stderr`。
+- `src/index.js` 只启动 `profile: 'classic'`。
+- `src/advanced/index.js` 只启动 `profile: 'advanced'`。
+- MCP 暴露哪些工具由 tool-module 的 `profiles` 决定；空 `profiles` 表示 internal，不等于死代码。
+
+## 4. CLI 同步链路
+
+CLI 实现在 `agent-harness/`，Python 包名为 `cli_anything.indesign`。CLI 不重写 InDesign 自动化，只复用 Node registry artifact、MCP server 和脚本执行底座。
+
+常用命令：
+
+```powershell
+pip install -e .
+indesign-cli server setup
+indesign-cli server health
+indesign-cli tool domains
+indesign-cli tool list
+indesign-cli tool schema <tool-id>
+indesign-cli tool call <tool-id> --json <args-json>
+```
+
+同步规则：
+
+- 修改 `src/tools/` 下任意 tool-module 后，执行：
+
+```powershell
+node src/core/artifact.js --write
+node src/core/artifact.js --check
+```
+
+- `src/core/indesign-tool-registry.json` 缺失或 hash 不一致是硬错误。
+- Book、Presentation、Export、Template 等 internal 工具域可以进入 CLI catalog；是否暴露到 MCP 仍由 `profiles` 控制。
+- artifact 中 internal 工具会投影为 CLI `source: hidden_handler`，这是终态兼容语义，不代表存在旧 handler 目录。
+- 插件工具通过 CLI 插件协议接入，遵守同一 envelope、schema、session、timeout 和 document-state 契约。
+
+## 5. Windows COM 执行通道
+
+Windows 运行时通过 `winax` 创建 InDesign COM 对象，并调用 InDesign `DoScript` 执行 ExtendScript / JSX。
+
+前置条件：
+
+- Windows 10/11。
+- Adobe InDesign 已安装，并与 MCP / CLI 进程运行在同一用户会话。
+- Node.js 18 及以上。
+- `winax` 可安装并可加载。
+- 如使用 CLI，本机 Python 3.10 及以上可用。
+
+依赖安装：
+
+```powershell
+npm install
+pip install -e .
+indesign-cli server setup
+```
+
+执行注意：
+
+- 首次 COM 启动 InDesign 可能较慢。
+- InDesign 必须能在当前用户桌面会话中启动；服务会话、无桌面会话或权限隔离可能导致 COM 创建失败。
+- 若 `winax` 编译失败，检查 Visual Studio Build Tools、Microsoft C++ 运行库、Python / node-gyp 环境。
+- 若安全软件拦截 COM 自动化，需要将 InDesign 或当前项目目录加入信任策略。
+
+## 6. 路径与脚本转义
+
+生成 ExtendScript / JSX 时必须处理字符串和路径转义，尤其是：
+
+- 中文路径。
+- 空格路径。
+- 反斜杠路径。
+- 网络路径。
+- 引号、换行和 JSON 字符串。
+
+实现要求：
+
+- handler 负责参数处理、脚本拼装、执行调用和响应包装。
+- 跨域共享的字符串、路径和响应工具放在 `src/utils/`。
+- 域内共享 JSX helper 放在 `src/tools/<domain>/_shared.js`。
+- 不要在 handler 中记录客户文档内容、客户名称或私有资产完整路径。
+
+## 7. 快速自测
+
+MCP / CLI 基础健康检查：
+
+```powershell
+indesign-cli server health
+indesign-cli tool domains
+node scripts/check_architecture.mjs
+node src/core/artifact.js --check
+```
+
+工具调用示例：
+
+```powershell
+indesign-cli tool call document.create --json "{\"width\":210,\"height\":297,\"pages\":1}"
+indesign-cli tool call text.create_frame --json "{\"content\":\"Hello Windows\",\"x\":30,\"y\":30,\"width\":120,\"height\":30,\"fontSize\":14}"
+indesign-cli tool call export.pdf --json "{\"filePath\":\"D:/Indesign-Exports/mcp-demo.pdf\",\"preset\":\"High Quality Print\"}"
+```
+
+真实 InDesign 行为变更需要补对应真实 E2E 或场景测试，并说明是否实际运行了 InDesign 集成测试。
+
+## 8. 常见问题
+
+### 无法创建 InDesign COM 对象
+
+可能原因：
+
+- InDesign 未安装或 COM ProgID 未注册。
+- `winax` 未正确安装或加载。
+- 当前进程运行在无法访问桌面的会话。
+- 权限或安全软件拦截 COM 自动化。
+
+处理：
+
+```powershell
+npm install
+indesign-cli server setup
+indesign-cli server health
+```
+
+如仍失败，确认 InDesign 能在当前 Windows 用户会话中手动启动。
+
+### 工具目录与 CLI 输出不一致
+
+可能原因：
+
+- 修改了 `src/tools/` 后未重新生成 artifact。
+- 手动修改了 `src/core/indesign-tool-registry.json`。
+- CLI 正在读取旧安装路径或旧工作区。
+
+处理：
+
+```powershell
+node src/core/artifact.js --write
+node src/core/artifact.js --check
+python -m pytest agent-harness\cli_anything\indesign\tests -q
+```
+
+### DoScript 语法错误
+
+常见原因是脚本文本、路径、引号或换行被重复转义。优先检查对应 `src/tools/<domain>/` tool-module 的 handler 和共享 helper，不要绕过 registry 另写执行入口。
+
+### 导出失败或路径错误
+
+检查：
+
+- 是否使用绝对路径。
+- 目标目录是否可写。
+- 网络路径是否可被当前用户访问。
+- 导出工具是否正确创建目标目录。
+
+## 9. 文档同步责任
+
+以下变化必须同步更新相关文档和测试：
+
+- 工具名、schema、contract、profiles 或 CLI id 变化。
+- `src/core/indesign-tool-registry.json` artifact 生成规则变化。
+- CLI tool catalog、router、session、schema、plugin protocol 或 host action 契约变化。
+- Windows COM 执行、路径转义、导出验证或真实 InDesign 行为变化。
+
+最低同步项：
+
+- `README.md` / `README.en.md`：面向用户的安装和使用说明。
+- `skills/indesign-cli/SKILL.md`：面向 Agent 的 CLI 使用提示。
+- `docs/README.md`：文档入口和归档位置。
+- 对应 `docs/技术决策/` 或专项文档：长期约束和设计结论。
+
+## 10. 推荐验证基线
+
+纯文档修复：
+
+```powershell
+git diff --check
+```
+
+触及工具 registry、artifact、CLI catalog 或架构边界：
+
+```powershell
+node scripts/check_architecture.mjs
+node tests/index.js --required
+python -m pytest agent-harness\cli_anything\indesign\tests -q
+```
+
+触及真实 InDesign 行为时，再运行对应真实 E2E 入口，并在结果中说明 InDesign / COM 环境是否可用。
