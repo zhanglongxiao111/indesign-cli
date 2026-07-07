@@ -20,7 +20,7 @@
 | Task 3 原子切换与物理删除 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二轮复审 PASS；入口切换、旧结构物理删除、full golden A 门禁和旧口径清理均已通过 |
 | Task 4 CLI artifact-only 终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二次复审 PASS；artifact-only catalog/internal bridge、legacy token 门禁、E2E backend 口径和 Task 4 验证清单均已通过 |
 | Task 5 测试架构终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；测试拆分、旧入口删除、artifact-driven tool-suite、硬失败语义和 InDesign document cleanup 均已通过 |
-| Task 6 终局验收 | pending | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 未启动 |
+| Task 6 终局验收 | in_progress | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 已启动：运行 golden/full verification matrix、真实 InDesign 门禁，并生成验收报告 |
 | Task 7 文档与治理同步 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 
 ## 计划口径
