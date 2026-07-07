@@ -1,4 +1,4 @@
-import { InDesignMCPServer } from '../src/core/InDesignMCPServer.js';
+import { createMcpServer } from '../src/core/mcpServer.js';
 // Just construct to ensure imports resolve
-new InDesignMCPServer();
-console.log('InDesignMCPServer constructed OK');
+createMcpServer({ profile: 'classic' });
+console.log('classic mcpServer constructed OK');

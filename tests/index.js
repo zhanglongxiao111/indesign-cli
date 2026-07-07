@@ -8,6 +8,7 @@
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { registry } from '../src/tools/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -225,30 +226,19 @@ const TEST_SUITES = [
     }
 ];
 
-// Handler coverage mapping
-const HANDLER_COVERAGE = {
-    'DocumentHandlers': {
+// Registry domain coverage mapping. This is a lightweight smoke view for the
+// master runner; detailed behavior coverage lives in the focused test files.
+const DOMAIN_COVERAGE = {
+    document: {
         tested: ['test-document-preferences.js', 'test-simple-document.js', 'test-document-and-page.js'],
-        tools: [
-            'get_document_info', 'create_document', 'open_document', 'save_document', 'close_document',
-            'get_document_preferences', 'set_document_preferences', 'get_document_grid_settings',
-            'set_document_grid_settings', 'get_document_layout_preferences', 'set_document_layout_preferences'
-        ]
     },
-    'PageHandlers': {
+    page: {
         tested: ['test-document-and-page.js', 'test-basic-workflow.js'],
-        tools: [
-            'add_page', 'get_page_info', 'navigate_to_page', 'duplicate_page', 'move_page', 'delete_page',
-            'set_page_properties', 'adjust_page_layout', 'resize_page', 'create_page_guides'
-        ]
     },
-    'TextHandlers': {
+    text: {
         tested: ['test-content-management.js', 'test-standard-document.js'],
-        tools: [
-            'create_text_frame', 'edit_text_frame', 'create_table', 'populate_table', 'find_replace_text'
-        ]
     },
-    'GraphicsHandlers': {
+    graphics: {
         tested: [
             'test-content-management.js',
             'test-standard-document.js',
@@ -257,62 +247,46 @@ const HANDLER_COVERAGE = {
             'test-image-assets.js',
             'test-absolute-path.js'
         ],
-        tools: [
-            'create_rectangle', 'create_ellipse', 'create_polygon', 'place_image',
-            'create_object_style', 'list_object_styles', 'apply_object_style', 'get_image_info'
-        ]
     },
-    'StyleHandlers': {
+    style: {
         tested: [
             'test-content-management.js',
             'test-standard-document.js',
             'test-swatches-and-backgrounds.js'
         ],
-        tools: [
-            'create_paragraph_style', 'create_character_style', 'apply_paragraph_style',
-            'apply_character_style', 'apply_color', 'create_color_swatch', 'list_styles', 'list_color_swatches'
-        ]
     },
-    'BookHandlers': {
+    book: {
         tested: ['test-advanced-features.js'],
-        tools: [
-            'create_book', 'open_book', 'list_books', 'add_document_to_book', 'synchronize_book',
-            'repaginate_book', 'update_all_cross_references', 'export_book', 'package_book'
-        ]
     },
-    'PageItemHandlers': {
+    pageItem: {
         tested: ['test-pageitem-group.js'],
-        tools: [
-            'get_page_item_info', 'select_page_item', 'move_page_item', 'resize_page_item',
-            'set_page_item_properties', 'duplicate_page_item', 'delete_page_item', 'list_page_items'
-        ]
     },
-    'GroupHandlers': {
+    group: {
         tested: ['test-pageitem-group.js'],
-        tools: [
-            'create_group', 'create_group_from_items', 'ungroup', 'get_group_info',
-            'add_item_to_group', 'remove_item_from_group', 'list_groups', 'set_group_properties'
-        ]
     },
-    'MasterSpreadHandlers': {
+    masterSpread: {
         tested: ['test-advanced-features.js'],
-        tools: [
-            'create_master_spread', 'list_master_spreads', 'delete_master_spread',
-            'duplicate_master_spread', 'apply_master_spread', 'create_master_text_frame',
-            'create_master_rectangle', 'create_master_guides', 'get_master_spread_info'
-        ]
     },
-    'ExportHandlers': {
+    spread: {
         tested: ['test-advanced-features.js'],
-        tools: [
-            'export_pdf', 'export_images', 'package_document'
-        ]
     },
-    'UtilityHandlers': {
+    export: {
+        tested: ['test-advanced-features.js'],
+    },
+    utility: {
         tested: ['test-enhanced-functionality.js', 'test-advanced-features.js'],
-        tools: [
-            'execute_indesign_code', 'view_document', 'get_session_info', 'clear_session'
-        ]
+    },
+    layer: {
+        tested: ['test-advanced-features.js'],
+    },
+    help: {
+        tested: ['architecture/registry.test.mjs'],
+    },
+    template: {
+        tested: ['architecture/registry.test.mjs'],
+    },
+    presentation: {
+        tested: ['architecture/registry.test.mjs'],
     }
 };
 
@@ -488,35 +462,36 @@ async function runTestSuite(suite, results, currentSuiteIndex, totalSuites, prog
 function generateCoverageReport(results) {
     log('\n=== COVERAGE ANALYSIS ===', 'section');
 
-    // Calculate handler coverage
-    const handlerCoverage = {};
-    for (const [handler, coverage] of Object.entries(HANDLER_COVERAGE)) {
+    // Calculate registry domain coverage
+    const domainCoverage = {};
+    for (const [domain, coverage] of Object.entries(DOMAIN_COVERAGE)) {
         const testedFiles = coverage.tested;
         const testFilesInResults = results.suites.flatMap(suite => suite.tests.map(test => test.file));
         const covered = testedFiles.some(file => testFilesInResults.includes(file));
+        const toolCount = registry.byDomain.get(domain)?.length || 0;
 
-        handlerCoverage[handler] = {
+        domainCoverage[domain] = {
             covered,
-            tools: coverage.tools.length,
+            tools: toolCount,
             testedFiles
         };
     }
 
     // Display coverage
-    log('Handler Coverage:', 'info');
-    for (const [handler, coverage] of Object.entries(handlerCoverage)) {
+    log('Registry Domain Coverage:', 'info');
+    for (const [domain, coverage] of Object.entries(domainCoverage)) {
         const status = coverage.covered ? '✅' : '❌';
-        log(`${status} ${handler}: ${coverage.tools} tools`, coverage.covered ? 'success' : 'error');
+        log(`${status} ${domain}: ${coverage.tools} tools`, coverage.covered ? 'success' : 'error');
     }
 
     // Calculate overall coverage
-    const totalHandlers = Object.keys(handlerCoverage).length;
-    const coveredHandlers = Object.values(handlerCoverage).filter(c => c.covered).length;
-    const coveragePercentage = ((coveredHandlers / totalHandlers) * 100).toFixed(1);
+    const totalDomains = Object.keys(domainCoverage).length;
+    const coveredDomains = Object.values(domainCoverage).filter(c => c.covered).length;
+    const coveragePercentage = ((coveredDomains / totalDomains) * 100).toFixed(1);
 
-    log(`\nOverall Handler Coverage: ${coveragePercentage}% (${coveredHandlers}/${totalHandlers})`, 'progress');
+    log(`\nOverall Registry Domain Coverage: ${coveragePercentage}% (${coveredDomains}/${totalDomains})`, 'progress');
 
-    return handlerCoverage;
+    return domainCoverage;
 }
 
 function selectTestSuites(args) {
@@ -660,9 +635,9 @@ if (args.includes('--help') || args.includes('-h')) {
         log(`     Category: ${suite.category}`, 'info');
         log(`     ${suite.description}`, 'info');
     });
-    log('\nHandler Coverage:', 'info');
-    for (const [handler, coverage] of Object.entries(HANDLER_COVERAGE)) {
-        log(`  ${handler}: ${coverage.tools} tools`, 'info');
+    log('\nRegistry Domain Coverage:', 'info');
+    for (const domain of Object.keys(DOMAIN_COVERAGE)) {
+        log(`  ${domain}: ${registry.byDomain.get(domain)?.length || 0} tools`, 'info');
     }
     process.exit(0);
 }

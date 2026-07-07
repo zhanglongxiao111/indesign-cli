@@ -20,7 +20,7 @@ const SWITCH_ONLY_TOOLS = {
   preflight_document: {
     domain: 'document',
     handler: 'DocumentHandlers.preflightDocument',
-    evidence: 'src/handlers/documentHandlers.js: preflightDocument destructures profile/includeWarnings; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: preflightDocument destructures profile/includeWarnings; old commented schema in legacy document type file.',
     schema: objectSchema({
       profile: { type: 'string', description: 'Preflight profile name', default: 'Basic' },
       includeWarnings: { type: 'boolean', description: 'Include warnings in report', default: true },
@@ -29,7 +29,7 @@ const SWITCH_ONLY_TOOLS = {
   data_merge: {
     domain: 'document',
     handler: 'DocumentHandlers.dataMerge',
-    evidence: 'src/handlers/documentHandlers.js: dataMerge destructures dataSource/targetPage/createNewPages/removeUnusedPages; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: dataMerge destructures dataSource/targetPage/createNewPages/removeUnusedPages; old commented schema in legacy document type file.',
     schema: objectSchema({
       dataSource: { type: 'string', description: 'Path to data source file' },
       targetPage: { type: 'number', description: 'Target page index', default: 0 },
@@ -40,7 +40,7 @@ const SWITCH_ONLY_TOOLS = {
   get_document_xml_structure: {
     domain: 'document',
     handler: 'DocumentHandlers.getDocumentXmlStructure',
-    evidence: 'src/handlers/documentHandlers.js: getDocumentXmlStructure destructures includeTags/includeElements; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: getDocumentXmlStructure destructures includeTags/includeElements; old commented schema in legacy document type file.',
     schema: objectSchema({
       includeTags: { type: 'boolean', description: 'Include XML tags', default: true },
       includeElements: { type: 'boolean', description: 'Include XML elements', default: true },
@@ -49,7 +49,7 @@ const SWITCH_ONLY_TOOLS = {
   export_document_xml: {
     domain: 'document',
     handler: 'DocumentHandlers.exportDocumentXml',
-    evidence: 'src/handlers/documentHandlers.js: exportDocumentXml destructures filePath/includeImages/includeStyles; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: exportDocumentXml destructures filePath/includeImages/includeStyles; old commented schema in legacy document type file.',
     schema: objectSchema({
       filePath: { type: 'string', description: 'Path to save XML file' },
       includeImages: { type: 'boolean', description: 'Include images in export', default: true },
@@ -59,7 +59,7 @@ const SWITCH_ONLY_TOOLS = {
   save_document_to_cloud: {
     domain: 'document',
     handler: 'DocumentHandlers.saveDocumentToCloud',
-    evidence: 'src/handlers/documentHandlers.js: saveDocumentToCloud destructures cloudName/includeAssets; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: saveDocumentToCloud destructures cloudName/includeAssets; old commented schema in legacy document type file.',
     schema: objectSchema({
       cloudName: { type: 'string', description: 'Name for the cloud document' },
       includeAssets: { type: 'boolean', description: 'Include linked assets', default: true },
@@ -68,7 +68,7 @@ const SWITCH_ONLY_TOOLS = {
   open_cloud_document: {
     domain: 'document',
     handler: 'DocumentHandlers.openCloudDocument',
-    evidence: 'src/handlers/documentHandlers.js: openCloudDocument destructures cloudDocumentId; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: openCloudDocument destructures cloudDocumentId; old commented schema in legacy document type file.',
     schema: objectSchema({
       cloudDocumentId: { type: 'string', description: 'Cloud document ID' },
     }, ['cloudDocumentId']),
@@ -76,7 +76,7 @@ const SWITCH_ONLY_TOOLS = {
   validate_document: {
     domain: 'document',
     handler: 'DocumentHandlers.validateDocument',
-    evidence: 'src/handlers/documentHandlers.js: validateDocument destructures checkLinks/checkFonts/checkImages/checkStyles; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: validateDocument destructures checkLinks/checkFonts/checkImages/checkStyles; old commented schema in legacy document type file.',
     schema: objectSchema({
       checkLinks: { type: 'boolean', description: 'Check for broken links', default: true },
       checkFonts: { type: 'boolean', description: 'Check for missing fonts', default: true },
@@ -87,7 +87,7 @@ const SWITCH_ONLY_TOOLS = {
   cleanup_document: {
     domain: 'document',
     handler: 'DocumentHandlers.cleanupDocument',
-    evidence: 'src/handlers/documentHandlers.js: cleanupDocument destructures removeUnusedStyles/removeUnusedColors/removeUnusedLayers/removeHiddenElements; old commented schema in src/types/toolDefinitionsDocument.js.',
+    evidence: 'src/handlers/documentHandlers.js: cleanupDocument destructures removeUnusedStyles/removeUnusedColors/removeUnusedLayers/removeHiddenElements; old commented schema in legacy document type file.',
     schema: objectSchema({
       removeUnusedStyles: { type: 'boolean', description: 'Remove unused styles', default: false },
       removeUnusedColors: { type: 'boolean', description: 'Remove unused colors', default: false },
@@ -108,15 +108,6 @@ const SWITCH_ONLY_TOOLS = {
       pageIndexWithinSpread: { type: 'integer', description: 'Page index within spread', default: 0 },
     }, ['spreadIndex', 'xmlElementName']),
   },
-};
-
-const ADVANCED_HANDLER_MAP = {
-  run_jsx_file: 'runJsxFile',
-  inspect_template_blueprint: 'inspectTemplate',
-  list_template_blueprints: 'listTemplateBlueprints',
-  create_page_with_template: 'createPageWithTemplate',
-  get_page_information: 'getPageInformation',
-  populate_template_slots: 'fillTemplateFromSlots',
 };
 
 const D_COMMANDS = [
@@ -441,11 +432,9 @@ function responseShape(value) {
 
 async function buildToolCallSnapshots(classicTools, advancedTools, hiddenDump) {
   const { ScriptExecutor } = await import(pathToFileUrl(path.join(repoRoot, 'src/core/scriptExecutor.js')));
-  const { InDesignMCPServer } = await import(pathToFileUrl(path.join(repoRoot, 'src/core/InDesignMCPServer.js')));
-  const { AdvancedTemplateHandlers } = await import(pathToFileUrl(path.join(repoRoot, 'src/handlers/advancedTemplateHandlers.js')));
+  const { registry } = await import(pathToFileUrl(path.join(repoRoot, 'src/tools/index.js')));
 
   const fixtures = await prepareGoldenFixtures();
-  const server = new InDesignMCPServer();
   const snapshots = [];
   const skips = [];
   let captured = [];
@@ -488,16 +477,11 @@ async function buildToolCallSnapshots(classicTools, advancedTools, hiddenDump) {
       applyGoldenArgOverrides(entry, args, fixtures);
       captured = [];
       try {
-        let result;
-        if (entry.source === 'advanced') {
-          const method = ADVANCED_HANDLER_MAP[entry.name];
-          if (!method || typeof AdvancedTemplateHandlers[method] !== 'function') {
-            throw new Error(`advanced handler missing for ${entry.name}`);
-          }
-          result = await AdvancedTemplateHandlers[method](args);
-        } else {
-          result = await server.handleToolCall(entry.name, args);
+        const tool = registry.byName.get(entry.name);
+        if (!tool || typeof tool.handler !== 'function') {
+          throw new Error(`registry handler missing for ${entry.name}`);
         }
+        const result = await tool.handler(args);
         snapshots.push({
           name: entry.name,
           source: entry.source,

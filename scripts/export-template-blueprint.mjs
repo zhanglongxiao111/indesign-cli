@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { AdvancedTemplateHandlers } from '../src/handlers/advancedTemplateHandlers.js';
+import { registry } from '../src/tools/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +22,7 @@ function flattenMetadata(metadata) {
 }
 
 async function main() {
-    const response = await AdvancedTemplateHandlers.inspectTemplate({});
+    const response = await registry.byName.get('inspect_template_blueprint').handler({});
     if (!response || !response.success) {
         throw new Error(response?.result || '模板信息读取失败');
     }

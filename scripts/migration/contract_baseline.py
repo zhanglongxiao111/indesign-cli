@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -71,12 +70,16 @@ def build_current_node_catalog(timeout_seconds: int) -> list[dict[str, Any]]:
     return sorted(entries, key=lambda item: item["id"])
 
 
-def assert_switch_cases_present() -> None:
-    content = (REPO_ROOT / "src" / "core" / "InDesignMCPServer.js").read_text(encoding="utf-8")
-    cases = set(re.findall(r"case\s+'([^']+)'\s*:", content))
-    missing = sorted(set(SWITCH_ONLY_TOOLS) - cases)
+def assert_internal_registry_tools_present() -> None:
+    artifact_path = REPO_ROOT / "src" / "core" / "indesign-tool-registry.json"
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    internal_names = {
+        tool["name"]
+        for tool in artifact.get("sources", {}).get("hidden_handler", [])
+    }
+    missing = sorted(set(SWITCH_ONLY_TOOLS) - internal_names)
     if missing:
-        raise RuntimeError(f"switch-only baseline tools missing from InDesignMCPServer.js: {missing}")
+        raise RuntimeError(f"internal registry baseline tools missing from artifact: {missing}")
 
 
 def baseline_entry(tool: dict[str, Any]) -> dict[str, Any]:
@@ -105,7 +108,7 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=int, default=30)
     args = parser.parse_args()
 
-    assert_switch_cases_present()
+    assert_internal_registry_tools_present()
     entries = [baseline_entry(tool) for tool in build_current_node_catalog(args.timeout_seconds)]
     payload = {
         "schema_version": 1,

@@ -1,22 +1,18 @@
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { registry } from '../src/tools/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const typesUrl = pathToFileURL(path.join(__dirname, '..', 'src', 'types', 'index.js')).href;
-const { allToolDefinitions } = await import(typesUrl);
-const seen = new Map();
+const seenNames = new Map();
+const seenCliIds = new Map();
 const dups = [];
-for (const t of allToolDefinitions) {
+for (const t of registry.tools) {
   if (!t?.name) continue;
-  const k = t.name;
-  if (seen.has(k)) dups.push(k);
-  else seen.set(k, true);
+  if (seenNames.has(t.name)) dups.push(`name:${t.name}`);
+  else seenNames.set(t.name, true);
+  if (seenCliIds.has(t.cli?.id)) dups.push(`cli.id:${t.cli.id}`);
+  else seenCliIds.set(t.cli?.id, true);
 }
 if (dups.length) {
-  console.log('Duplicate tool names:', Array.from(new Set(dups)).join(', '));
+  console.log('Duplicate registry entries:', Array.from(new Set(dups)).join(', '));
   process.exit(1);
 } else {
-  console.log('No duplicate tool names found.');
+  console.log('No duplicate tool names or cli.ids found.');
 }

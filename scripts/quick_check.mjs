@@ -1,9 +1,10 @@
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { registry } from '../src/tools/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const classic = registry.tools.filter((tool) => tool.profiles.includes('classic')).length;
+const advanced = registry.tools.filter((tool) => tool.profiles.includes('advanced')).length;
+const internal = registry.tools.filter((tool) => tool.profiles.length === 0).length;
 
-const typesUrl = pathToFileURL(path.join(__dirname, '..', 'src', 'types', 'index.js')).href;
-const { allToolDefinitions } = await import(typesUrl);
-console.log('Tool count:', allToolDefinitions.length);
+console.log('Registry tool count:', registry.tools.length);
+console.log('Classic tools:', classic);
+console.log('Advanced tools:', advanced);
+console.log('Internal tools:', internal);

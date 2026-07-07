@@ -1,4 +1,4 @@
-import { AdvancedTemplateHandlers } from "../src/handlers/advancedTemplateHandlers.js";
+import { registry } from "../src/tools/index.js";
 
 const baseImg = "C:\\Users\\Administrator\\WPSDrive\\458411131\\WPS云盘\\DAGA\\苏州活力大厦\\251023\\";
 
@@ -119,14 +119,17 @@ const plan = [
 ];
 
 const run = async () => {
+  const createPageWithTemplate = registry.byName.get('create_page_with_template').handler;
+  const populateTemplateSlots = registry.byName.get('populate_template_slots').handler;
+
   for (const step of plan) {
-    const createRes = await AdvancedTemplateHandlers.createPageWithTemplate({ templateName: step.master });
+    const createRes = await createPageWithTemplate({ templateName: step.master });
     if (!createRes.success) {
       console.error('创建页面失败', step.master, createRes.result);
       throw new Error('create failed');
     }
     const pageIndex = createRes.result.pageIndex;
-    const fillRes = await AdvancedTemplateHandlers.fillTemplateFromSlots({ pageIndex, values: step.values });
+    const fillRes = await populateTemplateSlots({ pageIndex, values: step.values });
     if (!fillRes.success) {
       console.error('填充失败', step.master, fillRes.result);
       throw new Error('fill failed');

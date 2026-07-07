@@ -1,13 +1,7 @@
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { registry } from '../src/tools/index.js';
 
 async function main() {
-  const typesIndex = pathToFileURL(path.join(__dirname, '..', 'src', 'types', 'index.js')).href;
-  const mod = await import(typesIndex);
-  const tools = mod.allToolDefinitions || [];
+  const tools = registry.tools;
   const problems = [];
 
   for (const t of tools) {

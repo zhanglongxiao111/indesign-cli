@@ -4,16 +4,7 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 
-import { contentToolDefinitions } from "../../src/types/toolDefinitionsContent.js";
-import { documentToolDefinitions } from "../../src/types/toolDefinitionsDocument.js";
-import { exportToolDefinitions } from "../../src/types/toolDefinitionsExport.js";
-import { layerToolDefinitions } from "../../src/types/toolDefinitionsLayer.js";
-import { masterSpreadToolDefinitions } from "../../src/types/toolDefinitionsMasterSpread.js";
-import { pageToolDefinitions } from "../../src/types/toolDefinitionsPage.js";
-import { pageItemGroupToolDefinitions } from "../../src/types/toolDefinitionsPageItemGroup.js";
-import { spreadToolDefinitions } from "../../src/types/toolDefinitionsSpread.js";
-import { utilityToolDefinitions } from "../../src/types/toolDefinitionsUtility.js";
-import { bookToolDefinitions } from "../../src/types/toolDefinitionsBook.js";
+import { registry } from "../../src/tools/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,27 +20,12 @@ const LOG_PATH = path.join(LOG_DIR, `tool-suite-run-${TIMESTAMP}.json`);
 await fs.mkdir(LOG_DIR, { recursive: true });
 await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-const TOOL_DEFINITION_ARRAYS = [
-    contentToolDefinitions,
-    documentToolDefinitions,
-    exportToolDefinitions,
-    layerToolDefinitions,
-    masterSpreadToolDefinitions,
-    pageToolDefinitions,
-    pageItemGroupToolDefinitions,
-    spreadToolDefinitions,
-    utilityToolDefinitions,
-    bookToolDefinitions,
-].filter(Boolean);
-
 function gatherToolDefinitions() {
     const map = new Map();
-    for (const defArray of TOOL_DEFINITION_ARRAYS) {
-        for (const def of defArray) {
-            if (!def?.name) continue;
-            if (!map.has(def.name)) {
-                map.set(def.name, def);
-            }
+    for (const def of registry.tools.filter((tool) => tool.profiles.includes("classic"))) {
+        if (!def?.name) continue;
+        if (!map.has(def.name)) {
+            map.set(def.name, def);
         }
     }
     return map;

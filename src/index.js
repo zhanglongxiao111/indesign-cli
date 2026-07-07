@@ -1,11 +1,11 @@
 /**
  * Main entry point for InDesign MCP Server
  */
-import { InDesignMCPServer } from './core/InDesignMCPServer.js';
+import { createMcpServer } from './core/mcpServer.js';
 
 async function main() {
     try {
-        const server = new InDesignMCPServer();
+        const server = createMcpServer({ profile: 'classic' });
         await server.run();
     } catch (error) {
         // Log to stderr instead of stdout to avoid interfering with MCP protocol
@@ -14,4 +14,4 @@ async function main() {
     }
 }
 
-main(); 
+main();
