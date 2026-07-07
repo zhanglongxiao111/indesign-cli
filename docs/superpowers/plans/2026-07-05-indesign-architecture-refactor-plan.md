@@ -1,6 +1,6 @@
 # InDesign MCP / CLI 架构全面重构 Implementation Plan
 
-> **状态：已被 `docs/superpowers/plans/2026-07-06-indesign-terminal-architecture-plan.md` 取代（2026-07-06 用户决策：放弃渐进兼容，一次性重构到终态）。本文档仅存档，不要按此执行。**
+> **状态：已被 `docs/superpowers/plans/2026-07-06-indesign-terminal-architecture-plan.md` 取代（2026-07-06 用户决策：放弃渐进兼容，一次性重构到终态）。本文档仅存档，不要按此执行。旧 `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 已删除，本文相关内容只用于历史追溯。**
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

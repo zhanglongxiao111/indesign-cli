@@ -13,9 +13,22 @@ tags:
 
 ## 定位
 
-使用 `indesign-cli` 连接真实 Adobe InDesign。CLI 是工具目录、schema、参数、可调用性、健康检查和 session 输出的真相来源；不要把这些可发现信息硬编码进任务上下文。
+使用 `indesign-cli` 连接真实 Adobe InDesign。CLI 是 Agent 运行时的工具目录、schema、参数、可调用性、健康检查和 session 输出入口；不要把这些可发现信息硬编码进任务上下文。
 
 本 skill 只补 CLI 自己无法判断的 Agent 行为约束：什么时候查目录、什么时候写 JSX、状态如何跨命令传递、临时文件放哪里，以及失败时如何处理。
+
+## 工具目录真相
+
+内置 InDesign 工具的源头是服务器仓库的 `src/tools/index.js` registry；每个工具的定义、schema、contract、handler 和 CLI id 共置在 `src/tools/<domain>/` tool-module。Python CLI 不扫描旧 `src/handlers/`、`src/types/`，也不维护 Python hidden schema。它只读取 `src/core/indesign-tool-registry.json` artifact，并叠加 CLI primitives 与项目插件工具。
+
+artifact 由服务器仓库内的命令维护：
+
+```powershell
+node src/core/artifact.js --write
+node src/core/artifact.js --check
+```
+
+当前 Node-backed 工具基线是 classic 114 / internal 30 / advanced 6，合计 150。internal 工具在 CLI 中显示为 `source: hidden_handler`，MCP 不直接暴露；这类工具不是死代码，是否公开到 MCP 是 registry `profiles` 决策。
 
 ## 使用顺序
 
@@ -92,7 +105,7 @@ indesign-cli export verify path/to/output.pdf
 
 Agent 遇到 CLI 使用摩擦时，立即用 `feedback report` 上报一次；不要等任务结束再总结。
 
-- 准备用 `script.run` 兜底实现一个明显应该有工具支持的动作前，先运行 `indesign-cli feedback report --code TOOL_GAP --note "<摩擦摘要>" --tool <tool_id>`；没有候选工具时可省略 `--tool`。
+- 准备用 `script.run` 自行实现一个明显应该有工具支持的动作前，先运行 `indesign-cli feedback report --code TOOL_GAP --note "<摩擦摘要>" --tool <tool_id>`；没有候选工具时可省略 `--tool`。
 - 同一工具连续失败 2 次后，如果靠猜参数或试错才成功，运行 `feedback report --code SCHEMA_CONFUSING`；如果主要问题是错误信息不可操作，运行 `feedback report --code ERROR_MESSAGE_USELESS`。
 - 文档或 `tool explain` 查不到关键用法，只能靠试错解决后，运行 `feedback report --code DOC_UNCLEAR`。
 - `--note` 只写摩擦类型和需要补齐的信息，不写客户文档内容、客户名称或完整文件路径。
@@ -141,7 +154,7 @@ indesign-cli tool call <tool_id> --args-file test\workspace\args.json
 
 槽位名必须以 `inspect_template_blueprint` 或 `get_page_information` 返回值为准，不要凭视觉猜。图片填充常用 `FILL_FRAME` 或 `PROPORTIONALLY`；保留整图优先用 `PROPORTIONALLY`，铺满画面优先用 `FILL_FRAME`。
 
-`template.run_jsx_file` 是高级模板服务器的兼容入口，参数是绝对 `filePath`。普通 Agent 调试优先用 CLI 原生命令 `script run <file.jsx>`，除非需要复用高级模板工具链。
+`template.run_jsx_file` 是高级模板服务器工具，参数是绝对 `filePath`。普通 Agent 调试优先用 CLI 原生命令 `script run <file.jsx>`，除非需要复用高级模板工具链。
 
 ## 读取结果
 

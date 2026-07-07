@@ -6,7 +6,7 @@ An Agent-friendly CLI for controlling Adobe InDesign.
 
 `indesign-cli` wraps real InDesign automation behind a stable command-line interface. AI agents can discover available tools, run JSX scripts, call layout operations, verify exported files, and use a project-level Skill when installed manually.
 
-The CLI currently exposes **around 150 callable capabilities** (check `tool domains` for the live count), covering most commonly automated InDesign features: documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
+The Node-backed registry currently contains **150 InDesign tools**. The CLI also overlays native commands such as `server.*`, `session.*`, `script.run`, `export.verify`, `tool.batch`, `feedback.report`, plus project plugin tools. Use `tool domains` / `tool list` for the live catalog. The built-in coverage includes documents, pages, spreads, masters, layers, text, images, basic graphics, styles, exports, Book, Presentation, template slots, JSX execution, and environment checks.
 
 It is designed for projects such as **AI-generated design decks, architecture presentations, brand manuals, template-driven publishing, and HTML-to-InDesign pipelines**.
 
@@ -192,7 +192,15 @@ It does not record argument values, script bodies, document contents, customer n
 
 ### 🧰 Capability coverage
 
-`indesign-cli` currently exposes **around 150 callable capabilities** (the count grows over time; check `tool domains` for the live number), covering most commonly automated InDesign features and agent-facing workflows:
+The built-in InDesign tools come from the `src/tools/index.js` registry and are projected one-way into `src/core/indesign-tool-registry.json` for the Python CLI. The Node-backed baseline is **classic 114 / internal 30 / advanced 6, total 150**. Internal tools appear in the CLI as `source: hidden_handler` and are not exposed directly through MCP.
+
+The CLI catalog merges three sources:
+
+- Node-backed artifact: `src/core/indesign-tool-registry.json`
+- CLI primitives: `server.*`, `session.*`, `script.run`, `export.verify`, `tool.batch`, `feedback.report`
+- Project plugins: installed and diagnosed through `plugin install/list/validate/doctor`
+
+Together they cover most commonly automated InDesign features and agent-facing workflows:
 
 - Documents, pages, spreads, masters, and layers
 - Text frames, tables, images, basic shapes, and page items
@@ -202,6 +210,21 @@ It does not record argument values, script bodies, document contents, customer n
 - JSX execution, session hints, and environment checks
 
 These capabilities are discoverable by domain through the CLI, so they do not have to occupy the agent context all at once.
+
+### 🧱 Registry and artifact
+
+When adding or changing a built-in InDesign tool, do not edit `src/handlers/` or `src/types/`; both directories and the old `src/core/InDesignMCPServer.js` were removed in the terminal architecture. The standard path is:
+
+1. Change the corresponding `src/tools/<domain>/` tool-module so the tool definition, schema, contract, handler, and CLI id stay colocated.
+2. Aggregate it through the domain `index.js`; for a new domain, also aggregate it in `src/tools/index.js`.
+3. Regenerate and check the artifact:
+
+```powershell
+node src\core\artifact.js --write
+node src\core\artifact.js --check
+```
+
+The Python CLI reads Node-backed tools only from the artifact. A missing artifact or `registry_hash` mismatch is a hard error, so Python does not infer domains, schemas, or internal tools independently.
 
 ### 📜 Run JSX scripts
 
@@ -315,10 +338,14 @@ indesign-cli server health --deep
 Run tests:
 
 ```powershell
-python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
+git diff --check
+node src\core\artifact.js --check
+node scripts\check_architecture.mjs
+node tests\architecture\registry.test.mjs
 node scripts\validate_schemas.js
 node scripts\check_duplicates.mjs
 node tests\index.js --required
+python -m pytest agent-harness\cli_anything\indesign\tests -q
 ```
 
 ## 📁 Repository layout
@@ -326,7 +353,8 @@ node tests\index.js --required
 ```text
 .
 ├─ agent-harness/   # Python CLI and CLI tests
-├─ src/             # MCP server, InDesign handlers, JSX/COM execution
+├─ src/core/        # MCP server factory, router, runtime, artifact, session and script execution
+├─ src/tools/       # Domain tool-modules with schema, contract, handler, and CLI id colocated
 ├─ scripts/         # Maintenance and validation scripts
 ├─ tests/           # Tests and real InDesign E2E scenarios
 ├─ docs/            # Design notes, plans, collaboration records

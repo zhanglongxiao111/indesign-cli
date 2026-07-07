@@ -6,7 +6,7 @@
 
 `indesign-cli` 把 InDesign 的自动化能力包装成 Agent 友好的 CLI：Agent 可以查询工具、执行 JSX 脚本、调用排版能力、验证导出文件，并按需配合项目级 Skill 使用。
 
-当前 CLI 可发现 **约 150 个可调用能力**（以 `tool domains` 实时输出为准），覆盖 InDesign 绝大部分常用自动化功能：文档、页面、跨页、母版、图层、文本、图片、基础图形、样式、导出、Book、Presentation、模板槽位、脚本执行和环境检查。
+当前 Node-backed registry 固定包含 **150 个 InDesign 工具**，CLI 还叠加 `server.*`、`session.*`、`script.run`、`export.verify`、`tool.batch`、`feedback.report` 等原生命令和项目插件工具。实时可见能力以 `tool domains` / `tool list` 输出为准，覆盖文档、页面、跨页、母版、图层、文本、图片、基础图形、样式、导出、Book、Presentation、模板槽位、脚本执行和环境检查。
 
 如果你正在做 **AI 生成画册、建筑汇报、品牌手册、版式模板、HTML 转 InDesign** 这类项目，它可以让 Agent 不再靠“猜坐标”和“手搓脚本”工作，而是通过稳定的命令和结构化返回值操作真实 InDesign。
 
@@ -194,7 +194,15 @@ CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*
 
 ### 🧰 能力覆盖
 
-当前 `indesign-cli` 可发现 **约 150 个可调用能力**（随版本增长，以 `tool domains` 实时输出为准），覆盖 InDesign 绝大部分常用自动化功能，以及大多数 Agent 自动化场景：
+当前 `indesign-cli` 的 InDesign 内置工具来自 `src/tools/index.js` registry，并由 `src/core/indesign-tool-registry.json` artifact 单向投影给 Python CLI。Node-backed 工具基线是 **classic 114 / internal 30 / advanced 6，合计 150**；internal 工具在 CLI 中显示为 `source: hidden_handler`，MCP 不直接暴露。
+
+CLI 工具目录由三类来源合并：
+
+- Node-backed artifact：来自 `src/core/indesign-tool-registry.json`
+- CLI primitives：`server.*`、`session.*`、`script.run`、`export.verify`、`tool.batch`、`feedback.report`
+- 项目插件：通过 `plugin install/list/validate/doctor` 动态接入
+
+这些能力覆盖 InDesign 绝大部分常用自动化功能，以及大多数 Agent 自动化场景：
 
 - 文档、页面、跨页、母版、图层
 - 文本框、表格、图片、基础图形、页面对象
@@ -204,6 +212,21 @@ CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*
 - JSX 脚本执行、session 线索和环境检查
 
 这些能力通过 CLI 分域查询，不会一次性占满 Agent 上下文。
+
+### 🧱 Registry 与 artifact
+
+新增或修改内置 InDesign 工具时，不再编辑 `src/handlers/` 或 `src/types/`；这两个目录以及旧 `src/core/InDesignMCPServer.js` 已在终态架构中删除。标准路径是：
+
+1. 修改对应 `src/tools/<domain>/` tool-module，让工具定义、schema、contract、handler 和 CLI id 共置。
+2. 在域 `index.js` 聚合；新域再接入全局 `src/tools/index.js`。
+3. 生成并校验 artifact：
+
+```powershell
+node src\core\artifact.js --write
+node src\core\artifact.js --check
+```
+
+CLI 的 Node-backed 工具目录只读 artifact。artifact 缺失或 `registry_hash` 不匹配会硬失败，避免 Python 侧重新猜测 domain、schema 或隐藏工具。
 
 ### 📜 执行 JSX 脚本
 
@@ -325,10 +348,14 @@ indesign-cli server health --deep
 运行测试：
 
 ```powershell
-python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q
+git diff --check
+node src\core\artifact.js --check
+node scripts\check_architecture.mjs
+node tests\architecture\registry.test.mjs
 node scripts\validate_schemas.js
 node scripts\check_duplicates.mjs
 node tests\index.js --required
+python -m pytest agent-harness\cli_anything\indesign\tests -q
 ```
 
 ## 📁 项目结构
@@ -336,7 +363,8 @@ node tests\index.js --required
 ```text
 .
 ├─ agent-harness/   # Python CLI、CLI 测试
-├─ src/             # MCP Server、InDesign handler、JSX/COM 执行链路
+├─ src/core/        # MCP server 工厂、router、runtime、artifact、会话与脚本执行
+├─ src/tools/       # domain tool-module；schema、contract、handler、CLI id 共置
 ├─ scripts/         # 维护脚本和检查脚本
 ├─ tests/           # 测试和真实 InDesign E2E
 ├─ docs/            # 设计文档、计划、协作记录

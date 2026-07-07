@@ -2,7 +2,7 @@
 
 日期：2026-07-04
 
-状态：已被 `docs/superpowers/specs/2026-07-06-indesign-terminal-architecture-design.md` 取代（2026-07-06 用户决策：放弃渐进兼容，一次性重构到终态）。本文档仅存档，其现状调研数据仍有效。
+> **状态：已被 `docs/superpowers/specs/2026-07-06-indesign-terminal-architecture-design.md` 取代（2026-07-06 用户决策：放弃渐进兼容，一次性重构到终态）。本文档仅存档，不要按此执行。旧 `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 已删除，本文相关内容只用于历史追溯。**
 
 审查材料：`docs/AI协作/本地Agent/进行中/2026-07-04_架构全面重构审查/`
 

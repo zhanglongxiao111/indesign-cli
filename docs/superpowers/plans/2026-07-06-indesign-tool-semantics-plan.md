@@ -30,7 +30,7 @@
 2. **`src/semantics/` 只放共享知识**：InDesign 类型-角色映射、warning code 枚举、payload/selector schema、normalizer、JSX runtime snippet、target resolver。这些是跨工具事实，集中是正确归属。
 3. **防循环依赖**：`src/tools/_contract.js` 可以 import `src/semantics/`（用枚举校验 `semantics` 字段）；`src/semantics/` 任何文件不得 import `src/tools/`。需要 registry 的函数（如 `toolDescriptions.js`）以参数接收 registry。
 4. **新增工具的标准动作**：新 tool-module 文件 + 域 `index.js` 聚合 + （新域时）`src/tools/index.js` 一行 import + `node src/core/artifact.js --write` + 更新 `tests/architecture/registry.test.mjs` 基线数字 + 补测试。禁止其他注册路径。
-5. **`cli.id` 前缀必须等于所在域目录名**。spec 中建议的展示 id（如 `master.override_item`）与实际域名不一致时，以域名规则为准（落为 `masterSpread.override_item`），并在文档和 Skill 中使用实际 id。
+5. **新增工具的 `cli.id` 前缀必须等于所在 tool-module 归属域**。当前重构中，registry 归属域是 `src/tools/<domain>/`（如 `masterSpread`、`pageItem`、`utility`），部分迁移前已有工具保留历史 CLI 展示域（如 `master.*`、`page.*`、`script.*`），不在语义计划中借机改名。spec 中建议的新展示 id（如 `master.override_item`）与新增工具实际归属域不一致时，以新增工具归属域规则为准（落为 `masterSpread.override_item`），并在文档和 Skill 中使用实际 id。
 6. **artifact 规则沿用终态**：缺失或 `registry_hash` 不符 = 硬错误；无 fallback、无降级路径。语义字段进入 artifact 后参与 hash。
 7. **envelope 不变**：CLI 保持 `schema_version: 2`，顶层 `warnings` 仍是 transport/runtime 字符串数组；结构化语义 warning 只在工具 payload（`data` 内）承载。`semanticContractVersion` 与 CLI envelope 版本分别演进。
 8. **修改既有工具时保持旧输入兼容**：旧参数作为 alias 由 normalizer 归一，不强制调用方迁移。

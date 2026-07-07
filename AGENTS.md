@@ -3,10 +3,10 @@
 ## 0. 设计原则
 
 - **先理解现状，再动手。** 先读代码、工具定义、测试和当前文档，避免凭旧印象改项目。
-- **收口优先。** 能复用现有 `core`、`handlers`、`types`、`utils` 时，不新增平行实现。
+- **收口优先。** 能复用现有 `core`、`tools`、`utils` 时，不新增平行实现。
 - **CLI 复用现有能力。** CLI 是面向 Agent 的按需入口，不重写一套 InDesign 自动化。
 - **HTML 转 InDesign 在外部插件仓库实现。** 本仓库只维护 `indesign-cli` 宿主、插件协议和 InDesign 执行底座。
-- **不要把暂时隐藏的工具当死代码。** 有 handler 实现但当前未暴露的能力，先按 hidden handler 保护，查清 CLI 工具目录、测试和文档后再决定是否公开或删除。
+- **不要把 internal 工具当死代码。** 终态代码以空 `profiles` 表示 internal，并投影为 CLI `source: hidden_handler`；先查 registry、artifact、CLI 工具目录、测试和文档后再决定是否公开或删除。
 - **文档按用途归档。** 长期规范、方案、计划、排查、复盘分开放，避免一个目录堆成垃圾场。
 - **历史资料只追溯。** 当前开发以代码、`AGENTS.md` 和当前文档为准。
 
@@ -35,7 +35,7 @@
 | -------- | -------- |
 | 文档与代码不一致 | 以代码为准，顺手修正文档 |
 | 当前文档与历史文档不一致 | 以当前文档为准 |
-| MCP 暴露工具与 handler 实现不一致 | 先判断是否是临时隐藏，不直接按死代码删除 |
+| MCP 暴露工具与 registry / artifact 不一致 | 以 `src/tools/index.js` 和 `src/core/indesign-tool-registry.json` 为准，先判断是否是 internal 工具 |
 | CLI 目标与 MCP 现状不一致 | 让 CLI 复用现有执行链路，避免重写业务能力 |
 | HTML 插件需求与 CLI 宿主不一致 | 先判断是否属于插件协议或 host action 边界；不要把 HTML 转换实现塞回本仓库 |
 
@@ -63,22 +63,24 @@
 
 ### 2.3 代码边界
 
-- `src/core/` 放 MCP 运行时、会话状态和脚本执行。
-- `src/handlers/` 放 MCP 工具到 ExtendScript/JSX 的适配逻辑。
-- `src/types/` 放工具定义和 JSON Schema。
-- `src/utils/` 放共享工具函数。
-- `src/advanced/` 放高级模板服务器入口。
+- `src/tools/index.js` 是当前工具真相 registry，按 domain 聚合全部 tool-module。
+- `src/tools/<domain>/` 是工具定义、JSON Schema、contract、handler 和 CLI 投影的归属边界；新增或修改工具必须先改对应域 tool-module，再由域 `index.js` 和全局 `src/tools/index.js` 聚合。
+- `src/core/` 放 MCP 运行时、tool router、registry artifact、会话状态和脚本执行。
+- `src/core/mcpServer.js` 是唯一 MCP server 工厂；`src/core/toolRouter.js` 是唯一 registry dispatch 入口。
+- `src/index.js` 只启动 `profile: 'classic'`；`src/advanced/index.js` 只启动 `profile: 'advanced'`。
+- `src/utils/` 放跨域共享工具函数；域内共享 JSX helper 放 `src/tools/<domain>/_shared.js`。
+- `src/advanced/` 只放高级模板服务器入口壳，不维护独立工具映射。
 - `scripts/` 只放维护脚本和轻量检查，不放临时手测脚本。
 - `tests/` 放测试入口、场景测试和测试数据。
 - `skills/` 放可手动分发到其他项目的 Agent Skill 源文件、预览图和轻量资产。
 
-新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
+终态已删除 `src/handlers/`、`src/types/` 和 `src/core/InDesignMCPServer.js`；不要恢复 facade、fallback 或第二套工具映射。新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
 
 ### 2.4 MCP 与 InDesign 自动化
 
 - 运行时通过 `winax` 和 Windows COM 控制 Adobe InDesign。
 - `stdout` 保留给 MCP 协议，日志和诊断信息写 `stderr`。
-- handler 负责参数处理、转义、脚本拼装和响应包装，不要变成新的业务框架。
+- tool-module handler 负责参数处理、转义、脚本拼装和响应包装，不要变成新的业务框架。
 - 生成 ExtendScript/JSX 时必须处理字符串和路径转义，尤其是中文、空格、反斜杠和网络路径。
 - 脚本标签是模板槽位的重要元数据；除非工具明确负责覆盖标签，否则不要破坏现有标签。
 - 不要记录客户文档内容、客户名称或私有资产路径。
@@ -87,13 +89,13 @@
 
 - CLI 实现在 `agent-harness/`，Python 包名为 `cli_anything.indesign`。
 - `AGENTS.md` 只记录实现边界、测试责任和目录职责；CLI 使用教程写入 `README.md` / `README.en.md`，Agent 使用提示写入 `skills/indesign-cli/SKILL.md`。
-- CLI 必须复用当前 MCP server、handler 和 COM/脚本执行层，不重写一套 InDesign 自动化。
+- CLI 必须复用当前 MCP server、tool-module handler 和 COM/脚本执行层，不重写一套 InDesign 自动化。
 - CLI 不应引入常驻后台服务；如需改变进程模型，先写方案并说明兼容影响。
-- 工具目录、router、session、schema、插件协议和脚本执行契约发生变化时，必须同步更新 CLI 单元测试和相关对外文档。
+- 工具目录、router、session、schema、artifact、插件协议和脚本执行契约发生变化时，必须同步更新 CLI 单元测试和相关对外文档。
 - CLI contract 改动必须同步 CLI 单元测试、`README.md` / `README.en.md` 和 `skills/indesign-cli/SKILL.md`。
 - 插件工具必须遵守与内置工具一致的 envelope、session、schema、timeout 和 document-state 契约。
 - `AGENTS.md` 只记录开发边界和测试责任；不要把 Agent 使用教程写进这里。
-- Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 另行判断。
+- Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 由 `profiles` 决定。
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
 - CLI 遥测字段必须白名单制；禁止记录参数值、脚本内容、文档内容、客户信息和完整路径。新增遥测字段必须过 review；共享遥测目录只写 NAS JSONL、`state` 和 `reports`，不写客户素材。
 - 配套 Skill 源文件在 `skills/indesign-cli/SKILL.md`；CLI 不提供自动安装命令，不能重新加入自动复制 Skill 的命令入口。
@@ -131,9 +133,17 @@
 ### 2.8 清理规则
 
 - 可以删除：日志、临时脚本、备份文件、无引用且无恢复价值的工具函数。
-- 暂不删除：有 handler 实现但当前 MCP 工具定义未暴露的能力。
+- 暂不删除：空 `profiles` 表示的 internal 工具，以及 CLI artifact source 为 `hidden_handler` 的工具。
 - 清理前先用 `rg` 查引用；清理后至少跑语法检查和轻量校验。
 - 不回退用户已有改动；遇到 dirty 文件先读 diff。
+
+### 2.9 新增工具标准动作
+
+1. 在对应 `src/tools/<domain>/` 新增或修改 tool-module，让 `name`、`domain`、`profiles`、`cli.id`、`contract`、`inputSchema`、`handler` 共置。
+2. 在域 `index.js` 聚合；新域再在全局 `src/tools/index.js` 聚合。
+3. 执行 `node src/core/artifact.js --write`，再执行 `node src/core/artifact.js --check`。
+4. 更新 `tests/architecture/registry.test.mjs` 中受影响的数量基线，并补对应单元、required 或真实 E2E 场景测试。
+5. 若 CLI contract、工具目录或对外说明变化，同步 `README.md`、`README.en.md`、`skills/indesign-cli/SKILL.md` 和相关 `docs/` 文档。
 
 ## 3. 执行基线
 
@@ -151,8 +161,12 @@
 | Schema 校验 | `node scripts/validate_schemas.js` |
 | 工具名重复检查 | `node scripts/check_duplicates.mjs` |
 | 快速工具数检查 | `node scripts/quick_check.mjs` |
+| 生成 registry artifact | `node src/core/artifact.js --write` |
+| 校验 registry artifact | `node src/core/artifact.js --check` |
+| 架构治理检查 | `node scripts/check_architecture.mjs` |
+| 架构 registry 测试 | `node tests/architecture/registry.test.mjs` |
 | 必需测试 | `node tests/index.js --required` |
-| CLI 单元测试 | `python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q` |
+| CLI 单元测试 | `python -m pytest agent-harness\cli_anything\indesign\tests -q` |
 | 真实 E2E 全量 | `node tests\real-e2e\run-architecture-presentation.mjs --full --offline` |
 | E2E 覆盖校验 | `node tests\real-e2e\validators\validate-coverage.mjs <coverage-report.json>` |
 | 测试帮助 | `node tests/index.js --help` |
@@ -170,7 +184,7 @@
 - 纯文档或项目配置调整不需要跑代码测试，但要检查文件状态和路径是否正确。
 - 纯代码清理至少跑语法检查、Schema 校验、工具名重复检查。
 - 触及真实 InDesign 行为时，说明是否运行了 InDesign 集成测试。
-- 新增 handler 或 tool definition 时，补 `tests/test-*.js` 场景，并接入 `tests/index.js`。
+- 新增 tool-module 时，补 `tests/test-*.js`、`tests/architecture/registry.test.mjs` 或真实 E2E 场景，并接入 `tests/index.js`。
 - 触及 CLI harness 或工具目录时，至少跑 CLI 单元测试；触及真实 InDesign 行为或 E2E runner 时，跑真实 E2E 对应阶段或全量。
 
 ## 4. 仓库地图
@@ -179,9 +193,13 @@
 | ---- | ---- |
 | `src/index.js` | 经典 MCP 服务器入口 |
 | `src/advanced/index.js` | 高级模板 MCP 服务器入口 |
-| `src/core/` | MCP 服务器、会话管理、脚本执行器 |
-| `src/handlers/` | 工具处理器，主要负责拼装并执行 InDesign ExtendScript/JSX |
-| `src/types/` | MCP 工具定义和输入 Schema |
+| `src/core/mcpServer.js` | 统一 MCP server 工厂，按 profile 暴露工具 |
+| `src/core/toolRouter.js` | registry dispatch 入口 |
+| `src/core/artifact.js` | `src/tools` registry 到 CLI JSON artifact 的单向投影 |
+| `src/core/indesign-tool-registry.json` | checked-in registry artifact，供 Python CLI 只读消费 |
+| `src/core/` | MCP 运行时、会话管理、脚本执行器和 artifact 生成 |
+| `src/tools/index.js` | 当前工具真相 registry，全局聚合 |
+| `src/tools/<domain>/` | 各域 tool-module：定义、schema、contract、handler 共置 |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
 | `skills/` | 可手动复制到其他项目的 Agent skill 源文件和展示资产 |
@@ -221,8 +239,9 @@
 | 事项 | 当前状态 | 处理原则 |
 | ---- | -------- | -------- |
 | 进行中的三大计划 | 执行顺序固定：反馈闭环批 1 → 终态架构重构 → 语义契约；反馈闭环批 2 可并行 | 全局顺序和硬约束见 `docs/README.md` 当前专项一节；不得乱序启动，旧版（2026-07-04/05）specs/plans 已取代存档 |
-| Book / Presentation 等工具域 | 已进入 CLI 工具目录和真实 E2E 覆盖，部分 MCP 工具定义仍未暴露 | 不按死代码删除；是否公开到 MCP 另行判断 |
+| Book / Presentation 等 internal 工具域 | 已进入 `src/tools/` registry、CLI artifact 和真实 E2E 覆盖；CLI source 为 `hidden_handler`，MCP 不暴露 | 不按死代码删除；是否公开到 MCP 是 `profiles` 调整，不是恢复旧 handler 目录 |
 | 固定语义 HTML 转 InDesign | 在 `D:\AI\html-indesign` 独立开发；本仓库已提供插件宿主协议和本地插件接入入口 | 本仓库只维护宿主边界、验证工具和 InDesign 执行通道 |
-| 根 README | 当前内容较薄，且指向上级 README | 后续可补成清晰项目入口 |
-| 部分 docs | 存在旧平台和旧版本描述 | 触及时按当前代码和 Windows COM 现状修正 |
+| 终态旧结构 | `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 已删除 | 文档和新代码不得再引用这些路径作为当前实现 |
+| CLI Node-backed 工具目录 | 只读 `src/core/indesign-tool-registry.json` artifact | artifact 缺失或 hash 不符是硬错误；执行 `node src/core/artifact.js --write && node src/core/artifact.js --check` 修复 |
+| 语义契约计划 | 已重写为终态口径，但必须等本重构合并 `master` 后执行 | 不在终态架构重构分支提前进入语义计划 |
 | InDesign 集成测试 | 依赖本机 InDesign 和 COM 会话；当前真实 E2E 入口在 `tests/real-e2e/` | 没有真实环境时要明确说明未跑 |

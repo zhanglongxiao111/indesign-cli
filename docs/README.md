@@ -54,9 +54,10 @@
 | `superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` | Agent 反馈闭环实施计划 |
 | `AI协作/反馈循环/README.md` | Agent 反馈循环周报、摩擦簇和分析材料目录 |
 | `AI协作/反馈循环/分析Agent任务书.md` | 定时分析 Agent 的固定任务书 |
+| `技术决策/2026-07-07_终态架构.md` | 终态架构长期决策：tool-module 共置、profiles/internal、artifact 单向投影、无 fallback |
 | `技术决策/2026-07-06-agent反馈闭环流程.md` | Agent 反馈闭环的长期流程约束 |
 
-已取代存档：`2026-07-04-indesign-architecture-refactor-design.md`、`2026-07-05-indesign-architecture-refactor-plan.md`、`2026-07-04-indesign-tool-semantics-plan.md`（顶部均有取代标注，不要按其执行）。
+已取代存档：`2026-07-04-indesign-architecture-refactor-design.md`、`2026-07-05-indesign-architecture-refactor-plan.md`、`2026-07-04-indesign-tool-semantics-plan.md`（顶部均有取代标注，不要按其执行；旧 `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 口径只作为历史资料追溯）。
 
 ### 当前计划全局执行顺序（2026-07-06 确定）
 
@@ -68,4 +69,4 @@
 反馈闭环批 2（feedback plan Task 4–5：聚合脚本 + 分析 agent）与上述任意阶段并行。
 ```
 
-硬约束：批 1 必须先于重构 Task 0 合并（feedback 域改变 `tool list` 输出，golden master 须在其之后录制）；语义计划必须等重构合并 `master` 后启动。各计划的"计划口径"一节记录了同样的依赖，以本节为全局总览。
+硬约束：批 1 必须先于重构 Task 0 合并（feedback 域改变 `tool list` 输出，golden master 须在其之后录制）；语义计划必须等终态架构重构合并 `master` 后启动。各计划的"计划口径"一节记录了同样的依赖，以本节为全局总览。

@@ -1,433 +1,127 @@
-# InDesign MCP Server - LLM Instructions
+# InDesign MCP 使用说明
 
-## Overview
+本文说明当前 MCP server 的接入和使用口径。长期开发边界以 `AGENTS.md` 为准；工具事实以当前代码和 registry artifact 为准。
 
-The InDesign MCP Server provides programmatic access to Adobe InDesign through Model Context Protocol (MCP). This allows LLMs to create, edit, and manage InDesign documents, pages, text, graphics, styles, and more.
+## 环境要求
 
-## Setup Requirements
+- Windows
+- Adobe InDesign 桌面版，与 server 运行在同一 Windows 用户会话
+- Node.js 18+
+- `winax` 可用
 
-### Prerequisites
+运行时通过 Windows COM 控制 InDesign。`stdout` 保留给 MCP 协议，日志和诊断信息写 `stderr`。
 
-- **Adobe InDesign**: Must be installed and running on macOS
-- **Node.js**: Version 16 or higher
-- **macOS**: Required for AppleScript integration
+## 启动入口
 
-### Installation
+经典 MCP server：
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd indesign-cli
-
-# Install dependencies
-npm install
-
-# Start the server
+```powershell
 node src/index.js
 ```
 
-### MCP Configuration
+高级模板 MCP server：
 
-Add to your MCP client configuration:
+```powershell
+node src/advanced/index.js
+```
+
+两个入口都通过 `src/core/mcpServer.js` 创建 server，并通过 `src/core/toolRouter.js` 调用 registry entry。差异只在 profile：
+
+| 入口 | profile | 用途 |
+| ---- | ------- | ---- |
+| `src/index.js` | `classic` | 常规 InDesign 自动化工具 |
+| `src/advanced/index.js` | `advanced` | 高级模板工具 |
+
+旧 `src/core/InDesignMCPServer.js` 已删除。
+
+## 工具真相
+
+当前工具真相是 `src/tools/index.js` registry。每个内置工具在 `src/tools/<domain>/` 内共置：
+
+- MCP tool name
+- JSON Schema
+- contract
+- handler
+- CLI id / alias
+
+`src/handlers/` 和 `src/types/` 已删除，不再作为工具定义或实现来源。
+
+registry 按 profile 控制 MCP 暴露：
+
+| registry profile | MCP 暴露 | CLI source |
+| ---------------- | -------- | ---------- |
+| `classic` | 经典 server 暴露 | `classic` |
+| `advanced` | 高级 server 暴露 | `advanced` |
+| internal | MCP 不暴露 | `hidden_handler` |
+
+internal 工具不是死代码；它们经 artifact 进入 CLI 和 E2E，可按产品决策调整 profile。
+
+## CLI artifact
+
+Python CLI 的 Node-backed 工具目录只读 checked-in artifact：
+
+```text
+src/core/indesign-tool-registry.json
+```
+
+生成和校验：
+
+```powershell
+node src/core/artifact.js --write
+node src/core/artifact.js --check
+```
+
+artifact 缺失或 `registry_hash` 不符是硬错误。不要让 CLI 重新扫描旧 handler/type 路径或在 Python 侧维护 hidden schema。
+
+当前 Node-backed 基线：
+
+| source | 数量 |
+| ------ | ---- |
+| `classic` | 114 |
+| `hidden_handler` | 30 |
+| `advanced` | 6 |
+| 合计 | 150 |
+
+CLI 展示 domain 可能沿用历史 id，如 `master.*`、`page.*`；tool-module 归属域仍以 `src/tools/<domain>/` 和 registry `domain` 为准。
+
+## MCP 配置示例
+
 ```json
 {
   "mcpServers": {
     "indesign": {
       "command": "node",
-      "args": ["/path/to/indesign-cli/src/index.js"],
+      "args": ["D:/AI/mcp-indesign/src/index.js"],
+      "env": {}
+    },
+    "indesign-advanced": {
+      "command": "node",
+      "args": ["D:/AI/mcp-indesign/src/advanced/index.js"],
       "env": {}
     }
   }
 }
 ```
 
-## Available Tools
+## 使用原则
 
-### Document Management
+- 先创建或打开文档，再调用需要文档上下文的工具。
+- 图片、导出和脚本文件使用绝对路径，尤其是中文、空格、反斜杠和网络路径。
+- 生成 JSX 时必须处理字符串和路径转义。
+- 不要关闭用户已有文档；只关闭本轮明确创建的临时测试文档。
+- 导出 PDF、IDML 或图片后，用 `indesign-cli export verify <path>` 验证产物。
+- 工具参数以 MCP `ListTools` 返回的 schema 或 CLI `tool schema <tool_id>` 为准，不要凭旧文档猜字段。
 
-- `create_document` - Create new InDesign documents
-- `open_document` - Open existing documents
-- `save_document` - Save documents
-- `close_document` - Close documents
-- `get_document_info` - Get document properties
+## 维护基线
 
-### Page Management
+文档或工具目录变更后至少运行：
 
-- `add_page` - Add new pages
-- `delete_page` - Remove pages
-- `navigate_to_page` - Switch to specific page
-- `get_page_info` - Get page properties
-- `set_page_background` - Set page background color
-
-### Text Operations
-
-- `create_text_frame` - Create text frames with content
-- `edit_text_frame` - Modify existing text frames
-- `get_text_info` - Get text frame properties
-- `apply_paragraph_style` - Apply paragraph styles
-- `apply_character_style` - Apply character styles
-
-### Graphics & Images
-
-- `create_rectangle` - Create rectangular shapes
-- `create_ellipse` - Create elliptical shapes
-- `create_polygon` - Create polygonal shapes
-- `place_image` - Place images with scaling options
-- `get_image_info` - Get image properties
-
-### Styles & Colors
-
-- `create_color_swatch` - Create custom colors
-- `list_color_swatches` - List available colors
-- `create_paragraph_style` - Create paragraph styles
-- `create_character_style` - Create character styles
-- `create_object_style` - Create object styles
-- `list_styles` - List available styles
-
-### Layout & Positioning
-
-- `create_group` - Group multiple objects
-- `ungroup` - Ungroup objects
-- `create_master_spread` - Create master pages
-- `apply_master_spread` - Apply master to pages
-
-### Export & Utilities
-
-- `export_pdf` - Export to PDF
-- `export_images` - Export pages as images
-- `execute_indesign_code` - Run custom ExtendScript
-
-## Best Practices
-
-### 1. Session Management
-
-- Always create a document before adding content
-- Use `navigate_to_page` to ensure you're on the correct page
-- Save documents regularly with `save_document`
-
-### 2. Positioning & Layout
-
-- Use the session manager for smart positioning
-- Respect page margins and boundaries
-- Use consistent spacing and alignment
-
-### 3. Style Application
-
-- Create styles before applying them to content
-- Use paragraph styles for consistent typography
-- Apply character styles for inline formatting
-
-### 4. Image Handling
-
-- Use absolute file paths for images
-- Consider scaling and fit modes for optimal placement
-- Link images for better file management
-
-### 5. Error Handling
-
-- Check tool responses for success/failure
-- Handle missing fonts or resources gracefully
-- Validate parameters before tool calls
-
-## Common Workflows
-
-### Creating a Simple Document
-
-```javascript
-// 1. Create document
-await tools.call("create_document", {
-  name: "My Document",
-  width: 210,
-  height: 297,
-  facingPages: false
-});
-
-// 2. Add text
-await tools.call("create_text_frame", {
-  content: "Hello World",
-  x: 25,
-  y: 25,
-  width: 160,
-  height: 50,
-  fontSize: 24,
-  fontName: "Arial\\tBold"
-});
-
-// 3. Save document
-await tools.call("save_document", {
-  filePath: "./output.indd"
-});
+```powershell
+node src/core/artifact.js --check
+node scripts/check_architecture.mjs
+node tests/architecture/registry.test.mjs
+node tests/index.js --required
+python -m pytest agent-harness\cli_anything\indesign\tests -q
 ```
 
-### Creating a Branded Document
-
-```javascript
-// 1. Create document
-await tools.call("create_document", {
-  name: "Brand Document",
-  width: 210,
-  height: 297
-});
-
-// 2. Create brand colors
-await tools.call("create_color_swatch", {
-  name: "Brand Blue",
-  colorType: "PROCESS",
-  red: 0,
-  green: 114,
-  blue: 198
-});
-
-// 3. Create paragraph styles
-await tools.call("create_paragraph_style", {
-  name: "Heading 1",
-  fontName: "Arial\\tBold",
-  fontSize: 32,
-  fillColor: "Brand Blue"
-});
-
-// 4. Add styled content
-await tools.call("create_text_frame", {
-  content: "Company Name",
-  x: 25,
-  y: 25,
-  width: 160,
-  height: 40,
-  paragraphStyle: "Heading 1"
-});
-```
-
-### Creating a Multi-Page Layout
-
-```javascript
-// 1. Create document
-await tools.call("create_document", {
-  name: "Multi-Page Layout",
-  width: 210,
-  height: 297
-});
-
-// 2. Add pages
-for (let i = 0; i < 4; i++) {
-  await tools.call("add_page", { position: "AT_END" });
-}
-
-// 3. Create content for each page
-for (let pageIndex = 0; pageIndex < 5; pageIndex++) {
-  await tools.call("navigate_to_page", { pageIndex });
-  
-  await tools.call("create_text_frame", {
-    content: `Page ${pageIndex + 1}`,
-    x: 25,
-    y: 25,
-    width: 160,
-    height: 30,
-    fontSize: 18,
-    fontName: "Arial\\tBold"
-  });
-}
-```
-
-### Working with Images
-
-```javascript
-// 1. Place image with scaling
-await tools.call("place_image", {
-  filePath: "/absolute/path/to/image.jpg",
-  x: 25,
-  y: 25,
-  width: 100,
-  height: 75,
-  scale: 150,
-  fitMode: "PROPORTIONALLY"
-});
-
-// 2. Create object style for images
-await tools.call("create_object_style", {
-  name: "Image Frame",
-  strokeColor: "Black",
-  strokeWeight: 1
-});
-
-// 3. Apply style to image
-await tools.call("apply_object_style", {
-  objectName: "Image Frame"
-});
-```
-
-## Advanced Features
-
-### Smart Positioning
-
-The server includes a session manager that provides:
-- Automatic bounds checking
-- Smart positioning calculations
-- Page dimension awareness
-- Margin and spacing management
-
-### Style System
-
-- Create comprehensive style libraries
-- Apply consistent typography
-- Maintain brand guidelines
-- Support for paragraph, character, and object styles
-
-### Image Scaling
-
-- Precise scale control (1% to 1000%)
-- Multiple fit modes (PROPORTIONALLY, FILL_FRAME, FIT_CONTENT, FIT_FRAME)
-- Automatic aspect ratio preservation
-- Frame size optimization
-
-### Error Handling
-
-- Graceful handling of missing resources
-- Detailed error messages
-- Fallback options for fonts and colors
-- Validation of parameters and constraints
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"No document open"** - Create a document first
-2. **"Font not found"** - Use available fonts or provide fallbacks
-3. **"Image file not found"** - Use absolute file paths
-4. **"Page out of bounds"** - Check positioning parameters
-
-### Debug Tips
-
-- Use `get_document_info` to check document state
-- Use `list_color_swatches` to see available colors
-- Use `list_styles` to see available styles
-- Check tool responses for detailed error messages
-
-## Integration Examples
-
-### With Claude/GPT
-
-```javascript
-// Example: Create a professional report
-const reportData = {
-  title: "Q4 Sales Report",
-  sections: ["Overview", "Results", "Analysis", "Recommendations"]
-};
-
-// Create document structure
-await tools.call("create_document", {
-  name: reportData.title,
-  width: 210,
-  height: 297
-});
-
-// Add title page
-await tools.call("create_text_frame", {
-  content: reportData.title,
-  x: 25,
-  y: 100,
-  width: 160,
-  height: 50,
-  fontSize: 36,
-  fontName: "Arial\\tBold",
-  alignment: "CENTER"
-});
-
-// Add sections
-for (let i = 0; i < reportData.sections.length; i++) {
-  await tools.call("add_page", { position: "AT_END" });
-  await tools.call("navigate_to_page", { pageIndex: i + 1 });
-  
-  await tools.call("create_text_frame", {
-    content: reportData.sections[i],
-    x: 25,
-    y: 25,
-    width: 160,
-    height: 30,
-    fontSize: 24,
-    fontName: "Arial\\tBold"
-  });
-}
-```
-
-### With Custom Applications
-
-```javascript
-// Example: Batch document creation
-const documents = [
-  { name: "Document 1", content: "Content for doc 1" },
-  { name: "Document 2", content: "Content for doc 2" },
-  { name: "Document 3", content: "Content for doc 3" }
-];
-
-for (const doc of documents) {
-  await tools.call("create_document", {
-    name: doc.name,
-    width: 210,
-    height: 297
-  });
-  
-  await tools.call("create_text_frame", {
-    content: doc.content,
-    x: 25,
-    y: 25,
-    width: 160,
-    height: 247
-  });
-  
-  await tools.call("save_document", {
-    filePath: `./${doc.name}.indd`
-  });
-  
-  await tools.call("close_document");
-}
-```
-
-## Performance Considerations
-
-### Optimization Tips
-
-- Batch operations when possible
-- Reuse styles and colors
-- Minimize page navigation
-- Use appropriate image formats and sizes
-
-### Memory Management
-
-- Close documents when done
-- Clear session data if needed
-- Monitor file sizes for large documents
-- Use linking for large images
-
-## Security Notes
-
-### File Access
-
-- Use absolute paths for file operations
-- Validate file paths before use
-- Handle file permissions appropriately
-- Consider sandboxing for untrusted content
-
-### Resource Management
-
-- Limit concurrent operations
-- Monitor system resources
-- Handle timeouts gracefully
-- Clean up temporary files
-
-## Support & Resources
-
-### Documentation
-
-- InDesign ExtendScript API: https://www.indesignjs.de/extendscriptAPI/
-- MCP Protocol: https://modelcontextprotocol.io/
-- Node.js Documentation: https://nodejs.org/docs/
-
-### Community
-
-- GitHub Issues for bug reports
-- Feature requests and contributions welcome
-- Examples and use cases encouraged
-
----
-
-**Note**: This MCP server is designed for macOS with Adobe InDesign. Ensure all prerequisites are met before use. For production environments, consider implementing additional error handling and validation.
+触及真实 InDesign 行为时，再运行对应 `tests/real-e2e/` 阶段或全量测试，并在结果中说明是否跑了真实 InDesign。
