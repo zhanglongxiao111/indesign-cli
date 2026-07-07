@@ -46,4 +46,23 @@
 | `superpowers/specs/2026-07-01-indesign-cli-agent-ux-hardening-design.md` | indesign-cli Agent 体验与可靠性整改方案 |
 | `superpowers/plans/2026-07-01-indesign-cli-agent-ux-hardening-plan.md` | indesign-cli Agent 体验与可靠性整改实施计划 |
 | `superpowers/specs/2026-07-03-indesign-cli-agent-bootstrapper-design.md` | indesign-cli Agent 单文件自举发布与强制更新方案 |
-| `superpowers/specs/2026-07-03-indesign-tool-semantics-design.md` | InDesign 工具语义全面提升方案 |
+| `superpowers/specs/2026-07-03-indesign-tool-semantics-design.md` | InDesign 工具语义领域设计（落点以 2026-07-06 语义 plan 为准） |
+| `superpowers/specs/2026-07-06-indesign-terminal-architecture-design.md` | 终态架构设计（tool-module 共置、一次性重构） |
+| `superpowers/plans/2026-07-06-indesign-terminal-architecture-plan.md` | 终态架构一次性重构实施计划 |
+| `superpowers/plans/2026-07-06-indesign-tool-semantics-plan.md` | 语义契约实施计划（终态口径） |
+| `superpowers/specs/2026-07-06-indesign-agent-feedback-loop-design.md` | Agent 反馈闭环系统设计 |
+| `superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` | Agent 反馈闭环实施计划 |
+
+已取代存档：`2026-07-04-indesign-architecture-refactor-design.md`、`2026-07-05-indesign-architecture-refactor-plan.md`、`2026-07-04-indesign-tool-semantics-plan.md`（顶部均有取代标注，不要按其执行）。
+
+### 当前计划全局执行顺序（2026-07-06 确定）
+
+```text
+1. 反馈闭环批 1（feedback plan Task 1–3：遥测 + feedback 域 + SKILL 规则）
+2. 终态架构重构（terminal-architecture plan Task 0–7，专用分支，golden master 门禁）
+3. 语义契约计划（semantics plan Task 1–8）
+
+反馈闭环批 2（feedback plan Task 4–5：聚合脚本 + 分析 agent）与上述任意阶段并行。
+```
+
+硬约束：批 1 必须先于重构 Task 0 合并（feedback 域改变 `tool list` 输出，golden master 须在其之后录制）；语义计划必须等重构合并 `master` 后启动。各计划的"计划口径"一节记录了同样的依赖，以本节为全局总览。
