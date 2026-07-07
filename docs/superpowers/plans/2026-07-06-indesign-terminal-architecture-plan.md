@@ -71,10 +71,10 @@
 - [ ] 前置确认：反馈闭环批 1（`docs/superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` Task 1–3，含 `feedback` 域）已合并 `master`——它会改变 `tool list` 输出，必须先合并再录 golden master。
 - [ ] 建分支 `refactor/terminal-architecture`。
 - [ ] `record_golden.mjs` 录制 **A**：classic / advanced 两个 server 的 ListTools 全量 JSON（工具名 + inputSchema）。
-- [ ] 录制 **B**：`indesign-cli tool list --json`（全 source）与 150 个 Node-backed 工具的 `tool schema` 输出。
-- [ ] 录制 **C**：150 个工具 × 最小合法 args（从 schema required 自动构造占位值；21 个 Book/Presentation 用 Python schema 构造）→ mock `scriptExecutor` 捕获生成的 JSX 脚本文本 + 响应 envelope 形状。无法构造或拼装前依赖外部状态的工具标记 skip 并记录原因清单。
+- [ ] 录制 **B**：`indesign-cli tool list --json`（全 source）与当前 CLI 可发现工具的 `tool schema` 输出；当前不可发现的 9 个 switch-only 工具不伪造 CLI schema，记录为"终态 schema 净新增"白名单。
+- [ ] 录制 **C**：150 个 Node-backed 工具 × 最小合法 args。114 个 classic + 6 个 advanced 从 MCP schema 构造；21 个 Book/Presentation 从 `hidden_handler_schemas.py` 构造；9 个当前无 schema 的 switch-only 工具从 handler 参数用法手工构造并在 skip/白名单中注明证据来源。mock `scriptExecutor` 捕获生成的 JSX 脚本文本 + 响应 envelope 形状。无法构造或拼装前依赖外部状态的工具标记 skip 并记录原因清单。
 - [ ] 录制 **D**：`node tests/real-e2e/run-architecture-presentation.mjs --full --offline` 与 `node tests/real-e2e/run-agent-ux-hardening.mjs --offline` 通过基线（保存 runner 输出摘要）。
-- [ ] `contract_baseline.py` 导出 `catalog.py` 当前 150 个工具的 `side_effects` / `destructive` / `mutates_document` / `writes_filesystem` / `needs_indesign` / `requires_active_document` 推断值为 JSON 基线表（供 Task 2 填 contract、Task 6 对账）。
+- [ ] `contract_baseline.py` 不直接用裸 `Catalog()`；必须按当前 CLI 构建真实目录：`McpBackend(repo_root, 'src/index.js')` + `McpBackend(repo_root, 'src/advanced/index.js')` + hidden handler scan，再排除 `CLI_PRIMITIVES` / plugin，导出 150 个 Node-backed 工具的 `side_effects` / `destructive` / `mutates_document` / `writes_filesystem` / `needs_indesign` / `requires_active_document` 推断值为 JSON 基线表（供 Task 2 填 contract、Task 6 对账）。9 个当前无 CLI schema 的 switch-only 工具仍必须进入 contract baseline。
 - [ ] 9 个无 schema 工具（`preflight_document`、`data_merge`、`get_document_xml_structure`、`export_document_xml`、`save_document_to_cloud`、`open_cloud_document`、`validate_document`、`cleanup_document`、`place_xml_on_spread`）在 golden 目录记录"schema 净新增"白名单。
 
 **Verify:**
@@ -135,14 +135,16 @@
 - Create: `src/tools/document/`、`page/`、`text/`、`style/`、`graphics/`、`masterSpread/`、`spread/`、`pageItem/`、`group/`、`book/`、`presentation/`、`export/`、`utility/`、`help/`、`template/`
 - Modify: `src/tools/index.js`（逐域接入聚合）
 
-每域一个并行 agent，输入：本计划域清单行 + 统一机械规则 + `_contract.js` + layer 试点样例 + contract 基线表 + golden C 中本域快照。域内动作：
+每域一个并行 agent，输入：本计划域清单行 + 统一机械规则 + `_contract.js` + layer 试点样例 + contract 基线表 + golden C 中本域快照。并行 agent 只创建/修改本域 `src/tools/<domain>/` 文件和本域 `index.js`；不直接改全局 `src/tools/index.js`。全局聚合由主控 agent 在每批域完成后按域清单顺序串行接入，避免并行冲突。
+
+域内动作：
 
 - [ ] 按职责拆模块并 tool-module 化本域全部工具（含 internal）。
 - [ ] `book` / `presentation`：把 `hidden_handler_schemas.py` 中 21 个 Python schema 翻译为 JS `inputSchema`，语义保真（字段、required、描述、默认值）。
 - [ ] `document`：为 9 个无 schema 工具从 handler 参数用法反推补写 `inputSchema`，每个附一行来源注释指向 handler 参数证据；标记待人工 review。
 - [ ] `help`：help 工具输出改为从 registry 生成；不保留手写目录。
 - [ ] `template`：6 个工具 `profiles: ['advanced']`。
-- [ ] 每域完成后接入 `src/tools/index.js` 聚合。
+- [ ] 每域完成后由主控 agent 串行接入 `src/tools/index.js` 聚合，并记录接入顺序和数量增量。
 - [ ] 每域跑域级双轨对比：本域工具的新链路 schema + 生成脚本 vs golden 快照，diff 为空（白名单：本域补写 schema、help 输出）。
 
 **Verify（每域）:**
@@ -196,7 +198,10 @@
 - Modify: `agent-harness/cli_anything/indesign/core/catalog.py`（三源合并收口：artifact + `CLI_PRIMITIVES` + plugin overlay；删除 hidden handler scan）
 - Delete: `agent-harness/cli_anything/indesign/core/domains.py`
 - Delete: `agent-harness/cli_anything/indesign/core/hidden_handler_schemas.py`
-- Modify: `agent-harness/cli_anything/indesign/core/router.py`（如引用被删模块则改为 artifact 字段）
+- Create: `agent-harness/cli_anything/indesign/node/internal_tool_bridge.mjs`（按 artifact/registry 调用终态 internal tool，不 import 旧 `src/handlers/`）
+- Modify/Rename: `agent-harness/cli_anything/indesign/core/hidden_backend.py` → `internal_backend.py`（schema 从 artifact 读，call 走 `internal_tool_bridge.mjs`；保留 `source: hidden_handler` 的外部 CLI 兼容口径）
+- Delete: `agent-harness/cli_anything/indesign/node/hidden_handler_bridge.mjs`
+- Modify: `agent-harness/cli_anything/indesign/core/router.py`（`hidden_handler` source 改为 artifact-backed internal backend；不得再 import `hidden_handler_schemas.py` 或旧 handler bridge）
 - Modify: `agent-harness/cli_anything/indesign/tests/test_core.py`（更新 catalog 契约测试）
 - Modify: `MANIFEST.in`、`pyproject.toml`（artifact 随 server assets 进 sdist / wheel）
 - Create: packaging smoke test（wheel / sdist 内 artifact 存在且 `registry_hash` 与当前 registry 一致）
@@ -204,8 +209,9 @@
 - [ ] artifact 读取顺序：active server root → wheel server assets；缺失或 hash 不符 = 硬错误，错误信息含修复命令。**不实现第三级 fallback**。
 - [ ] `--source` 过滤从 artifact `source` 字段驱动（由 profiles 投影），CLI 外部行为不变。
 - [ ] contract 对账：artifact contract vs Task 0 基线表逐工具 diff，差异逐项人工确认并记录在迁移目录；确认完成后才允许删除 `domains.py`。
+- [ ] internal/hidden 调用链对齐终态：`tool schema book.create_book`、`tool schema presentation.add_cover_page` 从 artifact 返回；`tool call book.create_book` 缺少 required args 时由 artifact schema 拦截为参数错误，不启动旧 bridge；需要真实 InDesign 的 internal 调用通过 `internal_tool_bridge.mjs` → `src/core/toolRouter.js` → tool-module handler。
 - [ ] `export.verify`、`server.*`、`session.*`、`script.run`、`tool.batch` 保持 Python primitive 定义；plugin runtime overlay 与 id 冲突规则不变。
-- [ ] 删除后 `rg -n "domains|hidden_handler_schemas|infer_domain" agent-harness` 除测试历史断言外零命中。
+- [ ] 删除后 `rg -n "domains|hidden_handler_schemas|infer_domain|hidden_handler_bridge" agent-harness` 除测试历史断言外零命中。
 
 **Verify:**
 
@@ -213,6 +219,8 @@
 - [ ] `indesign-cli tool list --source classic --callable-only`
 - [ ] `indesign-cli tool list --source advanced --callable-only`
 - [ ] `indesign-cli tool list --source hidden_handler`
+- [ ] `indesign-cli tool schema book.create_book && indesign-cli tool schema presentation.add_cover_page`
+- [ ] `indesign-cli tool call book.create_book`（无 args，预期稳定返回缺参错误，且不触发旧 `hidden_handler_bridge`）
 - [ ] `indesign-cli tool schema export.verify && indesign-cli tool schema script.run`
 - [ ] `python -m pytest agent-harness\cli_anything\indesign\tests\test_core.py -q`
 - [ ] packaging smoke（wheel / sdist artifact hash 一致）
@@ -263,7 +271,7 @@
 - [ ] 全量验证矩阵（见下）通过。
 - [ ] 真实 InDesign 门禁：`node tests/real-e2e/run-architecture-presentation.mjs --full`（非 offline）与 `INDESIGN_E2E=1 python -m pytest agent-harness\cli_anything\indesign\tests\test_full_e2e.py -q`；无法运行时在验收报告显式说明。
 - [ ] 验收报告包含：数量对账（150 = 114 + 30 + 6）、contract diff 确认清单、补写 schema review 记录、golden diff 摘要、skip 清单处理结果。
-- [ ] 合并 `refactor/terminal-architecture` → `master`。
+- [ ] 不在本 Task 合并；验收报告完成后进入 Task 7，同步文档和治理口径后再执行最终合并。
 
 **Complete when:**
 
@@ -280,6 +288,7 @@
 
 - [ ] 新增工具的标准动作写入 `AGENTS.md`：新增 tool-module 文件 + 域 `index.js` 一行 + `artifact --write` + 补测试。
 - [ ] 保留 2026-07-04 审查目录与本轮迁移目录，不移动原始报告。
+- [ ] Task 6 验收和本 Task 文档同步全部通过后，合并 `refactor/terminal-architecture` → `master`。
 
 **Verify:**
 
@@ -301,7 +310,7 @@
 2. Task 2 的 15 个域并行执行（每域一个 agent），全部完成并通过双轨 diff 后才进入 Task 3。
 3. Task 3 → Task 4 串行（切换先于 CLI，CLI 依赖 artifact）。
 4. Task 5 可与 Task 4 并行。
-5. Task 6 是唯一合并门禁；Task 7 在合并前完成文档同步。
+5. Task 6 是技术验收门禁；Task 7 在合并前完成文档同步，并在通过后执行唯一最终合并。
 
 ## 最小验证集合（每批次结束）
 
