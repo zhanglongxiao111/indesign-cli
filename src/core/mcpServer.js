@@ -9,6 +9,7 @@ import { assertPublicProfile, isToolVisibleToProfile } from '../tools/_contract.
 function listToolsForProfile(profile, registry) {
     return registry.tools
         .filter((tool) => isToolVisibleToProfile(tool, profile))
+        .toSorted((a, b) => a.name.localeCompare(b.name))
         .map((tool) => ({
             name: tool.name,
             description: tool.description,

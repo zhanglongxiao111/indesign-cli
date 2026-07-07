@@ -1,6 +1,6 @@
 ﻿# 工具套件自动化
 
-`run-all-tools.js` 启动 MCP 服务器，遍历在 `src/types` 下导出的每个工具定义，并记录每次调用的通过/失败状态。
+`run-all-tools.js` 启动 MCP 服务器，遍历 registry / artifact 中的工具定义，并记录每次调用的通过/失败状态。
 
 ## 用法
 

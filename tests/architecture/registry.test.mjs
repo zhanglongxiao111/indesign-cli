@@ -151,20 +151,19 @@ for (const name of layerNames) {
 const goldenLayerOrder = classicGolden.tools
     .map((tool) => tool.name)
     .filter((name) => layerNames.includes(name));
-const serverLayerOrder = createMcpServer({ profile: 'classic' })
-    .listTools()
-    .map((tool) => tool.name)
-    .filter((name) => layerNames.includes(name));
+const classicServerToolNames = createMcpServer({ profile: 'classic' }).listTools().map((tool) => tool.name);
+const advancedServerToolNames = createMcpServer({ profile: 'advanced' }).listTools().map((tool) => tool.name);
+assert.deepEqual(classicServerToolNames, classicGolden.tools.map((tool) => tool.name), 'classic mcpServer ListTools order should match golden A');
+assert.deepEqual(advancedServerToolNames, JSON.parse(fs.readFileSync('docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/golden/A_advanced_list_tools.json', 'utf8')).tools.map((tool) => tool.name), 'advanced mcpServer ListTools order should match golden A');
+
+const serverLayerOrder = classicServerToolNames.filter((name) => layerNames.includes(name));
 assert.deepEqual(serverLayerOrder, goldenLayerOrder, 'classic mcpServer layer tool order should match golden A');
 
 for (const domain of ['page', 'group']) {
     const goldenDomainOrder = classicGolden.tools
         .map((tool) => tool.name)
         .filter((name) => registry.byName.get(name)?.domain === domain);
-    const serverDomainOrder = createMcpServer({ profile: 'classic' })
-        .listTools()
-        .map((tool) => tool.name)
-        .filter((name) => registry.byName.get(name)?.domain === domain);
+    const serverDomainOrder = classicServerToolNames.filter((name) => registry.byName.get(name)?.domain === domain);
     assert.deepEqual(serverDomainOrder, goldenDomainOrder, `classic mcpServer ${domain} tool order should match golden A`);
 }
 
