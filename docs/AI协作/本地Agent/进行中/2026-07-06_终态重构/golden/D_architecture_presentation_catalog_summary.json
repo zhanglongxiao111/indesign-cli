@@ -1,0 +1,34 @@
+{
+  "byDomain": {
+    "book": 15,
+    "document": 25,
+    "export": 5,
+    "feedback": 1,
+    "graphics": 5,
+    "layer": 3,
+    "master": 10,
+    "object": 5,
+    "page": 34,
+    "presentation": 6,
+    "script": 2,
+    "server": 2,
+    "session": 3,
+    "spread": 10,
+    "style": 11,
+    "template": 5,
+    "text": 6,
+    "tool": 1,
+    "utility": 1
+  },
+  "bySource": {
+    "advanced": 6,
+    "classic": 114,
+    "cli": 7,
+    "cli.primitive": 1,
+    "hidden_handler": 21,
+    "script": 1
+  },
+  "schemaVersion": 1,
+  "total": 150,
+  "warnings": []
+}

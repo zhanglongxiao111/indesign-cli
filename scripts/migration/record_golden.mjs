@@ -124,6 +124,10 @@ const D_COMMANDS = [
     id: 'architecture_presentation_full_offline',
     stableRunId: 'terminal_architecture_golden_architecture_presentation',
     args: ['tests/real-e2e/run-architecture-presentation.mjs', '--full', '--offline', '--run-id', 'terminal_architecture_golden_architecture_presentation'],
+    rawEvidence: {
+      summaryFile: 'D_architecture_presentation_catalog_summary.json',
+      evidenceFile: 'D_architecture_presentation_catalog_evidence.json',
+    },
   },
   {
     id: 'agent_ux_hardening_offline',
@@ -153,12 +157,17 @@ async function prepareGoldenFixtures() {
 }
 
 async function cleanupSuccessfulDArtifacts() {
+  const keep = new Set([
+    'D_runner_outputs.json',
+    'D_architecture_presentation_catalog_summary.json',
+    'D_architecture_presentation_catalog_evidence.json',
+  ]);
   const entries = await fs.readdir(goldenDir, { withFileTypes: true });
   await Promise.all(
     entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .filter((name) => /^D_.*\.json$/u.test(name) && name !== 'D_runner_outputs.json')
+      .filter((name) => /^D_.*\.json$/u.test(name) && !keep.has(name))
       .map((name) => fs.unlink(path.join(goldenDir, name))),
   );
 }
@@ -502,8 +511,82 @@ function normalizeDOutput(value, actualRunId, stableRunId) {
     .replaceAll(actualRunId.replace(/\\/g, '/'), stableRunId);
 }
 
+async function readJson(filePath) {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error(`Required raw runner report is missing: ${filePath}`);
+    }
+    throw error;
+  }
+}
+
+function assertCatalogSummary(summary, runRoot) {
+  if (summary?.total !== 150) {
+    throw new Error(`Raw catalog summary total must be 150 for ${runRoot}, got ${summary?.total}`);
+  }
+  if (summary?.bySource?.['cli.primitive'] !== 1) {
+    throw new Error(
+      `Raw catalog summary cli.primitive count must be 1 for ${runRoot}, got ${summary?.bySource?.['cli.primitive']}`,
+    );
+  }
+}
+
+function buildCatalogEvidence(summary, catalog, runRoot) {
+  if (!Array.isArray(catalog)) {
+    throw new Error(`Raw tool catalog must be an array for ${runRoot}`);
+  }
+  if (catalog.length !== summary.total) {
+    throw new Error(`Raw tool catalog length must match summary total for ${runRoot}: ${catalog.length} !== ${summary.total}`);
+  }
+  const feedbackReport = catalog.find((tool) => tool.tool_id === 'feedback.report');
+  if (!feedbackReport) {
+    throw new Error(`Raw tool catalog is missing feedback.report for ${runRoot}`);
+  }
+  return {
+    schemaVersion: 1,
+    summary,
+    catalogLength: catalog.length,
+    containsFeedbackReport: true,
+    feedbackReport: {
+      tool_id: feedbackReport.tool_id,
+      source: feedbackReport.source,
+      domain: feedbackReport.domain,
+      name: feedbackReport.name,
+      callable: feedbackReport.callable,
+      backend: feedbackReport.backend,
+    },
+  };
+}
+
+async function collectDRunEvidence(command, parsedStdout) {
+  if (!parsedStdout?.runId || !parsedStdout?.runRoot) {
+    throw new Error(`${command.id} stdout JSON must include runId and runRoot`);
+  }
+  const actualRunRoot = path.resolve(parsedStdout.runRoot);
+  if (path.basename(actualRunRoot) !== parsedStdout.runId) {
+    throw new Error(`${command.id} runRoot must point to actual runId: ${actualRunRoot} !== ${parsedStdout.runId}`);
+  }
+
+  const reportsDir = path.join(actualRunRoot, 'reports');
+  const summary = await readJson(path.join(reportsDir, 'tool-catalog-summary.json'));
+  const catalog = await readJson(path.join(reportsDir, 'tool-catalog.json'));
+  assertCatalogSummary(summary, actualRunRoot);
+
+  return {
+    actualRunId: parsedStdout.runId,
+    actualRunRoot,
+    files: [
+      [command.rawEvidence.summaryFile, summary],
+      [command.rawEvidence.evidenceFile, buildCatalogEvidence(summary, catalog, actualRunRoot)],
+    ],
+  };
+}
+
 async function runD() {
   const results = [];
+  const evidenceFiles = [];
   for (let index = 0; index < D_COMMANDS.length; index += 1) {
     const command = withActualDRunId(D_COMMANDS[index], index);
     const result = await runProcess(process.execPath, command.actualArgs, { timeout: 30 * 60 * 1000 });
@@ -525,8 +608,15 @@ async function runD() {
       await writeJson(`D_${command.id}.json`, results[results.length - 1]);
       throw new Error(`${command.id} failed with exit ${result.exitCode}`);
     }
+    if (!parsedStdout) {
+      throw new Error(`${command.id} must emit JSON stdout`);
+    }
+    if (command.rawEvidence) {
+      const evidence = await collectDRunEvidence(command, parsedStdout);
+      evidenceFiles.push(evidence);
+    }
   }
-  return results;
+  return { results, evidenceFiles };
 }
 
 async function main() {
@@ -563,8 +653,13 @@ async function main() {
   });
   await writeJson('skip_list.json', skips);
 
-  const dResults = await runD();
+  const { results: dResults, evidenceFiles } = await runD();
   await cleanupSuccessfulDArtifacts();
+  for (const evidence of evidenceFiles) {
+    for (const [fileName, value] of evidence.files) {
+      await writeJson(fileName, value);
+    }
+  }
   await writeJson('D_runner_outputs.json', dResults);
 
   await writeJson('manifest.json', {
