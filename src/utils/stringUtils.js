@@ -17,6 +17,11 @@ export function escapeJsxString(str) {
         .replace(/\t/g, '\\t');
 }
 
+export function looksLikeFailureText(value) {
+    if (typeof value !== 'string') return false;
+    return /^(Error|Failed|ERROR)\b/.test(value.trim());
+}
+
 /**
  * Formats a response with a consistent structure.
  * @param {any} result - The result to format.
@@ -55,6 +60,18 @@ export function formatScriptResult(result, operation = "Operation") {
             };
         }
         if (parsed.success === true || parsed.ok === true) {
+            const failureText = [parsed.message, parsed.result, parsed.error]
+                .find((value) => looksLikeFailureText(value));
+            if (failureText) {
+                return {
+                    ...parsed,
+                    success: false,
+                    operation: parsed.operation || operation,
+                    code: parsed.code || parsed.errorCode || 'INDESIGN_SCRIPT_FAILED',
+                    result: parsed.result ?? parsed.error ?? parsed.message ?? result,
+                    timestamp: parsed.timestamp || timestamp
+                };
+            }
             return {
                 ...parsed,
                 success: parsed.success !== undefined ? parsed.success : true,
@@ -89,7 +106,7 @@ export function formatScriptResult(result, operation = "Operation") {
             timestamp
         };
     }
-    if (/^(Error |ERROR:|Failed )/.test(text.trim())) {
+    if (looksLikeFailureText(text)) {
         return {
             success: false,
             operation,

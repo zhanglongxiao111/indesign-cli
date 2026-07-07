@@ -3,6 +3,29 @@ import { escapeJsxString } from '../../utils/stringUtils.js';
 import { defineTool } from '../_contract.js';
 import { DOMAIN, PROFILES, contract, readOnlyContract } from './_shared.js';
 
+function masterSpreadLookupLines({ masterIndex, name }) {
+    const indexLiteral = Number.isInteger(masterIndex) ? String(masterIndex) : 'null';
+    const escapedName = escapeJsxString(name);
+    return [
+        `  var requestedMasterIndex = ${indexLiteral};`,
+        `  var requestedMasterName = "${escapedName}";`,
+        '  var masterSpread = null;',
+        '  var masterSpreadError = "";',
+        '  if (requestedMasterIndex !== null) {',
+        '    if (requestedMasterIndex < 0 || requestedMasterIndex >= doc.masterSpreads.length) {',
+        '      masterSpreadError = "Error: Master spread index out of range";',
+        '    } else {',
+        '      masterSpread = doc.masterSpreads[requestedMasterIndex];',
+        '    }',
+        '  } else {',
+        '    masterSpread = doc.masterSpreads.itemByName(requestedMasterName);',
+        '    if (!masterSpread || !masterSpread.isValid) {',
+        '      masterSpreadError = "Error: Master spread not found: " + requestedMasterName;',
+        '    }',
+        '  }'
+    ];
+}
+
 export const createMasterSpread = defineTool({
     name: 'create_master_spread',
     description: 'Create a new master spread',
@@ -126,17 +149,17 @@ export const deleteMasterSpread = defineTool({
         type: 'object'
     },
     handler: async (args) => {
-        const { masterIndex } = args;
+        const { masterIndex, name } = args;
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
-            `  if (${masterIndex} >= doc.masterSpreads.length) {`,
-            '    "Master spread index out of range";',
+            ...masterSpreadLookupLines({ masterIndex, name }),
+            '  if (masterSpreadError !== "") {',
+            '    masterSpreadError;',
             '  } else {',
-            `    var masterSpread = doc.masterSpreads[${masterIndex}];`,
             '    var name = masterSpread.name;',
             '    masterSpread.remove();',
             '    "Master spread deleted: " + name;',
@@ -169,29 +192,35 @@ export const duplicateMasterSpread = defineTool({
         type: 'object'
     },
     handler: async (args) => {
-        const { masterIndex, position = 'AT_END', referenceMaster } = args;
+        const { masterIndex, name, newName, position = 'AT_END', referenceMaster } = args;
+        const escapedNewName = escapeJsxString(newName);
+        const referenceMasterLiteral = Number.isInteger(referenceMaster) ? String(referenceMaster) : 'null';
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
-            `  if (${masterIndex} >= doc.masterSpreads.length) {`,
-            '    "Master spread index out of range";',
+            ...masterSpreadLookupLines({ masterIndex, name }),
+            '  if (masterSpreadError !== "") {',
+            '    masterSpreadError;',
             '  } else {',
-            `    var masterSpread = doc.masterSpreads[${masterIndex}];`,
             '    var newMasterSpread;',
+            `    var requestedReferenceMaster = ${referenceMasterLiteral};`,
             '',
             `    if ("${position}" === "AT_END") {`,
             '      newMasterSpread = masterSpread.duplicate();',
             `    } else if ("${position}" === "AT_BEGINNING") {`,
             '      newMasterSpread = masterSpread.duplicate(LocationOptions.AT_BEGINNING);',
-            `    } else if ("${position}" === "BEFORE" && ${referenceMaster} !== undefined) {`,
-            `      newMasterSpread = masterSpread.duplicate(LocationOptions.BEFORE, doc.masterSpreads[${referenceMaster}]);`,
-            `    } else if ("${position}" === "AFTER" && ${referenceMaster} !== undefined) {`,
-            `      newMasterSpread = masterSpread.duplicate(LocationOptions.AFTER, doc.masterSpreads[${referenceMaster}]);`,
+            `    } else if ("${position}" === "BEFORE" && requestedReferenceMaster !== null) {`,
+            '      newMasterSpread = masterSpread.duplicate(LocationOptions.BEFORE, doc.masterSpreads[requestedReferenceMaster]);',
+            `    } else if ("${position}" === "AFTER" && requestedReferenceMaster !== null) {`,
+            '      newMasterSpread = masterSpread.duplicate(LocationOptions.AFTER, doc.masterSpreads[requestedReferenceMaster]);',
             '    } else {',
             '      newMasterSpread = masterSpread.duplicate();',
+            '    }',
+            `    if ("${escapedNewName}" !== "") {`,
+            `      newMasterSpread.baseName = "${escapedNewName}";`,
             '    }',
             '',
             '    "Master spread duplicated successfully. New master index: " + newMasterSpread.index;',
@@ -283,17 +312,17 @@ export const getMasterSpreadInfo = defineTool({
         type: 'object'
     },
     handler: async (args) => {
-        const { masterIndex } = args;
+        const { masterIndex, name } = args;
 
         const script = [
             'if (app.documents.length === 0) {',
             '  "No document open";',
             '} else {',
             '  var doc = app.activeDocument;',
-            `  if (${masterIndex} >= doc.masterSpreads.length) {`,
-            '    "Master spread index out of range";',
+            ...masterSpreadLookupLines({ masterIndex, name }),
+            '  if (masterSpreadError !== "") {',
+            '    masterSpreadError;',
             '  } else {',
-            `    var masterSpread = doc.masterSpreads[${masterIndex}];`,
             '    var info = "=== MASTER SPREAD INFO ===\\n";',
             '',
             '    info += "Name: " + masterSpread.name + "\\n";',

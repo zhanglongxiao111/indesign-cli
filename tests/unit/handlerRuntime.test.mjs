@@ -43,6 +43,16 @@ try {
         await tool.handler(args);
         assert.equal(calls[0], goldenByName.get(tool.name).scripts[0].script, `${tool.name} generated script should match golden C`);
     }
+
+    for (const [name, args] of [
+        ['delete_master_spread', { name: 'B-ToolSuiteName' }],
+        ['duplicate_master_spread', { name: 'B-ToolSuiteName', newName: 'B-ToolSuiteName Copy' }],
+        ['get_master_spread_info', { name: 'B-ToolSuiteName' }],
+    ]) {
+        calls.length = 0;
+        await registry.byName.get(name).handler(args);
+        assert.equal(calls[0].includes('undefined'), false, `${name} must not inject undefined when called with schema-required name`);
+    }
 } finally {
     ScriptExecutor.executeInDesignScript = originalExecute;
     ScriptExecutor.executeInDesignScriptFile = originalExecuteFile;

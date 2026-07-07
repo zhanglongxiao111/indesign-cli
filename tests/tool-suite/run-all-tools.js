@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import { pathToFileURL } from "url";
+import { looksLikeFailureText } from "../../src/utils/stringUtils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,9 +13,11 @@ const LOG_DIR = path.resolve(__dirname, "logs");
 const OUTPUT_DIR = path.resolve(__dirname, "output");
 const REGISTRY_ARTIFACT_PATH = path.resolve(__dirname, "../../src/core/indesign-tool-registry.json");
 const SAMPLE_DATA_SOURCE = path.resolve(__dirname, "../test-data.csv");
-const SAMPLE_PDF = path.resolve(OUTPUT_DIR, "export.pdf");
-const SAMPLE_SAVE_PATH = path.resolve(OUTPUT_DIR, "tool-suite-sample.indd");
 const TIMESTAMP = new Date().toISOString().replace(/[:.]/g, "-");
+const SAMPLE_PDF = path.resolve(OUTPUT_DIR, `export-pdf-${TIMESTAMP}.pdf`);
+const SAMPLE_DOCUMENT_PDF = path.resolve(OUTPUT_DIR, `export-document-pdf-${TIMESTAMP}.pdf`);
+const SAMPLE_EPUB = path.resolve(OUTPUT_DIR, `export-${TIMESTAMP}.epub`);
+const SAMPLE_SAVE_PATH = path.resolve(OUTPUT_DIR, "tool-suite-sample.indd");
 const LOG_PATH = path.join(LOG_DIR, `tool-suite-run-${TIMESTAMP}.json`);
 
 await fs.mkdir(LOG_DIR, { recursive: true });
@@ -42,14 +45,18 @@ const CUSTOM_ARG_BUILDERS = new Map([
     ["create_document_section", () => ({ startPage: 0, sectionPrefix: "TS-", startNumber: 1, numberingStyle: "ARABIC" })],
     ["create_document", () => ({ width: 210, height: 297, pages: 2, facingPages: true })],
     ["create_page_guides", () => ({ pageIndex: 0, numberOfRows: 2, numberOfColumns: 2, rowGutter: 5, columnGutter: 5, guideColor: "BLUE", fitMargins: true, removeExisting: true })],
+    ["delete_master_spread", () => ({ masterIndex: 1, name: "ToolSuiteMaster" })],
     ["delete_page", () => ({ pageIndex: 1 })],
     ["edit_text_frame", () => ({ frameIndex: 0, content: "Tool suite edited text", fontSize: 12, alignment: "LEFT" })],
     ["save_document", () => ({ filePath: SAMPLE_SAVE_PATH })],
     ["open_document", () => ({ filePath: SAMPLE_SAVE_PATH })],
-    ["export_document_pdf", () => ({ filePath: SAMPLE_PDF, pages: "all", quality: "PRESS" })],
+    ["export_document_pdf", () => ({ filePath: SAMPLE_DOCUMENT_PDF, pages: "all", quality: "PRESS" })],
+    ["export_epub", () => ({ filePath: SAMPLE_EPUB, includeImages: true, includeStyles: true })],
     ["export_pdf", () => ({ filePath: SAMPLE_PDF, pages: "all", quality: "PRESS" })],
     ["export_images", () => ({ outputPath: path.resolve(OUTPUT_DIR, "images"), format: "JPEG", resolution: 150 })],
     ["package_document", () => ({ outputPath: path.resolve(OUTPUT_DIR, "package"), includeFonts: false, includeLinks: false, includeProfiles: false })],
+    ["duplicate_master_spread", () => ({ masterIndex: 0, name: "ToolSuiteMaster", newName: "ToolSuiteMasterCopy", position: "AT_END" })],
+    ["get_master_spread_info", () => ({ masterIndex: 0, name: "ToolSuiteMaster" })],
     ["move_page", () => ({ pageIndex: 0, newPosition: "AT_END" })],
     ["place_file_on_spread", () => ({ spreadIndex: 0, filePath: SAMPLE_PDF, x: 40, y: 40, pageIndexWithinSpread: 1 })],
     ["place_xml_on_spread", () => ({ spreadIndex: 0, xmlElementName: "ToolSuiteElement", x: 60, y: 60, pageIndexWithinSpread: 1 })],
@@ -78,13 +85,19 @@ const TOOL_OUTCOME_CONTRACTS = new Map([
     ["open_book", { status: "skipped", reason: "Book lifecycle coverage is handled by tests/real-e2e/scenarios/book_hidden.mjs because it requires a paired .indb fixture from create_book." }],
 ]);
 
+function toolResultLooksFailed(result) {
+    if (result.status === "failed") return true;
+    if (result.status !== "passed") return false;
+    return looksLikeFailureText(result.message) || looksLikeFailureText(result.result);
+}
+
 export function summarizeResults(results, runnerError) {
     return {
         totalTools: results.length,
-        passed: results.filter((result) => result.status === "passed").length,
+        passed: results.filter((result) => result.status === "passed" && !toolResultLooksFailed(result)).length,
         skipped: results.filter((result) => result.status === "skipped").length,
         expectedFailed: results.filter((result) => result.status === "expectedFailure").length,
-        failed: results.filter((result) => result.status === "failed").length,
+        failed: results.filter((result) => toolResultLooksFailed(result)).length,
         runnerError,
     };
 }
@@ -93,7 +106,7 @@ export function buildExitCode(summary) {
     return summary.runnerError || summary.failed > 0 ? 1 : 0;
 }
 
-class ToolSuiteRunner {
+export class ToolSuiteRunner {
     constructor(toolMap) {
         this.toolMap = toolMap;
         this.server = null;
@@ -195,7 +208,13 @@ class ToolSuiteRunner {
         }
 
         if (!payload.success) {
-            throw new Error(payload.result ?? `Tool ${name} reported failure`);
+            throw new Error(payload.message ?? payload.result ?? `Tool ${name} reported failure`);
+        }
+
+        const failureText = [payload.message, payload.result]
+            .find((value) => looksLikeFailureText(value));
+        if (failureText) {
+            throw new Error(failureText);
         }
 
         return payload;
@@ -260,7 +279,7 @@ class ToolSuiteRunner {
             return "ToolSuiteValue";
         }
 
-        if (type === "number") {
+        if (type === "number" || type === "integer") {
             if (lowerKey.includes("index")) return 0;
             if (lowerKey.includes("width")) return 100;
             if (lowerKey.includes("height")) return 100;
