@@ -43,7 +43,7 @@
 
 ### 5.1 事件模型
 
-CLI 在每次工具调用结束和会话结束时，append 一行 JSON 到当前 session 目录的 `telemetry.jsonl`。字段白名单制——只允许 schema 列出的字段，新增字段必须过 review：
+CLI 在每次工具调用结束时，append 一行 JSON 到共享 NAS 收集目录中的当前 session JSONL 文件。字段白名单制——只允许 schema 列出的字段，新增字段必须过 review：
 
 ```json
 {
@@ -51,6 +51,10 @@ CLI 在每次工具调用结束和会话结束时，append 一行 JSON 到当前
   "session_id": "…",
   "cli_version": "0.4.0",
   "registry_hash": "…",
+  "origin_key": "hash(computer,user,cwd)",
+  "cwd_hash": "hash(cwd)",
+  "agent_thread_id": "optional-upstream-thread",
+  "agent_run_id": "optional-upstream-run",
   "event": "tool_call",
   "tool_id": "pageitem.move_page_item",
   "source": "classic",
@@ -66,18 +70,61 @@ CLI 在每次工具调用结束和会话结束时，append 一行 JSON 到当前
 - `feedback` 事件：见第 1 层。
 - **不设 `session_end` 事件**：CLI 是每次调用一个进程的模型，没有可靠的会话结束时机，且被放弃的会话（最需要捕获的样本）永远不会触发显式结束。会话级指标（调用数、错误数、`script.run` 数、末次调用是否成功、重试链）全部由分析端从事件流按 `session_id` 推导。`retry_of` 同理由分析端从"同 session 相邻同工具失败后重试"推导，CLI 侧不计算。
 - `registry_hash` 在终态重构落地前缺省（当时尚无 artifact），落地后必填。
+- `origin_key` 是 `computer + user + cwd_hash` 的稳定 hash，用于区分多台电脑、多用户、同一 NAS 工作目录下的并发使用；不记录完整工作目录。
+- `agent_thread_id` / `agent_run_id` 只在上层 Agent 运行时显式注入时记录；CLI 不尝试猜测 Codex / OpenCode / Claude 的真实线程。
 
 ### 5.2 隐私边界（硬规则）
 
-- 禁止记录：参数值、脚本内容、文档内容、文件路径、客户名。路径类参数只记录"存在与否"。
+- 禁止记录：参数值、脚本内容、文档内容、文件路径、客户名。路径类参数只记录字段名；工作目录只记录 hash。
 - 遥测 schema 是白名单；分析端遇到未知字段直接丢弃。
-- 开关：`INDESIGN_CLI_TELEMETRY=off` 完全禁用；默认开启但仅落本地。
+- 开关：`INDESIGN_CLI_TELEMETRY=off` 完全禁用；未配置 `INDESIGN_CLI_TELEMETRY_DIR` 时不写共享遥测，只保留现有 CLI session 功能。
 
 ### 5.3 收集
 
-- 环境变量 `INDESIGN_CLI_TELEMETRY_DIR` 指向公司共享收集目录（UNC 路径即可）。
-- **每次调用双写**：事件同时 append 到本地 session 目录和收集目录（收集目录文件名 = `<session_id>.jsonl`）。被放弃的会话数据因此不丢失。写收集目录失败静默降级为仅本地，不影响任务。
+- 环境变量 `INDESIGN_CLI_TELEMETRY_DIR` 指向公司共享遥测根目录，默认部署值：
+
+```text
+\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry
+```
+
+- CLI 直接写 NAS，不做"先本地、再上传"的中转脚本。
+- 目录结构：
+
+```text
+indesign-cli-telemetry/
+  state/
+    <origin_key>.json
+  sessions/
+    YYYY-MM-DD/
+      <origin_key>__<session_id>.jsonl
+  reports/
+```
+
+- `state/<origin_key>.json` 只保存当前活跃 telemetry session 的 `session_id`、`created_at`、`last_seen_at`、`cwd_hash`；不保存完整路径。
+- `sessions/YYYY-MM-DD/*.jsonl` 是真实事件流；每次 CLI 调用 append 一行。
+- 默认切分规则：同一 `origin_key` 空闲超过 8 小时自动生成新 `session_id`。可用 `INDESIGN_CLI_TELEMETRY_IDLE_HOURS` 覆盖。
+- 写 NAS 失败静默降级为"本次不写共享遥测"，绝不影响 CLI 命令结果。
 - 不做服务端。文件堆 + 定时分析，KISS。
+
+### 5.4 Agent 线程绑定
+
+CLI 不能天然读取 Codex / Claude / OpenCode UI 的线程 ID；精确绑定必须由上层 Agent 运行时在启动进程时注入环境变量。
+
+建议 SA AI APP 启动 OpenCode Agent 时注入：
+
+```text
+INDESIGN_CLI_AGENT_THREAD_ID=<sa-aiapp-thread-id-or-hash>
+INDESIGN_CLI_AGENT_RUN_ID=<sa-aiapp-agent-run-id-or-hash>
+INDESIGN_CLI_TELEMETRY_DIR=\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry
+```
+
+CLI 生成 session 时按优先级：
+
+1. `INDESIGN_CLI_SESSION_ID`：显式完整 session id，最高优先级。
+2. `INDESIGN_CLI_AGENT_THREAD_ID` + `INDESIGN_CLI_AGENT_RUN_ID`：用于构造稳定 session id。
+3. 默认规则：`origin_key + idle timeout + random uuid`。
+
+边界：同一台电脑、同一用户、同一工作目录同时开两个 Agent 线程，且上层不注入线程 ID 时，CLI 无法 100% 区分它们；会按同一 `origin_key` 归并。需要精确区分时必须接入上层 env 注入。
 
 ## 6. 第 1 层：摩擦上报（feedback 域）
 
@@ -90,7 +137,7 @@ indesign-cli feedback report --code TOOL_GAP --note "无法批量替换段落样
 ```
 
 - code 枚举：`TOOL_GAP`、`DOC_UNCLEAR`、`ERROR_MESSAGE_USELESS`、`SCHEMA_CONFUSING`、`UNEXPECTED_BEHAVIOR`、`PERFORMANCE`、`MISSING_EXAMPLE`。
-- 自动附加：session_id、cli_version、registry_hash、最近 5 条 tool_call 事件摘要（脱敏形态）。
+- 自动附加：session_id、origin_key、cwd_hash、cli_version、registry_hash、agent_thread_id / agent_run_id（如有）、最近 5 条 tool_call 事件摘要（脱敏形态）。
 - `--note` 限长（如 500 字符），命令帮助文本明确提醒：不得包含客户文档内容或路径。
 - 记录为 `feedback` 遥测事件，走同一收集通道。
 
@@ -171,15 +218,16 @@ indesign-cli feedback report --code TOOL_GAP --note "无法批量替换段落样
 | ---- | ---- |
 | note 自由文本泄露客户信息 | 限长 + 命令帮助明示禁令 + SKILL 规则 + 周报引用时人工过目 |
 | 遥测字段膨胀失控 | 白名单 schema + 新字段必须 review + 分析端丢弃未知字段 |
-| 共享目录不可达阻塞任务 | 复制失败静默降级本地，绝不影响工具调用结果 |
+| NAS 收集目录不可达阻塞任务 | 写失败静默降级为本次不写共享遥测，绝不影响工具调用结果 |
+| 同一机器同一用户同一 cwd 同时运行多个 Agent 线程 | 默认会按同一 `origin_key` 归并；需要精确区分时由 SA AI APP / OpenCode 启动层注入 `INDESIGN_CLI_AGENT_THREAD_ID` / `INDESIGN_CLI_AGENT_RUN_ID` |
 | Agent 滥报/漏报 | 被动遥测不依赖 Agent 自觉，是兜底真相；上报只是增强信号 |
 | 快通道 PR 改坏行为 | 白名单只含文案；CI 跑 required 门禁；人 review |
-| 指标被单一高频用户偏置 | 聚合按 session 加权，周报标注会话来源分布（不含身份） |
+| 指标被单一高频用户偏置 | 聚合按 session 加权，周报标注 `origin_key` 分布（不含完整路径或原始用户信息） |
 | 代理指标误读 | 周报固定标注"会话收尾质量"的局限性 |
 
 ## 12. 完成标准
 
-- 任意一次 CLI 会话自动产生 telemetry.jsonl，字段符合白名单，无内容泄露。
+- 配置 `INDESIGN_CLI_TELEMETRY_DIR` 后，任意一次 CLI 调用会向 NAS session JSONL 追加白名单事件，无内容泄露。
 - `feedback report` 可用，SKILL.md 四条规则生效。
 - 聚合脚本对收集目录可产出全部北极星指标和 escape hatch 关联分析。
 - 分析 agent 产出至少一期周报和带簇 ID 的 issue 草稿。
