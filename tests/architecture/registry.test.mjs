@@ -157,6 +157,17 @@ const serverLayerOrder = createMcpServer({ profile: 'classic' })
     .filter((name) => layerNames.includes(name));
 assert.deepEqual(serverLayerOrder, goldenLayerOrder, 'classic mcpServer layer tool order should match golden A');
 
+for (const domain of ['page', 'group']) {
+    const goldenDomainOrder = classicGolden.tools
+        .map((tool) => tool.name)
+        .filter((name) => registry.byName.get(name)?.domain === domain);
+    const serverDomainOrder = createMcpServer({ profile: 'classic' })
+        .listTools()
+        .map((tool) => tool.name)
+        .filter((name) => registry.byName.get(name)?.domain === domain);
+    assert.deepEqual(serverDomainOrder, goldenDomainOrder, `classic mcpServer ${domain} tool order should match golden A`);
+}
+
 function artifactModifiedTime() {
     const stats = fs.statSync('src/core/indesign-tool-registry.json', { bigint: true });
     return stats.mtimeNs ?? stats.mtimeMs;

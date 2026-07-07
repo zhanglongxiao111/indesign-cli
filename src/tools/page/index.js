@@ -18,22 +18,22 @@ const toolsByName = new Map([
 
 export const tools = [
     'add_page',
+    'adjust_page_layout',
+    'create_page_guides',
+    'delete_all_page_layout_snapshots',
     'delete_page',
+    'delete_page_layout_snapshot',
     'duplicate_page',
-    'navigate_to_page',
+    'get_page_content_summary',
     'get_page_info',
     'move_page',
-    'set_page_properties',
-    'adjust_page_layout',
-    'resize_page',
+    'navigate_to_page',
     'place_file_on_page',
     'place_xml_on_page',
-    'snapshot_page_layout',
-    'delete_page_layout_snapshot',
-    'delete_all_page_layout_snapshots',
     'reframe_page',
-    'create_page_guides',
+    'resize_page',
     'select_page',
-    'get_page_content_summary',
-    'set_page_background'
+    'set_page_background',
+    'set_page_properties',
+    'snapshot_page_layout'
 ].map((name) => toolsByName.get(name));
