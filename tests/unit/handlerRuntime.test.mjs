@@ -37,7 +37,7 @@ try {
             .map((snapshot) => [snapshot.name, snapshot])
     );
 
-    for (const tool of registry.tools) {
+    for (const tool of registry.byDomain.get('layer')) {
         calls.length = 0;
         const args = goldenByName.get(tool.name).args;
         await tool.handler(args);

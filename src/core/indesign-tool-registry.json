@@ -1,10 +1,866 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-07T09:01:44.434Z",
-  "registry_hash": "cd2f588009b045b47fa7e2eb7c129493f977a1aa9aacbc9bac478824e9df2263",
-  "tool_count": 3,
+  "generated_at": "2026-07-07T10:06:58.264Z",
+  "registry_hash": "3717d8a3cb5b3ede5c155f3f231f78148b9ebf2a52f9e352a66481b7390b9dcc",
+  "tool_count": 150,
   "sources": {
     "classic": [
+      {
+        "name": "add_item_to_group",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "page.add_item_to_group",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "groupIndex": {
+              "description": "Index of the group to add the item to",
+              "type": "integer"
+            },
+            "itemIndex": {
+              "description": "Index of the page item to add to the group",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the group and item",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "groupIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.add_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "position": {
+              "type": "string",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "default": "AT_END"
+            },
+            "referencePage": {
+              "type": "number",
+              "description": "Reference page index (for BEFORE/AFTER positioning)"
+            }
+          }
+        }
+      },
+      {
+        "name": "adjust_page_layout",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.adjust_page_layout",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "width": {
+              "type": "string",
+              "description": "Page width (e.g., \"600px\", \"8.5in\")"
+            },
+            "height": {
+              "type": "string",
+              "description": "Page height (e.g., \"800px\", \"11in\")"
+            },
+            "bleedInside": {
+              "type": "string",
+              "description": "Inside bleed (e.g., \"3mm\")"
+            },
+            "bleedTop": {
+              "type": "string",
+              "description": "Top bleed (e.g., \"3mm\")"
+            },
+            "bleedOutside": {
+              "type": "string",
+              "description": "Outside bleed (e.g., \"3mm\")"
+            },
+            "bleedBottom": {
+              "type": "string",
+              "description": "Bottom bleed (e.g., \"3mm\")"
+            },
+            "leftMargin": {
+              "type": "string",
+              "description": "Left margin (e.g., \"20mm\")"
+            },
+            "topMargin": {
+              "type": "string",
+              "description": "Top margin (e.g., \"20mm\")"
+            },
+            "rightMargin": {
+              "type": "string",
+              "description": "Right margin (e.g., \"20mm\")"
+            },
+            "bottomMargin": {
+              "type": "string",
+              "description": "Bottom margin (e.g., \"20mm\")"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "apply_character_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.apply_character_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "endIndex": {
+              "default": -1,
+              "description": "End character index (-1 for all)",
+              "type": "number"
+            },
+            "frameIndex": {
+              "default": 0,
+              "description": "Text frame index (0-based)",
+              "type": "number"
+            },
+            "startIndex": {
+              "default": 0,
+              "description": "Start character index",
+              "type": "number"
+            },
+            "styleName": {
+              "description": "Character style name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "styleName"
+          ]
+        }
+      },
+      {
+        "name": "apply_color",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.apply_color",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "colorName": {
+              "description": "Color swatch name",
+              "type": "string"
+            },
+            "colorType": {
+              "default": "FILL",
+              "enum": [
+                "FILL",
+                "STROKE"
+              ],
+              "type": "string"
+            },
+            "frameIndex": {
+              "default": 0,
+              "description": "Target frame or page item index",
+              "type": "number"
+            },
+            "objectIndex": {
+              "description": "Object index",
+              "type": "number"
+            },
+            "targetType": {
+              "default": "text",
+              "enum": [
+                "text",
+                "rectangle",
+                "ellipse"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "objectIndex",
+            "colorName"
+          ]
+        }
+      },
+      {
+        "name": "apply_master_spread",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.apply_master_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "masterName": {
+              "description": "Master spread name to apply",
+              "type": "string"
+            },
+            "pageRange": {
+              "default": "all",
+              "description": "Page range (e.g., \"1-5\", \"all\")",
+              "type": "string"
+            }
+          },
+          "required": [
+            "masterName"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "apply_object_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.apply_object_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "itemIndex": {
+              "default": 0,
+              "description": "Item index",
+              "type": "number"
+            },
+            "itemType": {
+              "default": "rectangle",
+              "enum": [
+                "rectangle",
+                "ellipse",
+                "polygon"
+              ],
+              "type": "string"
+            },
+            "styleName": {
+              "description": "Object style name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "styleName"
+          ]
+        }
+      },
+      {
+        "name": "apply_paragraph_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.apply_paragraph_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "frameIndex": {
+              "default": 0,
+              "description": "Text frame index",
+              "type": "number"
+            },
+            "paragraphIndex": {
+              "default": 0,
+              "description": "Paragraph index within the frame (0-based)",
+              "type": "number"
+            },
+            "styleName": {
+              "description": "Paragraph style name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "styleName"
+          ]
+        }
+      },
+      {
+        "name": "clear_session",
+        "source": "classic",
+        "domain": "utility",
+        "cli": {
+          "id": "document.clear_session",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "close_document",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.close_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "allowDiscard": {
+              "default": false,
+              "description": "Explicitly discard unsaved changes when closing the target document",
+              "type": "boolean"
+            },
+            "expectedDocumentName": {
+              "description": "Optional document name to close when multiple documents are open",
+              "type": "string"
+            },
+            "forceActiveDocument": {
+              "default": false,
+              "description": "Explicitly close the active document even when multiple documents are open",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_character_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.create_character_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "bold": {
+              "default": false,
+              "description": "Bold text",
+              "type": "boolean"
+            },
+            "fontFamily": {
+              "default": "Arial\\tRegular",
+              "description": "Font family (use format: FontName\\tStyle)",
+              "type": "string"
+            },
+            "fontSize": {
+              "default": 12,
+              "description": "Font size in points",
+              "type": "number"
+            },
+            "italic": {
+              "default": false,
+              "description": "Italic text",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Style name",
+              "type": "string"
+            },
+            "textColor": {
+              "default": "Black",
+              "description": "Text color",
+              "type": "string"
+            },
+            "underline": {
+              "default": false,
+              "description": "Underline text",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "create_color_swatch",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.create_color_swatch",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "blue": {
+              "description": "Blue value (0-255)",
+              "type": "number"
+            },
+            "colorType": {
+              "default": "PROCESS",
+              "enum": [
+                "PROCESS",
+                "SPOT"
+              ],
+              "type": "string"
+            },
+            "green": {
+              "description": "Green value (0-255)",
+              "type": "number"
+            },
+            "name": {
+              "description": "Swatch name",
+              "type": "string"
+            },
+            "red": {
+              "description": "Red value (0-255)",
+              "type": "number"
+            }
+          },
+          "required": [
+            "name",
+            "red",
+            "green",
+            "blue"
+          ]
+        }
+      },
+      {
+        "name": "create_document",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.create_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "bleedBottom": {
+              "default": 3,
+              "description": "Bottom bleed in mm",
+              "type": "number"
+            },
+            "bleedInside": {
+              "default": 3,
+              "description": "Inside bleed in mm",
+              "type": "number"
+            },
+            "bleedOutside": {
+              "default": 3,
+              "description": "Outside bleed in mm",
+              "type": "number"
+            },
+            "bleedTop": {
+              "default": 3,
+              "description": "Top bleed in mm",
+              "type": "number"
+            },
+            "facingPages": {
+              "default": false,
+              "description": "Enable facing pages",
+              "type": "boolean"
+            },
+            "height": {
+              "default": 297,
+              "description": "Document height in mm",
+              "type": "number"
+            },
+            "marginBottom": {
+              "default": 20,
+              "description": "Bottom margin in mm",
+              "type": "number"
+            },
+            "marginLeft": {
+              "default": 20,
+              "description": "Left margin in mm",
+              "type": "number"
+            },
+            "marginRight": {
+              "default": 20,
+              "description": "Right margin in mm",
+              "type": "number"
+            },
+            "marginTop": {
+              "default": 20,
+              "description": "Top margin in mm",
+              "type": "number"
+            },
+            "pageOrientation": {
+              "default": "PORTRAIT",
+              "enum": [
+                "PORTRAIT",
+                "LANDSCAPE"
+              ],
+              "type": "string"
+            },
+            "pages": {
+              "default": 1,
+              "description": "Number of pages",
+              "type": "number"
+            },
+            "width": {
+              "default": 210,
+              "description": "Document width in mm",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_document_hyperlink",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.create_document_hyperlink",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "destination": {
+              "description": "URL or destination",
+              "type": "string"
+            },
+            "linkType": {
+              "default": "URL",
+              "description": "Type of hyperlink",
+              "enum": [
+                "URL",
+                "PAGE",
+                "TEXT"
+              ],
+              "type": "string"
+            },
+            "pageIndex": {
+              "description": "Target page index (for page links)",
+              "type": "number"
+            },
+            "sourceText": {
+              "description": "Text to link",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sourceText",
+            "destination"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_document_section",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.create_document_section",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "numberingStyle": {
+              "default": "ARABIC",
+              "description": "Numbering style",
+              "enum": [
+                "ARABIC",
+                "ROMAN_UPPER",
+                "ROMAN_LOWER",
+                "LETTER_UPPER",
+                "LETTER_LOWER"
+              ],
+              "type": "string"
+            },
+            "sectionPrefix": {
+              "description": "Section prefix",
+              "type": "string"
+            },
+            "startNumber": {
+              "default": 1,
+              "description": "Starting page number",
+              "type": "number"
+            },
+            "startPage": {
+              "description": "Page to start section on",
+              "type": "number"
+            }
+          },
+          "required": [
+            "startPage"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_ellipse",
+        "source": "classic",
+        "domain": "graphics",
+        "cli": {
+          "id": "graphics.create_ellipse",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "fillColor": {
+              "description": "Fill color (RGB hex or swatch name)",
+              "type": "string"
+            },
+            "height": {
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "strokeColor": {
+              "description": "Stroke color",
+              "type": "string"
+            },
+            "strokeWidth": {
+              "default": 1,
+              "description": "Stroke width in points",
+              "type": "number"
+            },
+            "width": {
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_group",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "object.create_group",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "pageIndex": {
+              "description": "Index of the page where the group will be created",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_group_from_items",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "object.create_group_from_items",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndices": {
+              "description": "Array of item indices to group together",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 2,
+              "type": "array"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the items",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndices"
+          ],
+          "type": "object"
+        }
+      },
       {
         "name": "create_layer",
         "source": "classic",
@@ -51,6 +907,2288 @@
         }
       },
       {
+        "name": "create_master_guides",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.create_master_guides",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "columnGutter": {
+              "default": 5,
+              "description": "Column gutter in mm",
+              "type": "number"
+            },
+            "fitMargins": {
+              "default": true,
+              "description": "Fit guides to margins",
+              "type": "boolean"
+            },
+            "guideColor": {
+              "default": "BLUE",
+              "description": "Guide color (RGB values as comma-separated string or UI color name)",
+              "type": "string"
+            },
+            "layerName": {
+              "description": "Layer name to create guides on",
+              "type": "string"
+            },
+            "masterName": {
+              "description": "Master spread name",
+              "type": "string"
+            },
+            "numberOfColumns": {
+              "default": 0,
+              "description": "Number of columns",
+              "type": "number"
+            },
+            "numberOfRows": {
+              "default": 0,
+              "description": "Number of rows",
+              "type": "number"
+            },
+            "removeExisting": {
+              "default": false,
+              "description": "Remove existing guides",
+              "type": "boolean"
+            },
+            "rowGutter": {
+              "default": 5,
+              "description": "Row gutter in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "masterName"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_master_rectangle",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.create_master_rectangle",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "cornerRadius": {
+              "default": 0,
+              "description": "Corner radius in mm",
+              "type": "number"
+            },
+            "fillColor": {
+              "description": "Fill color (RGB hex or swatch name)",
+              "type": "string"
+            },
+            "height": {
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "masterName": {
+              "description": "Master spread name",
+              "type": "string"
+            },
+            "strokeColor": {
+              "description": "Stroke color",
+              "type": "string"
+            },
+            "strokeWidth": {
+              "default": 1,
+              "description": "Stroke width in points",
+              "type": "number"
+            },
+            "width": {
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "masterName",
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_master_spread",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.create_master_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "baseName": {
+              "description": "Base name for the master spread",
+              "type": "string"
+            },
+            "name": {
+              "description": "Master spread name",
+              "type": "string"
+            },
+            "namePrefix": {
+              "description": "Name prefix for the master spread",
+              "type": "string"
+            },
+            "pageColor": {
+              "description": "Page color (RGB values as comma-separated string or UI color name)",
+              "type": "string"
+            },
+            "showMasterItems": {
+              "default": true,
+              "description": "Show master items on document pages",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_master_text_frame",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.create_master_text_frame",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "alignment": {
+              "default": "LEFT_ALIGN",
+              "enum": [
+                "LEFT_ALIGN",
+                "CENTER_ALIGN",
+                "RIGHT_ALIGN",
+                "JUSTIFY"
+              ],
+              "type": "string"
+            },
+            "content": {
+              "description": "Text content for the frame",
+              "type": "string"
+            },
+            "fontFamily": {
+              "default": "Helvetica Neue",
+              "description": "Font family name",
+              "type": "string"
+            },
+            "fontSize": {
+              "default": 12,
+              "description": "Font size in points",
+              "type": "number"
+            },
+            "height": {
+              "default": 50,
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "isPrimaryTextFrame": {
+              "default": false,
+              "description": "Set as primary text frame",
+              "type": "boolean"
+            },
+            "masterName": {
+              "description": "Master spread name",
+              "type": "string"
+            },
+            "textColor": {
+              "default": "Black",
+              "description": "Text color (RGB hex or name)",
+              "type": "string"
+            },
+            "width": {
+              "default": 100,
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "default": 10,
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "default": 10,
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "masterName",
+            "content"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_object_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.create_object_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "cornerRadius": {
+              "default": 0,
+              "description": "Corner radius in mm",
+              "type": "number"
+            },
+            "fillColor": {
+              "description": "Fill color (swatch name)",
+              "type": "string"
+            },
+            "name": {
+              "description": "Object style name",
+              "type": "string"
+            },
+            "strokeColor": {
+              "description": "Stroke color (swatch name)",
+              "type": "string"
+            },
+            "strokeWeight": {
+              "default": 1,
+              "description": "Stroke weight in points",
+              "type": "number"
+            },
+            "transparency": {
+              "default": 100,
+              "description": "Transparency percentage (0-100)",
+              "type": "number"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "create_page_guides",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.create_page_guides",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "numberOfRows": {
+              "type": "number",
+              "description": "Number of rows",
+              "default": 0
+            },
+            "numberOfColumns": {
+              "type": "number",
+              "description": "Number of columns",
+              "default": 0
+            },
+            "rowGutter": {
+              "type": "number",
+              "description": "Row gutter in mm",
+              "default": 5
+            },
+            "columnGutter": {
+              "type": "number",
+              "description": "Column gutter in mm",
+              "default": 5
+            },
+            "guideColor": {
+              "type": "string",
+              "description": "Guide color (RGB values as comma-separated string or UI color name)",
+              "default": "BLUE"
+            },
+            "fitMargins": {
+              "type": "boolean",
+              "description": "Fit guides to margins",
+              "default": true
+            },
+            "removeExisting": {
+              "type": "boolean",
+              "description": "Remove existing guides",
+              "default": false
+            },
+            "layerName": {
+              "type": "string",
+              "description": "Layer name to create guides on"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "create_paragraph_style",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.create_paragraph_style",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "alignment": {
+              "default": "LEFT_ALIGN",
+              "enum": [
+                "LEFT_ALIGN",
+                "CENTER_ALIGN",
+                "RIGHT_ALIGN",
+                "JUSTIFY"
+              ],
+              "type": "string"
+            },
+            "fontFamily": {
+              "default": "Arial\\tRegular",
+              "description": "Font family (use format: FontName\\tStyle)",
+              "type": "string"
+            },
+            "fontSize": {
+              "default": 12,
+              "description": "Font size in points",
+              "type": "number"
+            },
+            "leading": {
+              "description": "Line spacing in points",
+              "type": "number"
+            },
+            "name": {
+              "description": "Style name",
+              "type": "string"
+            },
+            "spaceAfter": {
+              "description": "Space after paragraph in points",
+              "type": "number"
+            },
+            "spaceBefore": {
+              "description": "Space before paragraph in points",
+              "type": "number"
+            },
+            "textColor": {
+              "default": "Black",
+              "description": "Text color",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      },
+      {
+        "name": "create_polygon",
+        "source": "classic",
+        "domain": "graphics",
+        "cli": {
+          "id": "graphics.create_polygon",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "fillColor": {
+              "description": "Fill color (RGB hex or swatch name)",
+              "type": "string"
+            },
+            "height": {
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "sides": {
+              "default": 6,
+              "description": "Number of sides",
+              "type": "number"
+            },
+            "strokeColor": {
+              "description": "Stroke color",
+              "type": "string"
+            },
+            "strokeWidth": {
+              "default": 1,
+              "description": "Stroke width in points",
+              "type": "number"
+            },
+            "width": {
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_rectangle",
+        "source": "classic",
+        "domain": "graphics",
+        "cli": {
+          "id": "graphics.create_rectangle",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "cornerRadius": {
+              "default": 0,
+              "description": "Corner radius in mm",
+              "type": "number"
+            },
+            "fillColor": {
+              "description": "Fill color (RGB hex or swatch name)",
+              "type": "string"
+            },
+            "height": {
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "strokeColor": {
+              "description": "Stroke color",
+              "type": "string"
+            },
+            "strokeWidth": {
+              "default": 1,
+              "description": "Stroke width in points",
+              "type": "number"
+            },
+            "width": {
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_spread_guides",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.create_spread_guides",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "columnGutter": {
+              "default": 5,
+              "description": "Column gutter in mm",
+              "type": "number"
+            },
+            "fitMargins": {
+              "default": true,
+              "description": "Fit guides to margins",
+              "type": "boolean"
+            },
+            "guideColor": {
+              "default": "BLUE",
+              "description": "Guide color (RGB values as comma-separated string or UI color name)",
+              "type": "string"
+            },
+            "layerName": {
+              "description": "Layer name to create guides on",
+              "type": "string"
+            },
+            "numberOfColumns": {
+              "default": 0,
+              "description": "Number of columns",
+              "type": "number"
+            },
+            "numberOfRows": {
+              "default": 0,
+              "description": "Number of rows",
+              "type": "number"
+            },
+            "removeExisting": {
+              "default": false,
+              "description": "Remove existing guides",
+              "type": "boolean"
+            },
+            "rowGutter": {
+              "default": 5,
+              "description": "Row gutter in mm",
+              "type": "number"
+            },
+            "spreadIndex": {
+              "description": "Spread index",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "create_table",
+        "source": "classic",
+        "domain": "text",
+        "cli": {
+          "id": "text.create_table",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "type": "number",
+              "description": "Number of rows",
+              "default": 3
+            },
+            "columns": {
+              "type": "number",
+              "description": "Number of columns",
+              "default": 3
+            },
+            "x": {
+              "type": "number",
+              "description": "X position in mm"
+            },
+            "y": {
+              "type": "number",
+              "description": "Y position in mm"
+            },
+            "width": {
+              "type": "number",
+              "description": "Table width in mm"
+            },
+            "height": {
+              "type": "number",
+              "description": "Table height in mm"
+            },
+            "headerRows": {
+              "type": "number",
+              "description": "Number of header rows",
+              "default": 1
+            },
+            "headerColumns": {
+              "type": "number",
+              "description": "Number of header columns",
+              "default": 0
+            }
+          },
+          "required": [
+            "rows",
+            "columns"
+          ]
+        }
+      },
+      {
+        "name": "create_text_frame",
+        "source": "classic",
+        "domain": "text",
+        "cli": {
+          "id": "text.create_text_frame",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "string",
+              "description": "Text content for the frame"
+            },
+            "x": {
+              "type": "number",
+              "description": "X position in mm",
+              "default": 10
+            },
+            "y": {
+              "type": "number",
+              "description": "Y position in mm",
+              "default": 10
+            },
+            "width": {
+              "type": "number",
+              "description": "Width in mm",
+              "default": 100
+            },
+            "height": {
+              "type": "number",
+              "description": "Height in mm",
+              "default": 50
+            },
+            "fontSize": {
+              "type": "number",
+              "description": "Font size in points",
+              "default": 12
+            },
+            "fontName": {
+              "type": "string",
+              "description": "Font name (use format: FontName\\tStyle)",
+              "default": "Arial\\tRegular"
+            },
+            "textColor": {
+              "type": "string",
+              "description": "Text color (RGB hex or name)",
+              "default": "Black"
+            },
+            "alignment": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "CENTER",
+                "RIGHT",
+                "JUSTIFY"
+              ],
+              "default": "LEFT"
+            },
+            "paragraphStyle": {
+              "type": "string",
+              "description": "Paragraph style name to apply during creation"
+            },
+            "characterStyle": {
+              "type": "string",
+              "description": "Character style name to apply during creation"
+            }
+          },
+          "required": [
+            "content"
+          ]
+        }
+      },
+      {
+        "name": "delete_all_page_layout_snapshots",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.delete_all_page_layout_snapshots",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "delete_master_spread",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.delete_master_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "masterIndex": {
+              "description": "Master spread index to delete",
+              "type": "number"
+            },
+            "name": {
+              "description": "Master spread name to delete",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "delete_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.delete_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Index of the page to delete"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "delete_page_item",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.delete_page_item",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Index of the page item to delete",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "delete_page_layout_snapshot",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.delete_page_layout_snapshot",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "delete_spread",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.delete_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": true
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "spreadIndex": {
+              "description": "Spread index to delete",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "detach_master_items",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.detach_master_items",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Master item index to detach (optional, detaches all if not specified)",
+              "type": "number"
+            },
+            "pageIndex": {
+              "description": "Page index",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "duplicate_master_spread",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.duplicate_master_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "masterIndex": {
+              "description": "Master spread index to duplicate",
+              "type": "number"
+            },
+            "name": {
+              "description": "Master spread name to duplicate",
+              "type": "string"
+            },
+            "newName": {
+              "description": "Name for the duplicated master spread",
+              "type": "string"
+            },
+            "position": {
+              "default": "AT_END",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "type": "string"
+            },
+            "referenceMaster": {
+              "description": "Reference master spread index for BEFORE/AFTER placement",
+              "type": "number"
+            }
+          },
+          "required": [
+            "name",
+            "newName"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "duplicate_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.duplicate_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index to duplicate"
+            },
+            "position": {
+              "type": "string",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "default": "AT_END"
+            },
+            "referencePageIndex": {
+              "type": "number",
+              "description": "Reference page index (for BEFORE/AFTER positioning)"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "duplicate_page_item",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.duplicate_page_item",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Index of the page item to duplicate",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            },
+            "x": {
+              "description": "X coordinate for the duplicate",
+              "type": "number"
+            },
+            "y": {
+              "description": "Y coordinate for the duplicate",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex",
+            "x",
+            "y"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "duplicate_spread",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.duplicate_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "default": "AT_END",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "type": "string"
+            },
+            "referenceSpreadIndex": {
+              "description": "Reference spread index (for BEFORE/AFTER positioning)",
+              "type": "number"
+            },
+            "spreadIndex": {
+              "description": "Spread index to duplicate",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "edit_text_frame",
+        "source": "classic",
+        "domain": "text",
+        "cli": {
+          "id": "text.edit_text_frame",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "frameIndex": {
+              "type": "number",
+              "description": "Index of the text frame to edit"
+            },
+            "content": {
+              "type": "string",
+              "description": "New text content"
+            },
+            "fontSize": {
+              "type": "number",
+              "description": "Font size in points"
+            },
+            "fontName": {
+              "type": "string",
+              "description": "Font name"
+            },
+            "textColor": {
+              "type": "string",
+              "description": "Text color (RGB hex or name)"
+            },
+            "alignment": {
+              "type": "string",
+              "enum": [
+                "LEFT",
+                "CENTER",
+                "RIGHT",
+                "JUSTIFY"
+              ]
+            }
+          },
+          "required": [
+            "frameIndex"
+          ]
+        }
+      },
+      {
+        "name": "execute_indesign_code",
+        "source": "classic",
+        "domain": "utility",
+        "cli": {
+          "id": "script.execute_indesign_code",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "ExtendScript code to execute"
+            }
+          },
+          "required": [
+            "code"
+          ]
+        }
+      },
+      {
+        "name": "export_epub",
+        "source": "classic",
+        "domain": "export",
+        "cli": {
+          "id": "export.export_epub",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "description": "Output EPUB file path",
+              "type": "string"
+            },
+            "includeImages": {
+              "default": true,
+              "description": "Include images",
+              "type": "boolean"
+            },
+            "includeStyles": {
+              "default": true,
+              "description": "Include styles",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "export_images",
+        "source": "classic",
+        "domain": "export",
+        "cli": {
+          "id": "export.export_images",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "default": "JPEG",
+              "enum": [
+                "JPEG"
+              ],
+              "type": "string"
+            },
+            "outputPath": {
+              "description": "Output directory path",
+              "type": "string"
+            },
+            "pages": {
+              "default": "all",
+              "description": "Page range (e.g., \"1-5\", \"all\")",
+              "type": "string"
+            },
+            "quality": {
+              "default": 80,
+              "description": "Quality (1-100 for JPEG)",
+              "type": "number"
+            },
+            "resolution": {
+              "default": 300,
+              "description": "Resolution in DPI",
+              "type": "number"
+            }
+          },
+          "required": [
+            "outputPath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "export_pdf",
+        "source": "classic",
+        "domain": "export",
+        "cli": {
+          "id": "export.export_pdf",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "description": "Output PDF file path",
+              "type": "string"
+            },
+            "includeBleed": {
+              "default": false,
+              "description": "Include bleed",
+              "type": "boolean"
+            },
+            "includeMarks": {
+              "default": false,
+              "description": "Include printer marks",
+              "type": "boolean"
+            },
+            "pages": {
+              "default": "all",
+              "description": "Page range (e.g., \"1-5\", \"all\")",
+              "type": "string"
+            },
+            "quality": {
+              "default": "PRINT",
+              "enum": [
+                "PRESS",
+                "PRINT",
+                "SCREEN",
+                "DIGITAL"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "find_replace_text",
+        "source": "classic",
+        "domain": "text",
+        "cli": {
+          "id": "text.find_replace_text",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "findText": {
+              "type": "string",
+              "description": "Text to find"
+            },
+            "replaceText": {
+              "type": "string",
+              "description": "Text to replace with"
+            },
+            "caseSensitive": {
+              "type": "boolean",
+              "description": "Case sensitive search",
+              "default": false
+            },
+            "wholeWord": {
+              "type": "boolean",
+              "description": "Whole word search",
+              "default": false
+            }
+          },
+          "required": [
+            "findText",
+            "replaceText"
+          ]
+        }
+      },
+      {
+        "name": "find_text_in_document",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "text.find_text_in_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "caseSensitive": {
+              "default": false,
+              "description": "Case sensitive search",
+              "type": "boolean"
+            },
+            "replaceText": {
+              "description": "Text to replace with (optional)",
+              "type": "string"
+            },
+            "searchText": {
+              "description": "Text to search for",
+              "type": "string"
+            },
+            "useRegex": {
+              "default": false,
+              "description": "Use regular expressions",
+              "type": "boolean"
+            },
+            "wholeWord": {
+              "default": false,
+              "description": "Whole word search",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "searchText"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_colors",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_colors",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "includeGradients": {
+              "default": true,
+              "description": "Include gradients",
+              "type": "boolean"
+            },
+            "includeSwatches": {
+              "default": true,
+              "description": "Include swatches",
+              "type": "boolean"
+            },
+            "includeTints": {
+              "default": true,
+              "description": "Include tints",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_elements",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_elements",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "elementType": {
+              "default": "all",
+              "description": "Type of elements to get (e.g., \"all\", \"text\", \"graphics\", \"tables\")",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_grid_settings",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_grid_settings",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_hyperlinks",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_hyperlinks",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "includeDestinations": {
+              "default": true,
+              "description": "Include link destinations",
+              "type": "boolean"
+            },
+            "includeSources": {
+              "default": true,
+              "description": "Include link sources",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_info",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_layers",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_layers",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "includeHidden": {
+              "default": true,
+              "description": "Include hidden layers",
+              "type": "boolean"
+            },
+            "includeLocked": {
+              "default": true,
+              "description": "Include locked layers",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_layout_preferences",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_layout_preferences",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_preferences",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_preferences",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "preferenceType": {
+              "default": "GENERAL",
+              "description": "Type of preferences to get",
+              "enum": [
+                "GENERAL",
+                "GRID",
+                "GUIDES",
+                "HYPHENATION",
+                "STORY",
+                "TEXT",
+                "VIEW"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_sections",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_sections",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_stories",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_stories",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "includeHidden": {
+              "default": false,
+              "description": "Include hidden text",
+              "type": "boolean"
+            },
+            "includeOverset": {
+              "default": true,
+              "description": "Include overset text",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_document_styles",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_styles",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "styleType": {
+              "default": "PARAGRAPH",
+              "description": "Type of styles to get",
+              "enum": [
+                "PARAGRAPH",
+                "CHARACTER",
+                "OBJECT",
+                "TABLE",
+                "CELL"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_group_info",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "object.get_group_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "groupIndex": {
+              "description": "Index of the group to get info for",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the group",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "groupIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_image_info",
+        "source": "classic",
+        "domain": "graphics",
+        "cli": {
+          "id": "graphics.get_image_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "default": 0,
+              "description": "Image index",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_master_spread_info",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.get_master_spread_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "masterIndex": {
+              "description": "Master spread index",
+              "type": "number"
+            },
+            "name": {
+              "description": "Master spread name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_page_content_summary",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.get_page_content_summary",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "get_page_info",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.get_page_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index (0-based)"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "get_page_item_info",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.get_page_item_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Index of the page item to get info for",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_page_item_script_labels",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.get_page_item_script_labels",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "When mode=PAGE_ITEM, index of the page item (zero-based)",
+              "type": "integer"
+            },
+            "mode": {
+              "default": "CURRENT_SELECTION",
+              "description": "Selection mode: current selection, page/item indices, page number and object id, or sweep all labelled items",
+              "enum": [
+                "CURRENT_SELECTION",
+                "PAGE_ITEM",
+                "PAGE_NUMBER_AND_OBJECT_ID",
+                "ALL_WITH_LABELS"
+              ],
+              "type": "string"
+            },
+            "objectId": {
+              "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, InDesign object id of the page item",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "When mode=PAGE_ITEM, index of the page containing the item (zero-based)",
+              "type": "integer"
+            },
+            "pageNumber": {
+              "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, page number using documentOffset+1",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_session_info",
+        "source": "classic",
+        "domain": "utility",
+        "cli": {
+          "id": "document.get_session_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "get_spread_content_summary",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.get_spread_content_summary",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "spreadIndex": {
+              "description": "Spread index",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_spread_info",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.get_spread_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "spreadIndex": {
+              "description": "Spread index (0-based)",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "help",
+        "source": "classic",
+        "domain": "help",
+        "cli": {
+          "id": "utility.help",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "type": "string",
+              "description": "Specific tool name to get help for (optional)",
+              "default": null
+            },
+            "category": {
+              "type": "string",
+              "description": "Category of tools to list (optional)",
+              "enum": [
+                "document",
+                "page",
+                "text",
+                "graphics",
+                "styles",
+                "layout",
+                "export",
+                "all"
+              ],
+              "default": "all"
+            },
+            "format": {
+              "type": "string",
+              "description": "Output format",
+              "enum": [
+                "summary",
+                "detailed",
+                "examples"
+              ],
+              "default": "summary"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "list_color_swatches",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.list_color_swatches",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "list_groups",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "page.list_groups",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "pageIndex": {
+              "description": "Index of the page to list groups from",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
         "name": "list_layers",
         "source": "classic",
         "domain": "layer",
@@ -70,6 +3208,1131 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {}
+        }
+      },
+      {
+        "name": "list_master_spreads",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "document.list_master_spreads",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "list_object_styles",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.list_object_styles",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "list_page_items",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.list_page_items",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "pageIndex": {
+              "description": "Index of the page to list items from",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "list_spreads",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.list_spreads",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        }
+      },
+      {
+        "name": "list_styles",
+        "source": "classic",
+        "domain": "style",
+        "cli": {
+          "id": "style.list_styles",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "styleType": {
+              "default": "ALL",
+              "enum": [
+                "PARAGRAPH",
+                "CHARACTER",
+                "ALL"
+              ],
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "move_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.move_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index to move"
+            },
+            "newPosition": {
+              "type": "string",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "description": "LocationOptions value used by the current handler"
+            },
+            "position": {
+              "type": "string",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "default": "AT_END"
+            },
+            "referencePageIndex": {
+              "type": "number",
+              "description": "Reference page index (for BEFORE/AFTER positioning)"
+            },
+            "binding": {
+              "type": "string",
+              "enum": [
+                "DEFAULT_VALUE",
+                "LEFT_ALIGN",
+                "RIGHT_ALIGN"
+              ],
+              "default": "DEFAULT_VALUE"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "move_page_item",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.move_page_item",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Index of the page item to move",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            },
+            "x": {
+              "description": "New X coordinate",
+              "type": "number"
+            },
+            "y": {
+              "description": "New Y coordinate",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex",
+            "x",
+            "y"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "move_spread",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.move_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "default": "AT_END",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "type": "string"
+            },
+            "referenceSpreadIndex": {
+              "description": "Reference spread index (for BEFORE/AFTER positioning)",
+              "type": "number"
+            },
+            "spreadIndex": {
+              "description": "Spread index to move",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "navigate_to_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.navigate_to_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index to navigate to"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "open_document",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.open_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "description": "Path to the document file",
+              "type": "string"
+            }
+          },
+          "required": [
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "organize_document_layers",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.organize_document_layers",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "deleteEmptyLayers": {
+              "default": false,
+              "description": "Delete empty layers",
+              "type": "boolean"
+            },
+            "mergeSimilarLayers": {
+              "default": false,
+              "description": "Merge layers with similar names",
+              "type": "boolean"
+            },
+            "sortLayers": {
+              "default": false,
+              "description": "Sort layers alphabetically",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "package_document",
+        "source": "classic",
+        "domain": "export",
+        "cli": {
+          "id": "export.package_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "includeFonts": {
+              "default": true,
+              "description": "Include fonts",
+              "type": "boolean"
+            },
+            "includeLinks": {
+              "default": true,
+              "description": "Include linked files",
+              "type": "boolean"
+            },
+            "includeProfiles": {
+              "default": true,
+              "description": "Include color profiles",
+              "type": "boolean"
+            },
+            "outputPath": {
+              "description": "Output directory path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "outputPath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "place_file_on_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.place_file_on_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "filePath": {
+              "type": "string",
+              "description": "Path to file to place"
+            },
+            "x": {
+              "type": "number",
+              "description": "X position in mm",
+              "default": 10
+            },
+            "y": {
+              "type": "number",
+              "description": "Y position in mm",
+              "default": 10
+            },
+            "layerName": {
+              "type": "string",
+              "description": "Layer name to place on"
+            },
+            "showingOptions": {
+              "type": "boolean",
+              "description": "Show import options dialog",
+              "default": false
+            },
+            "autoflowing": {
+              "type": "boolean",
+              "description": "Autoflow placed text",
+              "default": false
+            }
+          },
+          "required": [
+            "pageIndex",
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "place_file_on_spread",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.place_file_on_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "autoflowing": {
+              "default": false,
+              "description": "Autoflow placed text",
+              "type": "boolean"
+            },
+            "filePath": {
+              "description": "Path to file to place",
+              "type": "string"
+            },
+            "layerName": {
+              "description": "Layer name to place on",
+              "type": "string"
+            },
+            "pageIndexWithinSpread": {
+              "default": 0,
+              "description": "Page index within the spread (0-based)",
+              "type": "number"
+            },
+            "showingOptions": {
+              "default": false,
+              "description": "Show import options dialog",
+              "type": "boolean"
+            },
+            "spreadIndex": {
+              "description": "Spread index",
+              "type": "number"
+            },
+            "x": {
+              "default": 10,
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "default": 10,
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex",
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "place_image",
+        "source": "classic",
+        "domain": "graphics",
+        "cli": {
+          "id": "graphics.place_image",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "description": "Path to the image file",
+              "type": "string"
+            },
+            "fitMode": {
+              "default": "PROPORTIONALLY",
+              "description": "Image fitting mode",
+              "enum": [
+                "PROPORTIONALLY",
+                "FILL_FRAME",
+                "FIT_CONTENT",
+                "FIT_FRAME"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "description": "Height in mm",
+              "type": "number"
+            },
+            "linkImage": {
+              "default": true,
+              "description": "Link the image",
+              "type": "boolean"
+            },
+            "scale": {
+              "default": 100,
+              "description": "Scale percentage (1-1000)",
+              "type": "number"
+            },
+            "width": {
+              "description": "Width in mm",
+              "type": "number"
+            },
+            "x": {
+              "default": 10,
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "y": {
+              "default": 10,
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "place_xml_on_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.place_xml_on_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "xmlElementName": {
+              "type": "string",
+              "description": "XML element name to place"
+            },
+            "x": {
+              "type": "number",
+              "description": "X position in mm",
+              "default": 10
+            },
+            "y": {
+              "type": "number",
+              "description": "Y position in mm",
+              "default": 10
+            },
+            "autoflowing": {
+              "type": "boolean",
+              "description": "Autoflow placed text",
+              "default": false
+            }
+          },
+          "required": [
+            "pageIndex",
+            "xmlElementName"
+          ]
+        }
+      },
+      {
+        "name": "populate_table",
+        "source": "classic",
+        "domain": "text",
+        "cli": {
+          "id": "text.populate_table",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tableIndex": {
+              "type": "number",
+              "description": "Table index",
+              "default": 0
+            },
+            "data": {
+              "type": "array",
+              "description": "Array of arrays containing table data"
+            },
+            "startRow": {
+              "type": "number",
+              "description": "Starting row index",
+              "default": 0
+            },
+            "startColumn": {
+              "type": "number",
+              "description": "Starting column index",
+              "default": 0
+            }
+          },
+          "required": [
+            "data"
+          ]
+        }
+      },
+      {
+        "name": "reframe_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.reframe_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "x1": {
+              "type": "number",
+              "description": "Top-left X coordinate in mm"
+            },
+            "y1": {
+              "type": "number",
+              "description": "Top-left Y coordinate in mm"
+            },
+            "x2": {
+              "type": "number",
+              "description": "Bottom-right X coordinate in mm"
+            },
+            "y2": {
+              "type": "number",
+              "description": "Bottom-right Y coordinate in mm"
+            },
+            "coordinateSpace": {
+              "type": "string",
+              "enum": [
+                "PAGE_COORDINATES",
+                "SPREAD_COORDINATES",
+                "PASTEBOARD_COORDINATES"
+              ],
+              "default": "PAGE_COORDINATES"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "x1",
+            "y1",
+            "x2",
+            "y2"
+          ]
+        }
+      },
+      {
+        "name": "remove_item_from_group",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "page.remove_item_from_group",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "groupIndex": {
+              "description": "Index of the group to remove the item from",
+              "type": "integer"
+            },
+            "itemIndex": {
+              "description": "Index of the item within the group to remove",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the group",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "groupIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "remove_master_override",
+        "source": "classic",
+        "domain": "masterSpread",
+        "cli": {
+          "id": "master.remove_master_override",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "Master item index to remove override from",
+              "type": "number"
+            },
+            "pageIndex": {
+              "description": "Page index",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "resize_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.resize_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "width": {
+              "type": "number",
+              "description": "New width in mm"
+            },
+            "height": {
+              "type": "number",
+              "description": "New height in mm"
+            },
+            "resizeMethod": {
+              "type": "string",
+              "enum": [
+                "REPLACING_CURRENT_DIMENSIONS_WITH",
+                "MULTIPLYING_CURRENT_DIMENSIONS_BY",
+                "ADDING_CURRENT_DIMENSIONS_TO",
+                "RESHAPING_AREA_TO_RATIO",
+                "RESHAPING_BORDER_TO_RATIO"
+              ],
+              "default": "REPLACING_CURRENT_DIMENSIONS_WITH"
+            },
+            "anchorPoint": {
+              "type": "string",
+              "enum": [
+                "TOP_LEFT_ANCHOR",
+                "TOP_CENTER_ANCHOR",
+                "TOP_RIGHT_ANCHOR",
+                "LEFT_CENTER_ANCHOR",
+                "CENTER_ANCHOR",
+                "RIGHT_CENTER_ANCHOR",
+                "BOTTOM_LEFT_ANCHOR",
+                "BOTTOM_CENTER_ANCHOR",
+                "BOTTOM_RIGHT_ANCHOR"
+              ],
+              "default": "CENTER_ANCHOR"
+            },
+            "coordinateSpace": {
+              "type": "string",
+              "enum": [
+                "PAGE_COORDINATES",
+                "SPREAD_COORDINATES",
+                "PASTEBOARD_COORDINATES"
+              ],
+              "default": "PAGE_COORDINATES"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "resize_page_item",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.resize_page_item",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "anchorPoint": {
+              "default": "CENTER_ANCHOR",
+              "description": "Anchor point for resizing",
+              "enum": [
+                "CENTER_ANCHOR",
+                "TOP_LEFT_ANCHOR",
+                "TOP_CENTER_ANCHOR",
+                "TOP_RIGHT_ANCHOR",
+                "LEFT_CENTER_ANCHOR",
+                "RIGHT_CENTER_ANCHOR",
+                "BOTTOM_LEFT_ANCHOR",
+                "BOTTOM_CENTER_ANCHOR",
+                "BOTTOM_RIGHT_ANCHOR"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "description": "New height",
+              "type": "number"
+            },
+            "itemIndex": {
+              "description": "Index of the page item to resize",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            },
+            "width": {
+              "description": "New width",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex",
+            "width",
+            "height"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "save_document",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.save_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "description": "Path where to save the document",
+              "type": "string"
+            }
+          },
+          "required": [
+            "filePath"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "select_page",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.select_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "selectionMode": {
+              "type": "string",
+              "enum": [
+                "REPLACE_WITH",
+                "ADD_TO",
+                "REMOVE_FROM"
+              ],
+              "default": "REPLACE_WITH"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "select_page_item",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.select_page_item",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "existingSelection": {
+              "default": "REPLACE_WITH",
+              "description": "How to handle existing selection",
+              "enum": [
+                "REPLACE_WITH",
+                "ADD_TO",
+                "REMOVE_FROM"
+              ],
+              "type": "string"
+            },
+            "itemIndex": {
+              "description": "Index of the page item to select",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "select_spread",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.select_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "selectionMode": {
+              "default": "REPLACE_WITH",
+              "enum": [
+                "REPLACE_WITH",
+                "ADD_TO",
+                "REMOVE_FROM",
+                "SET_KEY"
+              ],
+              "type": "string"
+            },
+            "spreadIndex": {
+              "description": "Spread index to select",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
         }
       },
       {
@@ -99,6 +4362,2096 @@
           },
           "required": [
             "layerName"
+          ]
+        }
+      },
+      {
+        "name": "set_document_grid_settings",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.set_document_grid_settings",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "baselineGrid": {
+              "description": "Enable/disable baseline grid",
+              "type": "boolean"
+            },
+            "baselineGridColor": {
+              "description": "Baseline grid color",
+              "type": "string"
+            },
+            "baselineGridIncrement": {
+              "description": "Baseline grid increment (e.g., \"12pt\")",
+              "type": "string"
+            },
+            "baselineGridOffset": {
+              "description": "Baseline grid offset (e.g., \"0pt\")",
+              "type": "string"
+            },
+            "baselineGridViewThreshold": {
+              "description": "Baseline grid view threshold",
+              "type": "number"
+            },
+            "documentGrid": {
+              "description": "Enable/disable document grid",
+              "type": "boolean"
+            },
+            "documentGridColor": {
+              "description": "Document grid color",
+              "type": "string"
+            },
+            "documentGridIncrement": {
+              "description": "Document grid increment (e.g., \"12pt\")",
+              "type": "string"
+            },
+            "documentGridSubdivision": {
+              "description": "Document grid subdivision",
+              "type": "number"
+            },
+            "gridAlignment": {
+              "description": "Grid alignment option",
+              "enum": [
+                "ALIGN_TO_GRID",
+                "ALIGN_TO_BASELINE_GRID",
+                "ALIGN_TO_DOCUMENT_GRID"
+              ],
+              "type": "string"
+            },
+            "gridViewThreshold": {
+              "description": "Grid view threshold",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_document_layout_preferences",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.set_document_layout_preferences",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "adjustLayout": {
+              "description": "Enable/disable adjust layout",
+              "type": "boolean"
+            },
+            "adjustLayoutMargins": {
+              "description": "Enable/disable adjust layout margins",
+              "type": "boolean"
+            },
+            "adjustLayoutPageBreaks": {
+              "description": "Enable/disable adjust layout page breaks",
+              "type": "boolean"
+            },
+            "adjustLayoutRules": {
+              "description": "Adjust layout rules",
+              "type": "string"
+            },
+            "alignDistributeBounds": {
+              "description": "Align distribute bounds",
+              "enum": [
+                "ALIGN_TO_SELECTION",
+                "ALIGN_TO_MARGINS",
+                "ALIGN_TO_PAGE"
+              ],
+              "type": "string"
+            },
+            "alignDistributeSpacing": {
+              "description": "Align distribute spacing",
+              "enum": [
+                "DISTRIBUTE_SPACE_BETWEEN",
+                "DISTRIBUTE_SPACE_AROUND"
+              ],
+              "type": "string"
+            },
+            "smartGuidePreferences": {
+              "description": "Enable/disable smart guide preferences",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_document_preferences",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "document.set_document_preferences",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "preferenceType": {
+              "description": "Type of preferences to set",
+              "enum": [
+                "GENERAL",
+                "GRID",
+                "GUIDES",
+                "HYPHENATION",
+                "STORY",
+                "TEXT",
+                "VIEW"
+              ],
+              "type": "string"
+            },
+            "preferences": {
+              "additionalProperties": false,
+              "description": "Preference values to set",
+              "type": "object"
+            }
+          },
+          "required": [
+            "preferenceType",
+            "preferences"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_group_properties",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "object.set_group_properties",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "groupIndex": {
+              "description": "Index of the group to modify",
+              "type": "integer"
+            },
+            "locked": {
+              "description": "Whether the group is locked",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Name for the group",
+              "type": "string"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the group",
+              "type": "integer"
+            },
+            "visible": {
+              "description": "Whether the group is visible",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "groupIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_page_background",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.set_page_background",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index",
+              "default": 0
+            },
+            "backgroundColor": {
+              "type": "string",
+              "description": "Background color name (must be a color swatch in the document)",
+              "default": "White"
+            },
+            "opacity": {
+              "type": "number",
+              "description": "Background opacity percentage (0-100)",
+              "default": 100
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "set_page_item_properties",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.set_page_item_properties",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "fillColor": {
+              "description": "Fill color name",
+              "type": "string"
+            },
+            "itemIndex": {
+              "description": "Index of the page item to modify",
+              "type": "integer"
+            },
+            "locked": {
+              "description": "Whether the item is locked",
+              "type": "boolean"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the item",
+              "type": "integer"
+            },
+            "strokeColor": {
+              "description": "Stroke color name",
+              "type": "string"
+            },
+            "strokeWeight": {
+              "description": "Stroke weight",
+              "type": "number"
+            },
+            "visible": {
+              "description": "Whether the item is visible",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "itemIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_page_item_script_label",
+        "source": "classic",
+        "domain": "pageItem",
+        "cli": {
+          "id": "page.set_page_item_script_label",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "itemIndex": {
+              "description": "When mode=PAGE_ITEM, index of the page item (zero-based)",
+              "type": "integer"
+            },
+            "label": {
+              "default": "",
+              "description": "Script label to assign; use empty string to clear",
+              "type": "string"
+            },
+            "mode": {
+              "default": "CURRENT_SELECTION",
+              "description": "Selection mode: current selection, page/item indices, or page number plus object id",
+              "enum": [
+                "CURRENT_SELECTION",
+                "PAGE_ITEM",
+                "PAGE_NUMBER_AND_OBJECT_ID"
+              ],
+              "type": "string"
+            },
+            "objectId": {
+              "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, InDesign object id of the page item",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "When mode=PAGE_ITEM, index of the page containing the item (zero-based)",
+              "type": "integer"
+            },
+            "pageNumber": {
+              "description": "When mode=PAGE_NUMBER_AND_OBJECT_ID, page number using documentOffset+1",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "set_page_properties",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.set_page_properties",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            },
+            "label": {
+              "type": "string",
+              "description": "Page label"
+            },
+            "pageColor": {
+              "type": "string",
+              "description": "Page color (RGB values as comma-separated string or UI color name)"
+            },
+            "optionalPage": {
+              "type": "boolean",
+              "description": "Optional page for HTML5 pagination"
+            },
+            "layoutRule": {
+              "type": "string",
+              "enum": [
+                "GUIDE_BASED",
+                "OBJECT_BASED",
+                "OFF",
+                "PRESERVE_EXISTING",
+                "RECENTER",
+                "SCALE",
+                "USE_MASTER"
+              ],
+              "description": "Layout rule"
+            },
+            "snapshotBlendingMode": {
+              "type": "string",
+              "enum": [
+                "FULL_SNAPSHOT_BLENDING",
+                "IGNORE_LAYOUT_SNAPSHOTS",
+                "LIMITED_SNAPSHOT_BLENDING",
+                "USE_NEAREST_SNAPSHOT"
+              ],
+              "description": "Snapshot blending mode"
+            },
+            "appliedTrapPreset": {
+              "type": "string",
+              "description": "Trap preset name to apply"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "set_spread_properties",
+        "source": "classic",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.set_spread_properties",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "allowPageShuffle": {
+              "description": "Allow page shuffle",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Spread name/label",
+              "type": "string"
+            },
+            "pageTransitionDirection": {
+              "description": "Page transition direction",
+              "enum": [
+                "HORIZONTAL",
+                "VERTICAL",
+                "HORIZONTAL_IN",
+                "HORIZONTAL_OUT",
+                "VERTICAL_IN",
+                "VERTICAL_OUT",
+                "LEFT_TO_RIGHT",
+                "RIGHT_TO_LEFT",
+                "UP",
+                "DOWN",
+                "LEFT_UP",
+                "LEFT_DOWN",
+                "RIGHT_UP",
+                "RIGHT_DOWN",
+                "IN",
+                "OUT",
+                "NOT_APPLICABLE"
+              ],
+              "type": "string"
+            },
+            "pageTransitionDuration": {
+              "description": "Page transition duration",
+              "enum": [
+                "FAST",
+                "MEDIUM",
+                "SLOW"
+              ],
+              "type": "string"
+            },
+            "pageTransitionType": {
+              "description": "Page transition type",
+              "enum": [
+                "NONE",
+                "BLINDS_TRANSITION",
+                "BOX_TRANSITION",
+                "COMB_TRANSITION",
+                "COVER_TRANSITION",
+                "DISSOLVE_TRANSITION",
+                "FADE_TRANSITION",
+                "PUSH_TRANSITION",
+                "SPLIT_TRANSITION",
+                "UNCOVER_TRANSITION",
+                "WIPE_TRANSITION",
+                "ZOOM_IN_TRANSITION",
+                "ZOOM_OUT_TRANSITION"
+              ],
+              "type": "string"
+            },
+            "showMasterItems": {
+              "description": "Show master items",
+              "type": "boolean"
+            },
+            "spreadHidden": {
+              "description": "Hide/show spread",
+              "type": "boolean"
+            },
+            "spreadIndex": {
+              "description": "Spread index",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "snapshot_page_layout",
+        "source": "classic",
+        "domain": "page",
+        "cli": {
+          "id": "page.snapshot_page_layout",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pageIndex": {
+              "type": "number",
+              "description": "Page index"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "ungroup",
+        "source": "classic",
+        "domain": "group",
+        "cli": {
+          "id": "object.ungroup",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "groupIndex": {
+              "description": "Index of the group to ungroup",
+              "type": "integer"
+            },
+            "pageIndex": {
+              "description": "Index of the page containing the group",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "pageIndex",
+            "groupIndex"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "view_document",
+        "source": "classic",
+        "domain": "utility",
+        "cli": {
+          "id": "document.view_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "zoom_to_page",
+        "source": "classic",
+        "domain": "document",
+        "cli": {
+          "id": "page.zoom_to_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "pageIndex": {
+              "description": "Page index to zoom to",
+              "type": "number"
+            },
+            "zoomLevel": {
+              "default": 100,
+              "description": "Zoom level (percentage)",
+              "type": "number"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ],
+          "type": "object"
+        }
+      }
+    ],
+    "hidden_handler": [
+      {
+        "name": "add_cover_page",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.add_cover_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "封面标题"
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "封面副标题"
+            },
+            "bgImagePath": {
+              "type": "string",
+              "description": "封面背景图片路径"
+            }
+          }
+        }
+      },
+      {
+        "name": "add_document_to_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.add_document_to_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "documentPath": {
+              "type": "string",
+              "description": "要加入 Book 的 InDesign 文档路径，通常为 .indd"
+            }
+          },
+          "required": [
+            "bookPath",
+            "documentPath"
+          ]
+        }
+      },
+      {
+        "name": "add_full_bleed_image",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.add_full_bleed_image",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "要铺满当前页的图片路径"
+            },
+            "caption": {
+              "type": "string",
+              "description": "可选图片说明"
+            }
+          },
+          "required": [
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "add_image_grid",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.add_image_grid",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "要置入网格的图片路径列表"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 2,
+              "description": "网格行数"
+            },
+            "columns": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3,
+              "description": "网格列数"
+            },
+            "gap": {
+              "type": "number",
+              "description": "网格间距，单位与文档标尺一致",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "files"
+          ]
+        }
+      },
+      {
+        "name": "add_section_page",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.add_section_page",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "章节页标题"
+            }
+          }
+        }
+      },
+      {
+        "name": "cleanup_document",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.cleanup_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "removeUnusedStyles": {
+              "type": "boolean",
+              "description": "Remove unused styles",
+              "default": false
+            },
+            "removeUnusedColors": {
+              "type": "boolean",
+              "description": "Remove unused colors",
+              "default": false
+            },
+            "removeUnusedLayers": {
+              "type": "boolean",
+              "description": "Remove unused layers",
+              "default": false
+            },
+            "removeHiddenElements": {
+              "type": "boolean",
+              "description": "Remove hidden elements",
+              "default": false
+            }
+          }
+        }
+      },
+      {
+        "name": "create_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.create_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": true,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "create_presentation_document",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.create_presentation_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "preset": {
+              "type": "string",
+              "enum": [
+                "A3_LANDSCAPE",
+                "A4_LANDSCAPE",
+                "RATIO_16x9"
+              ],
+              "default": "A3_LANDSCAPE",
+              "description": "演示文稿页面尺寸预设"
+            },
+            "width": {
+              "type": "number",
+              "description": "自定义页面宽度，单位 mm",
+              "minimum": 1
+            },
+            "height": {
+              "type": "number",
+              "description": "自定义页面高度，单位 mm",
+              "minimum": 1
+            },
+            "pages": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "初始页数"
+            },
+            "facingPages": {
+              "type": "boolean",
+              "description": "是否启用对页",
+              "default": false
+            }
+          }
+        }
+      },
+      {
+        "name": "data_merge",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.data_merge",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dataSource": {
+              "type": "string",
+              "description": "Path to data source file (CSV, XML, etc.)"
+            },
+            "targetPage": {
+              "type": "number",
+              "description": "Target page index",
+              "default": 0
+            },
+            "createNewPages": {
+              "type": "boolean",
+              "description": "Create new pages for each record",
+              "default": false
+            },
+            "removeUnusedPages": {
+              "type": "boolean",
+              "description": "Remove unused pages after merge",
+              "default": false
+            }
+          },
+          "required": [
+            "dataSource"
+          ]
+        }
+      },
+      {
+        "name": "export_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.export_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": true,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "outputPath": {
+              "type": "string",
+              "description": "输出文件或输出目录路径"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "PDF",
+                "EPUB",
+                "HTML"
+              ],
+              "default": "PDF",
+              "description": "导出格式"
+            }
+          },
+          "required": [
+            "bookPath",
+            "outputPath"
+          ]
+        }
+      },
+      {
+        "name": "export_document_xml",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.export_document_xml",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to save XML file"
+            },
+            "includeImages": {
+              "type": "boolean",
+              "description": "Include images in export",
+              "default": true
+            },
+            "includeStyles": {
+              "type": "boolean",
+              "description": "Include style information",
+              "default": true
+            }
+          },
+          "required": [
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "export_presentation_pdf",
+        "source": "hidden_handler",
+        "domain": "presentation",
+        "cli": {
+          "id": "presentation.export_presentation_pdf",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": true,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "PDF 输出路径"
+            },
+            "preset": {
+              "type": "string",
+              "default": "High Quality Print",
+              "description": "InDesign PDF 导出预设名称"
+            }
+          },
+          "required": [
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "get_book_info",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.get_book_info",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "get_document_xml_structure",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.get_document_xml_structure",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "includeTags": {
+              "type": "boolean",
+              "description": "Include XML tags",
+              "default": true
+            },
+            "includeElements": {
+              "type": "boolean",
+              "description": "Include XML elements",
+              "default": true
+            }
+          }
+        }
+      },
+      {
+        "name": "list_books",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.list_books",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "open_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.open_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "filePath"
+          ]
+        }
+      },
+      {
+        "name": "open_cloud_document",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.open_cloud_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cloudDocumentId": {
+              "type": "string",
+              "description": "Cloud document ID"
+            }
+          },
+          "required": [
+            "cloudDocumentId"
+          ]
+        }
+      },
+      {
+        "name": "package_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.package_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": true,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "outputPath": {
+              "type": "string",
+              "description": "输出文件或输出目录路径"
+            },
+            "copyingFonts": {
+              "type": "boolean",
+              "description": "是否复制字体",
+              "default": true
+            },
+            "copyingLinkedGraphics": {
+              "type": "boolean",
+              "description": "是否复制链接图像",
+              "default": true
+            },
+            "copyingProfiles": {
+              "type": "boolean",
+              "description": "是否复制色彩配置文件",
+              "default": true
+            },
+            "updatingGraphics": {
+              "type": "boolean",
+              "description": "是否更新图像链接",
+              "default": true
+            },
+            "includingHiddenLayers": {
+              "type": "boolean",
+              "description": "是否包含隐藏图层",
+              "default": false
+            },
+            "ignorePreflightErrors": {
+              "type": "boolean",
+              "description": "是否忽略预检错误",
+              "default": false
+            },
+            "creatingReport": {
+              "type": "boolean",
+              "description": "是否创建打包报告",
+              "default": true
+            },
+            "includeIdml": {
+              "type": "boolean",
+              "description": "是否包含 IDML",
+              "default": false
+            },
+            "includePdf": {
+              "type": "boolean",
+              "description": "是否包含 PDF",
+              "default": false
+            }
+          },
+          "required": [
+            "bookPath",
+            "outputPath"
+          ]
+        }
+      },
+      {
+        "name": "place_xml_on_spread",
+        "source": "hidden_handler",
+        "domain": "spread",
+        "cli": {
+          "id": "spread.place_xml_on_spread",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "autoflowing": {
+              "default": false,
+              "description": "Autoflow placed text",
+              "type": "boolean"
+            },
+            "pageIndexWithinSpread": {
+              "default": 0,
+              "description": "Page index within the spread (0-based)",
+              "type": "number"
+            },
+            "spreadIndex": {
+              "description": "Spread index",
+              "type": "number"
+            },
+            "x": {
+              "default": 10,
+              "description": "X position in mm",
+              "type": "number"
+            },
+            "xmlElementName": {
+              "description": "XML element name to place",
+              "type": "string"
+            },
+            "y": {
+              "default": 10,
+              "description": "Y position in mm",
+              "type": "number"
+            }
+          },
+          "required": [
+            "spreadIndex",
+            "xmlElementName"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "preflight_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.preflight_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": true,
+          "producesArtifacts": true,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "outputPath": {
+              "type": "string",
+              "description": "输出文件或输出目录路径"
+            },
+            "autoOpen": {
+              "type": "boolean",
+              "description": "生成预检报告后是否自动打开",
+              "default": false
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "preflight_document",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.preflight_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "profile": {
+              "type": "string",
+              "description": "Preflight profile name",
+              "default": "Basic"
+            },
+            "includeWarnings": {
+              "type": "boolean",
+              "description": "Include warnings in report",
+              "default": true
+            }
+          }
+        }
+      },
+      {
+        "name": "print_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.print_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "printDialog": {
+              "type": "boolean",
+              "description": "是否显示打印对话框",
+              "default": true
+            },
+            "printerPreset": {
+              "type": "string",
+              "default": "DEFAULT_VALUE",
+              "description": "InDesign PrinterPresetTypes 枚举名"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "repaginate_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.repaginate_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "save_document_to_cloud",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.save_document_to_cloud",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": true,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cloudName": {
+              "type": "string",
+              "description": "Name for the cloud document"
+            },
+            "includeAssets": {
+              "type": "boolean",
+              "description": "Include linked assets",
+              "default": true
+            }
+          },
+          "required": [
+            "cloudName"
+          ]
+        }
+      },
+      {
+        "name": "set_book_properties",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.set_book_properties",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            },
+            "automaticPagination": {
+              "type": "boolean",
+              "description": "是否启用自动页码"
+            },
+            "automaticDocumentConversion": {
+              "type": "boolean",
+              "description": "是否启用自动文档转换"
+            },
+            "insertBlankPage": {
+              "type": "boolean",
+              "description": "是否插入空白页"
+            },
+            "mergeIdenticalLayers": {
+              "type": "boolean",
+              "description": "是否合并同名图层"
+            },
+            "synchronizeBulletNumberingList": {
+              "type": "boolean",
+              "description": "是否同步项目符号和编号列表"
+            },
+            "synchronizeCellStyle": {
+              "type": "boolean",
+              "description": "是否同步单元格样式"
+            },
+            "synchronizeCharacterStyle": {
+              "type": "boolean",
+              "description": "是否同步字符样式"
+            },
+            "synchronizeConditionalText": {
+              "type": "boolean",
+              "description": "是否同步条件文本"
+            },
+            "synchronizeCrossReferenceFormat": {
+              "type": "boolean",
+              "description": "是否同步交叉引用格式"
+            },
+            "synchronizeMasterPage": {
+              "type": "boolean",
+              "description": "是否同步主页"
+            },
+            "synchronizeObjectStyle": {
+              "type": "boolean",
+              "description": "是否同步对象样式"
+            },
+            "synchronizeParagraphStyle": {
+              "type": "boolean",
+              "description": "是否同步段落样式"
+            },
+            "synchronizeSwatch": {
+              "type": "boolean",
+              "description": "是否同步色板"
+            },
+            "synchronizeTableOfContentStyle": {
+              "type": "boolean",
+              "description": "是否同步目录样式"
+            },
+            "synchronizeTableStyle": {
+              "type": "boolean",
+              "description": "是否同步表格样式"
+            },
+            "synchronizeTextVariable": {
+              "type": "boolean",
+              "description": "是否同步文本变量"
+            },
+            "synchronizeTrapStyle": {
+              "type": "boolean",
+              "description": "是否同步陷印样式"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "synchronize_book",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.synchronize_book",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "update_all_cross_references",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.update_all_cross_references",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "update_all_numbers",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.update_all_numbers",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "update_chapter_and_paragraph_numbers",
+        "source": "hidden_handler",
+        "domain": "book",
+        "cli": {
+          "id": "book.update_chapter_and_paragraph_numbers",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bookPath": {
+              "type": "string",
+              "description": "InDesign Book 文件路径，通常为 .indb"
+            }
+          },
+          "required": [
+            "bookPath"
+          ]
+        }
+      },
+      {
+        "name": "validate_document",
+        "source": "hidden_handler",
+        "domain": "document",
+        "cli": {
+          "id": "document.validate_document",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "checkLinks": {
+              "type": "boolean",
+              "description": "Check for broken links",
+              "default": true
+            },
+            "checkFonts": {
+              "type": "boolean",
+              "description": "Check for missing fonts",
+              "default": true
+            },
+            "checkImages": {
+              "type": "boolean",
+              "description": "Check for missing images",
+              "default": true
+            },
+            "checkStyles": {
+              "type": "boolean",
+              "description": "Check for unused styles",
+              "default": false
+            }
+          }
+        }
+      }
+    ],
+    "advanced": [
+      {
+        "name": "create_page_with_template",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.create_page_with_template",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "templateName": {
+              "type": "string",
+              "description": "要套用的母版名称，例如 “A-封面”。"
+            },
+            "position": {
+              "type": "string",
+              "enum": [
+                "AT_END",
+                "AT_BEGINNING",
+                "BEFORE",
+                "AFTER"
+              ],
+              "description": "插入位置，默认为 AT_END。"
+            },
+            "referencePageIndex": {
+              "type": "integer",
+              "description": "当 position 为 BEFORE/AFTER 时使用的参考页索引。"
+            },
+            "label": {
+              "type": "string",
+              "description": "可选，为新页面设置脚本标签（label）。"
+            }
+          },
+          "required": [
+            "templateName"
+          ]
+        }
+      },
+      {
+        "name": "get_page_information",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.get_page_information",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": true,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pageIndex": {
+              "type": "integer",
+              "description": "目标页面的索引（0 基）。"
+            }
+          },
+          "required": [
+            "pageIndex"
+          ]
+        }
+      },
+      {
+        "name": "inspect_template_blueprint",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.inspect_template_blueprint",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "templatePath": {
+              "type": "string",
+              "description": "模板 INDD 文件的绝对路径。若省略，则使用当前已打开的文档。"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "list_template_blueprints",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.list_template_blueprints",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": false,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        }
+      },
+      {
+        "name": "populate_template_slots",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.populate_template_slots",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "templatePath": {
+              "type": "string",
+              "description": "模板 INDD 文件的绝对路径；若省略，则对当前打开的文档进行填充。"
+            },
+            "pageIndex": {
+              "type": "integer",
+              "description": "可选，仅对指定页面的槽位进行填充（0 基）。不提供时将遍历文档全部页面。"
+            },
+            "outputPath": {
+              "type": "string",
+              "description": "可选，保存成品文档的目标路径（未提供时仅在内存中修改后关闭而不保存）。"
+            },
+            "values": {
+              "type": "object",
+              "description": "键为模板中“槽位”字段的值，值描述填充内容。",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "要填充到文本槽位中的内容。"
+                  },
+                  "imagePath": {
+                    "type": "string",
+                    "description": "要放入图片槽位的文件绝对路径。"
+                  },
+                  "fit": {
+                    "type": "string",
+                    "description": "图片填充规则，例如 PROPORTIONALLY、FILL_FRAME、FIT_CONTENT、FIT_FRAME、CENTER_CONTENT。",
+                    "enum": [
+                      "PROPORTIONALLY",
+                      "FILL_FRAME",
+                      "FIT_CONTENT",
+                      "FIT_FRAME",
+                      "CENTER_CONTENT"
+                    ]
+                  },
+                  "clearExisting": {
+                    "type": "boolean",
+                    "description": "如果槽位已有图片，是否在放新图前移除旧内容。"
+                  },
+                  "declaredType": {
+                    "type": "string",
+                    "description": "可选——覆盖标签中声明的槽位类型，主要用于提示校验。"
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "values"
+          ]
+        }
+      },
+      {
+        "name": "run_jsx_file",
+        "source": "advanced",
+        "domain": "template",
+        "cli": {
+          "id": "template.run_jsx_file",
+          "aliases": []
+        },
+        "contract": {
+          "needsInDesign": true,
+          "requiresActiveDocument": false,
+          "mutatesDocument": true,
+          "writesFilesystem": false,
+          "producesArtifacts": false,
+          "destructive": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "要执行的 JSX 文件绝对路径。"
+            }
+          },
+          "required": [
+            "filePath"
           ]
         }
       }

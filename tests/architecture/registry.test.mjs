@@ -18,11 +18,13 @@ function byName(items) {
     return new Map(items.map((item) => [item.name, item]));
 }
 
-assert.equal(registry.tools.length, 3, 'Task 1 registry should only contain the layer pilot domain');
+assert.equal(registry.tools.length, 150, 'Task 2 registry should contain all Node-backed tools');
+assert.equal(registry.tools.filter((tool) => tool.profiles.includes('classic')).length, 114, 'classic profile count should match golden baseline');
+assert.equal(registry.tools.filter((tool) => tool.profiles.includes('advanced')).length, 6, 'advanced profile count should match golden baseline');
+assert.equal(registry.tools.filter((tool) => tool.profiles.length === 0).length, 30, 'internal tool count should match hidden baseline');
 assert.deepEqual(registry.byDomain.get('layer').map((tool) => tool.name).sort(), layerNames);
 
-for (const tool of registry.tools) {
-    assert.equal(tool.domain, 'layer');
+for (const tool of registry.byDomain.get('layer')) {
     assert.ok(tool.profiles.includes('classic'));
     assert.equal(typeof tool.handler, 'function');
 }
