@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
@@ -136,6 +136,12 @@ const D_COMMANDS = [
   },
 ];
 
+const D_SUCCESS_ARTIFACTS = new Set([
+  'D_runner_outputs.json',
+  'D_architecture_presentation_catalog_summary.json',
+  'D_architecture_presentation_catalog_evidence.json',
+]);
+
 function objectSchema(properties, required = []) {
   const schema = { type: 'object', additionalProperties: false, properties };
   if (required.length) schema.required = required;
@@ -156,19 +162,28 @@ async function prepareGoldenFixtures() {
   return { jsxPath };
 }
 
-async function cleanupSuccessfulDArtifacts() {
-  const keep = new Set([
-    'D_runner_outputs.json',
-    'D_architecture_presentation_catalog_summary.json',
-    'D_architecture_presentation_catalog_evidence.json',
-  ]);
-  const entries = await fs.readdir(goldenDir, { withFileTypes: true });
+async function unlinkIfExists(filePath) {
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+
+export async function prepareDArtifactPublish(targetGoldenDir = goldenDir) {
+  await Promise.all(
+    [...D_SUCCESS_ARTIFACTS].map((name) => unlinkIfExists(path.join(targetGoldenDir, name))),
+  );
+}
+
+async function cleanupDCommandFailureArtifacts(targetGoldenDir = goldenDir) {
+  const entries = await fs.readdir(targetGoldenDir, { withFileTypes: true });
   await Promise.all(
     entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .filter((name) => /^D_.*\.json$/u.test(name) && !keep.has(name))
-      .map((name) => fs.unlink(path.join(goldenDir, name))),
+      .filter((name) => /^D_.*\.json$/u.test(name) && !D_SUCCESS_ARTIFACTS.has(name))
+      .map((name) => fs.unlink(path.join(targetGoldenDir, name))),
   );
 }
 
@@ -222,12 +237,13 @@ async function requestMcpListTools(entry) {
   child.stderr.on('data', (chunk) => {
     stderrLines.push(...chunk.toString().split(/\r?\n/).filter(Boolean));
   });
+  const lineReader = createLineReader(child.stdout);
 
   async function request(method, params = {}) {
     const id = nextId++;
     child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
     for (;;) {
-      const line = await readLine(child.stdout);
+      const line = await lineReader.readLine();
       if (line === null) {
         throw new Error(`MCP process ended before ${method}; stderr=${stderrLines.slice(-10).join(' | ')}`);
       }
@@ -249,28 +265,66 @@ async function requestMcpListTools(entry) {
   return normalizeTools(result.tools || []);
 }
 
-function readLine(stream) {
-  return new Promise((resolve) => {
-    let buffer = '';
-    function onData(chunk) {
-      buffer += chunk.toString();
-      const newline = buffer.indexOf('\n');
-      if (newline >= 0) {
-        cleanup();
-        resolve(buffer.slice(0, newline).trimEnd());
+export function createLineReader(stream) {
+  let buffer = '';
+  let ended = false;
+  let streamError = null;
+  const waiting = [];
+
+  function nextLine() {
+    const newline = buffer.indexOf('\n');
+    if (newline < 0) return undefined;
+    const line = buffer.slice(0, newline).replace(/\r$/u, '');
+    buffer = buffer.slice(newline + 1);
+    return line;
+  }
+
+  function pump() {
+    while (waiting.length) {
+      if (streamError) {
+        waiting.shift().reject(streamError);
+        continue;
       }
+      const line = nextLine();
+      if (line !== undefined) {
+        waiting.shift().resolve(line);
+        continue;
+      }
+      if (ended) {
+        if (buffer.length) {
+          const finalLine = buffer.replace(/\r$/u, '');
+          buffer = '';
+          waiting.shift().resolve(finalLine);
+        } else {
+          waiting.shift().resolve(null);
+        }
+        continue;
+      }
+      break;
     }
-    function onEnd() {
-      cleanup();
-      resolve(null);
-    }
-    function cleanup() {
-      stream.off('data', onData);
-      stream.off('end', onEnd);
-    }
-    stream.on('data', onData);
-    stream.on('end', onEnd);
+  }
+
+  stream.on('data', (chunk) => {
+    buffer += chunk.toString();
+    pump();
   });
+  stream.once('end', () => {
+    ended = true;
+    pump();
+  });
+  stream.once('error', (error) => {
+    streamError = error;
+    pump();
+  });
+
+  return {
+    readLine() {
+      return new Promise((resolve, reject) => {
+        waiting.push({ resolve, reject });
+        pump();
+      });
+    },
+  };
 }
 
 function normalizeTools(tools) {
@@ -653,8 +707,9 @@ async function main() {
   });
   await writeJson('skip_list.json', skips);
 
+  await prepareDArtifactPublish();
   const { results: dResults, evidenceFiles } = await runD();
-  await cleanupSuccessfulDArtifacts();
+  await cleanupDCommandFailureArtifacts();
   for (const evidence of evidenceFiles) {
     for (const [fileName, value] of evidence.files) {
       await writeJson(fileName, value);
@@ -677,7 +732,9 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  console.error(error.stack || error.message);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error.stack || error.message);
+    process.exit(1);
+  });
+}

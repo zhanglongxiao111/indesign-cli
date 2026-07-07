@@ -20,6 +20,8 @@ assert.equal(documentHandlers.includes('DOCUMENT_TARGET_AMBIGUOUS'), true);
 assert.equal(documentHandlers.includes('doc.close(SaveOptions.NO);'), false);
 assert.equal(groupHandlers.includes('group.add(item);'), false);
 assert.equal(groupHandlers.includes('page.groups.add(groupItems);'), true);
+assert.equal(groupHandlers.includes('if (item.id === group.id)'), true);
+assert.equal(groupHandlers.includes('Cannot add a group to itself'), true);
 assert.equal(agentUxRunner.includes('expectedCode'), true);
 assert.equal(agentUxRunner.includes('ARTIFACT_FORMAT_UNSUPPORTED'), true);
 assert.equal(agentUxRunner.includes('INDESIGN_SCRIPT_FAILED'), true);

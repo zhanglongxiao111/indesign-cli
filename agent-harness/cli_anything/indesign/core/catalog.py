@@ -248,6 +248,31 @@ def _target_scope(domain: str, tool_name: str) -> str:
     return "indesign"
 
 
+def canonical_switch_only_entry(*, domain: str, name: str, handler: str, rank: int = 95) -> dict[str, Any]:
+    artifact_kinds = _artifact_kinds(name)
+    return _with_agent_contract(
+        {
+            "id": f"{domain}.{name}",
+            "domain": domain,
+            "name": name,
+            "one_line_purpose": f"switch-only handler: {handler}",
+            "arg_names": [],
+            "source": "switch_only_no_cli_schema",
+            "rank": rank,
+            "schema_size": "unknown",
+            "availability": "hidden_handler",
+            "callable": False,
+            "requires": ["indesign_com"],
+            "side_effects": _side_effects(name, domain),
+            "artifact_kinds": artifact_kinds,
+            "destructive": _destructive(name),
+            "target_scope": _target_scope(domain, name),
+            "needs_indesign": True,
+            "produces_artifacts": bool(artifact_kinds),
+        }
+    )
+
+
 def _agent_contract(tool: dict[str, Any]) -> dict[str, Any]:
     tool_id = str(tool.get("id") or "")
     domain = str(tool.get("domain") or "")

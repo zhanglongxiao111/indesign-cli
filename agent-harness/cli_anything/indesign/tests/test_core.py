@@ -854,6 +854,33 @@ def test_catalog_destructive_helper_is_canonical_for_cleanup_tools():
     assert _destructive("create_document") is False
 
 
+def test_canonical_switch_only_entry_uses_catalog_contract_inference():
+    from cli_anything.indesign.core.catalog import canonical_switch_only_entry
+
+    cleanup = canonical_switch_only_entry(
+        domain="document",
+        name="cleanup_document",
+        handler="DocumentHandlers.cleanupDocument",
+    )
+    assert cleanup["id"] == "document.cleanup_document"
+    assert cleanup["source"] == "switch_only_no_cli_schema"
+    assert cleanup["side_effects"] == ["indesign_mutation"]
+    assert cleanup["destructive"] is False
+    assert cleanup["mutates_document"] is True
+    assert cleanup["writes_filesystem"] is False
+    assert cleanup["needs_indesign"] is True
+    assert cleanup["requires_active_document"] is True
+
+    exported = canonical_switch_only_entry(
+        domain="document",
+        name="export_document_xml",
+        handler="DocumentHandlers.exportDocumentXml",
+    )
+    assert exported["side_effects"] == ["filesystem_write"]
+    assert exported["writes_filesystem"] is True
+    assert exported["mutates_document"] is False
+
+
 def test_router_calls_export_verify_cli_primitive(tmp_path):
     from cli_anything.indesign.core.catalog import Catalog
     from cli_anything.indesign.core.router import Router

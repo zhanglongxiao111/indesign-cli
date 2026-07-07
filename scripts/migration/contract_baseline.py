@@ -14,11 +14,7 @@ sys.path.insert(0, str(REPO_ROOT / "agent-harness"))
 
 from cli_anything.indesign.core.catalog import (  # noqa: E402
     Catalog,
-    _artifact_kinds,
-    _destructive,
-    _side_effects,
-    _target_scope,
-    _with_agent_contract,
+    canonical_switch_only_entry,
 )
 from cli_anything.indesign.core.mcp_backend import McpBackend  # noqa: E402
 
@@ -65,30 +61,11 @@ def build_current_node_catalog(timeout_seconds: int) -> list[dict[str, Any]]:
     for name, info in SWITCH_ONLY_TOOLS.items():
         if name in existing_names:
             continue
-        artifact_kinds = _artifact_kinds(name)
-        # Task 0 baseline reads current CLI canonical inference for switch-only handlers.
-        # These tools have no CLI schema yet, but their contract fields must use catalog.py.
         entries.append(
-            _with_agent_contract(
-                {
-                    "id": f"{info['domain']}.{name}",
-                    "domain": info["domain"],
-                    "name": name,
-                    "one_line_purpose": f"switch-only handler: {info['handler']}",
-                    "arg_names": [],
-                    "source": "switch_only_no_cli_schema",
-                    "rank": 95,
-                    "schema_size": "unknown",
-                    "availability": "hidden_handler",
-                    "callable": False,
-                    "requires": ["indesign_com"],
-                    "side_effects": _side_effects(name, info["domain"]),
-                    "artifact_kinds": artifact_kinds,
-                    "destructive": _destructive(name),
-                    "target_scope": _target_scope(info["domain"], name),
-                    "needs_indesign": True,
-                    "produces_artifacts": bool(artifact_kinds),
-                }
+            canonical_switch_only_entry(
+                domain=info["domain"],
+                name=name,
+                handler=info["handler"],
             )
         )
     return sorted(entries, key=lambda item: item["id"])
