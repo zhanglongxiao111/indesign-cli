@@ -17,7 +17,7 @@
 | Task 0 冻结、快照与基线导出 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 与 code quality rereview 已通过；stabilized golden baseline 可作为 Task 1+ 对比基线 |
 | Task 1 终态骨架 + layer 试点域 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；layer 试点、profile gate、artifact 幂等和 Task 1 验证清单均已通过 |
 | Task 2 15 个域并行迁移 | completed | per-domain implementation subagents (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；15 域迁移、150-tool 聚合、CLI metadata 对账、help registry 派生、`page`/`group` 顺序与拆分均已通过 |
-| Task 3 原子切换与物理删除 | in_progress | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | Task 2 已完成，开始原子切换入口与旧结构物理删除 |
+| Task 3 原子切换与物理删除 | review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | `c9dc03c` 已切换 classic/advanced 入口到 registry server，物理删除旧 `InDesignMCPServer`、`src/handlers/`、`src/types/`，等待复审 |
 | Task 4 CLI artifact-only 终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 5 测试架构终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 可在 Task 4 阶段并行评估，未启动 |
 | Task 6 终局验收 | pending | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 未启动 |
