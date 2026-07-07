@@ -15,7 +15,7 @@
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
 | Task 0 冻结、快照与基线导出 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 与 code quality rereview 已通过；stabilized golden baseline 可作为 Task 1+ 对比基线 |
-| Task 1 终态骨架 + layer 试点域 | fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | review 未通过：ListTools 顺序未对齐 golden、profiles/profile-gated call 约束不足、artifact `--write` 非幂等 |
+| Task 1 终态骨架 + layer 试点域 | review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | `d8136c1` 已修复 review 发现的 ListTools 顺序、profiles/profile-gated call、artifact `--write` 幂等问题，等待复审 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 | Task 4 CLI artifact-only 终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
