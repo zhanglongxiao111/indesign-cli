@@ -14,7 +14,7 @@
 
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
-| Task 0 冻结、快照与基线导出 | spec_fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 未通过：完整 touched surface 漏记 `tests/test-handler-contracts.js`，需补充后复审 |
+| Task 0 冻结、快照与基线导出 | spec_review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 已补充 `tests/test-handler-contracts.js` 到 sanctioned touched surface，等待复审 |
 | Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
@@ -90,6 +90,7 @@ Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline 
 完整 sanctioned touched surface：
 
 - `src/handlers/groupHandlers.js`：修正 `page.add_item_to_group` 使用不存在的 `group.add(item)`，改为保留原 group 元数据并通过 `page.groups.add(groupItems)` 重新成组；否则 D runner 无法通过。
+- `tests/test-handler-contracts.js`：为 `page.add_item_to_group` 的 group API 修复增加轻量回归断言，防止恢复为不存在的 `group.add(item)`。
 - `src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`：补齐 3 处 exposed schema 漏项，使 C 快照构造和 CLI catalog/schema 输出稳定；这不是新增工具。
 - `tests/real-e2e/lib/scenarios.mjs`：`close_document` 在 D runner 中显式传入 `expectedDocumentName` 和 `allowDiscard`，避免多文档状态下关闭目标不明确。
 - `scripts/migration/record_golden.mjs`：补齐 C 参数构造覆盖、清理 stale D failure、使用稳定 D run-id 投影，并在 D runner 后读取 raw `reports/tool-catalog-summary.json` / `tool-catalog.json` 做硬校验。
@@ -110,7 +111,7 @@ Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline 
 - Create: `scripts/migration/contract_baseline.py`
 - Generate: `docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/golden/`（A/B/C/D 快照与 contract 基线表）
 - Create: `docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/README.md`（迁移目录入口）
-- Modify during pre-freeze stabilization only: `src/handlers/groupHandlers.js`、`src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`、`tests/real-e2e/lib/scenarios.mjs`、`agent-harness/cli_anything/indesign/core/catalog.py`、`agent-harness/cli_anything/indesign/tests/test_core.py`、`tests/real-e2e/lib/catalog.mjs`
+- Modify during pre-freeze stabilization only: `src/handlers/groupHandlers.js`、`tests/test-handler-contracts.js`、`src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`、`tests/real-e2e/lib/scenarios.mjs`、`agent-harness/cli_anything/indesign/core/catalog.py`、`agent-harness/cli_anything/indesign/tests/test_core.py`、`tests/real-e2e/lib/catalog.mjs`
 - Create during pre-freeze stabilization only: `tests/migration/record-golden-d-evidence.test.mjs`
 
 - [ ] 前置确认：反馈闭环批 1（`docs/superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` Task 1–3，含 `feedback` 域）已合并 `master`——它会改变 `tool list` 输出，必须先合并再录 golden master。

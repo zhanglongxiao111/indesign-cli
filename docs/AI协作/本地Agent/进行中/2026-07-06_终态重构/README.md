@@ -17,6 +17,7 @@ Task 0 的冻结点在 baseline blocker fixes 完成后、Task 1 启动前。代
 冻结前仅允许下列最小稳定化修复：
 
 - `src/handlers/groupHandlers.js`：修正 `page.add_item_to_group` 调用不存在的 `group.add(item)`，否则 D runner 无法通过。
+- `tests/test-handler-contracts.js`：为 `page.add_item_to_group` 的 group API 修复增加轻量回归断言，防止恢复为不存在的 `group.add(item)`。
 - `src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`：补齐 3 个 exposed schema 漏项，否则 C=150 构造和 CLI catalog/schema 输出不稳定。
 - `tests/real-e2e/lib/scenarios.mjs`：`close_document` 显式指定目标文档和 discard 策略，避免 D offline runner 多文档状态下目标不明确。
 - `scripts/migration/record_golden.mjs`：补齐 C 参数构造覆盖、清理 stale D failure、使用稳定 D run-id 投影，并在 D runner 后读取 raw `reports/tool-catalog-summary.json` / `tool-catalog.json` 做硬校验。
