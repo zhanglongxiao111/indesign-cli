@@ -316,7 +316,7 @@ async function testDocumentPreferences() {
         });
     }
 
-    process.exit(testResults.failed > 0 ? 1 : 0);
+    process.exit(testResults.failed > 0 || testResults.errors.length > 0 ? 1 : 0);
 }
 
 // Run the test

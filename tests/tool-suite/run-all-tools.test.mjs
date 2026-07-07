@@ -19,6 +19,7 @@ assert.deepEqual(summarizeResults(results, null), {
     skipped: 1,
     expectedFailed: 1,
     failed: 1,
+    cleanup: null,
     runnerError: null,
 });
 assert.equal(buildExitCode(summarizeResults(results, null)), 1);
@@ -30,6 +31,20 @@ assert.equal(buildExitCode(expectedOnly), 0);
 const runnerFailure = summarizeResults([], 'server failed');
 assert.equal(runnerFailure.failed, 0);
 assert.equal(buildExitCode(runnerFailure), 1);
+
+const cleanupFailure = summarizeResults([], null, {
+    status: 'failed',
+    remainingDocuments: 2,
+});
+assert.equal(cleanupFailure.cleanup.status, 'failed');
+assert.equal(cleanupFailure.cleanup.remainingDocuments, 2);
+assert.equal(buildExitCode(cleanupFailure), 1);
+
+const cleanupSuccess = summarizeResults([], null, {
+    status: 'passed',
+    remainingDocuments: 0,
+});
+assert.equal(buildExitCode(cleanupSuccess), 0);
 
 const errorTextPassed = summarizeResults([
     { tool: 'bad-envelope', status: 'passed', message: "Error: Object does not support the property or method 'undefined'" },

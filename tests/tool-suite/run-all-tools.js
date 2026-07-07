@@ -91,19 +91,20 @@ function toolResultLooksFailed(result) {
     return looksLikeFailureText(result.message) || looksLikeFailureText(result.result);
 }
 
-export function summarizeResults(results, runnerError) {
+export function summarizeResults(results, runnerError, cleanup = null) {
     return {
         totalTools: results.length,
         passed: results.filter((result) => result.status === "passed" && !toolResultLooksFailed(result)).length,
         skipped: results.filter((result) => result.status === "skipped").length,
         expectedFailed: results.filter((result) => result.status === "expectedFailure").length,
         failed: results.filter((result) => toolResultLooksFailed(result)).length,
+        cleanup,
         runnerError,
     };
 }
 
 export function buildExitCode(summary) {
-    return summary.runnerError || summary.failed > 0 ? 1 : 0;
+    return summary.runnerError || summary.failed > 0 || summary.cleanup?.status === "failed" || summary.cleanup?.remainingDocuments > 0 ? 1 : 0;
 }
 
 export class ToolSuiteRunner {
@@ -189,7 +190,7 @@ export class ToolSuiteRunner {
         return this.sendRequest(request);
     }
 
-    async callTool(name, args = {}) {
+    async callToolRaw(name, args = {}) {
         const response = await this.callMethod("tools/call", {
             name,
             arguments: args,
@@ -206,6 +207,12 @@ export class ToolSuiteRunner {
         } catch (error) {
             throw new Error(`Invalid JSON payload for ${name}: ${contentEntry.text}`);
         }
+
+        return payload;
+    }
+
+    async callTool(name, args = {}) {
+        const payload = await this.callToolRaw(name, args);
 
         if (!payload.success) {
             throw new Error(payload.message ?? payload.result ?? `Tool ${name} reported failure`);
@@ -371,6 +378,46 @@ export class ToolSuiteRunner {
         } catch (error) {}
     }
 
+    async cleanupDocuments() {
+        const cleanupScript = [
+            "var initialDocuments = app.documents.length;",
+            "var closedDocuments = 0;",
+            "var cleanupError = null;",
+            "while (app.documents.length > 0) {",
+            "  try {",
+            "    app.documents[0].close(SaveOptions.NO);",
+            "    closedDocuments++;",
+            "  } catch (error) {",
+            "    cleanupError = error.message;",
+            "    break;",
+            "  }",
+            "}",
+            "var remainingDocuments = app.documents.length;",
+            "JSON.stringify({",
+            "  success: remainingDocuments === 0 && cleanupError === null,",
+            "  operation: 'Tool Suite Cleanup',",
+            "  code: remainingDocuments === 0 && cleanupError === null ? undefined : 'TOOL_SUITE_CLEANUP_FAILED',",
+            "  message: remainingDocuments === 0 && cleanupError === null ? 'Tool suite document cleanup complete' : 'Tool suite document cleanup failed',",
+            "  data: {",
+            "    initialDocuments: initialDocuments,",
+            "    closedDocuments: closedDocuments,",
+            "    remainingDocuments: remainingDocuments,",
+            "    errorCount: cleanupError === null ? 0 : 1",
+            "  }",
+            "});"
+        ].join("\n");
+
+        const payload = await this.callToolRaw("execute_indesign_code", { code: cleanupScript });
+        const data = payload.data || {};
+        return {
+            status: payload.success ? "passed" : "failed",
+            initialDocuments: Number(data.initialDocuments ?? 0),
+            closedDocuments: Number(data.closedDocuments ?? 0),
+            remainingDocuments: Number(data.remainingDocuments ?? 0),
+            errorCount: Number(data.errorCount ?? (payload.success ? 0 : 1)),
+        };
+    }
+
     async run() {
         for (const [name, definition] of this.toolMap) {
             const outcomeContract = TOOL_OUTCOME_CONTRACTS.get(name);
@@ -408,6 +455,7 @@ export class ToolSuiteRunner {
 async function main() {
     let runner = null;
     let runnerError = null;
+    let cleanup = null;
     try {
         const TOOL_DEFINITIONS = await gatherToolDefinitions();
         runner = new ToolSuiteRunner(TOOL_DEFINITIONS);
@@ -420,13 +468,30 @@ async function main() {
         console.error(error);
     } finally {
         if (runner) {
+            if (runner.server && runner.server.exitCode === null) {
+                try {
+                    cleanup = await runner.cleanupDocuments();
+                    if (cleanup.status !== "passed" || cleanup.remainingDocuments !== 0) {
+                        runnerError = [runnerError, "Tool suite document cleanup failed"].filter(Boolean).join("\n");
+                    }
+                } catch (error) {
+                    cleanup = {
+                        status: "failed",
+                        initialDocuments: null,
+                        closedDocuments: null,
+                        remainingDocuments: null,
+                        errorCount: 1,
+                    };
+                    runnerError = [runnerError, error?.stack || error?.message || String(error)].filter(Boolean).join("\n");
+                }
+            }
             await runner.stopServer();
         }
     }
 
     const summary = {
         timestamp: new Date().toISOString(),
-        ...summarizeResults(runner?.results || [], runnerError),
+        ...summarizeResults(runner?.results || [], runnerError, cleanup),
         logPath: LOG_PATH,
     };
 
@@ -438,6 +503,10 @@ async function main() {
     console.log(`  Skipped:     ${summary.skipped}`);
     console.log(`  Expected failures: ${summary.expectedFailed}`);
     console.log(`  Failed:      ${summary.failed}`);
+    if (summary.cleanup) {
+        console.log(`  Cleanup:     ${summary.cleanup.status}`);
+        console.log(`  Remaining documents: ${summary.cleanup.remainingDocuments}`);
+    }
     if (summary.runnerError) {
         console.log("  Runner error: yes");
     }
