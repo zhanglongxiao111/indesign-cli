@@ -561,12 +561,12 @@
       "destructive": false,
       "domain": "document",
       "id": "document.save_document_to_cloud",
-      "mutates_document": false,
+      "mutates_document": true,
       "name": "save_document_to_cloud",
       "needs_indesign": true,
       "requires_active_document": true,
       "side_effects": [
-        "filesystem_write"
+        "indesign_mutation"
       ],
       "source": "switch_only_no_cli_schema",
       "writes_filesystem": true

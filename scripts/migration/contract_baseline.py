@@ -12,7 +12,13 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "agent-harness"))
 
-from cli_anything.indesign.core.catalog import Catalog, _with_agent_contract  # noqa: E402
+from cli_anything.indesign.core.catalog import (  # noqa: E402
+    Catalog,
+    _artifact_kinds,
+    _side_effects,
+    _target_scope,
+    _with_agent_contract,
+)
 from cli_anything.indesign.core.mcp_backend import McpBackend  # noqa: E402
 
 
@@ -58,6 +64,9 @@ def build_current_node_catalog(timeout_seconds: int) -> list[dict[str, Any]]:
     for name, info in SWITCH_ONLY_TOOLS.items():
         if name in existing_names:
             continue
+        artifact_kinds = _artifact_kinds(name)
+        # Task 0 baseline reads current CLI canonical inference for switch-only handlers.
+        # These tools have no CLI schema yet, but their contract fields must use catalog.py.
         entries.append(
             _with_agent_contract(
                 {
@@ -72,48 +81,16 @@ def build_current_node_catalog(timeout_seconds: int) -> list[dict[str, Any]]:
                     "availability": "hidden_handler",
                     "callable": False,
                     "requires": ["indesign_com"],
-                    "side_effects": side_effects(name, info["domain"]),
-                    "artifact_kinds": artifact_kinds(name),
+                    "side_effects": _side_effects(name, info["domain"]),
+                    "artifact_kinds": artifact_kinds,
                     "destructive": any(part in name for part in ("delete", "clear", "close", "cleanup")),
-                    "target_scope": target_scope(info["domain"], name),
+                    "target_scope": _target_scope(info["domain"], name),
                     "needs_indesign": True,
-                    "produces_artifacts": bool(artifact_kinds(name)),
+                    "produces_artifacts": bool(artifact_kinds),
                 }
             )
         )
     return sorted(entries, key=lambda item: item["id"])
-
-
-def side_effects(tool_name: str, domain: str) -> list[str]:
-    if tool_name.startswith(("get_", "list_", "inspect_", "find_", "search_")):
-        return []
-    if domain == "export" or "export" in tool_name or "package" in tool_name or "save" in tool_name:
-        return ["filesystem_write"]
-    return ["indesign_mutation"]
-
-
-def artifact_kinds(tool_name: str) -> list[str]:
-    lowered = tool_name.lower()
-    kinds: list[str] = []
-    if "pdf" in lowered:
-        kinds.append("pdf")
-    if "idml" in lowered:
-        kinds.append("idml")
-    if "image" in lowered or "png" in lowered or "jpg" in lowered:
-        kinds.append("image")
-    if "epub" in lowered:
-        kinds.append("epub")
-    if "xml" in lowered:
-        kinds.append("xml")
-    return kinds
-
-
-def target_scope(domain: str, tool_name: str) -> str:
-    if domain == "export" or "export" in tool_name or "save" in tool_name:
-        return "filesystem"
-    if "document" in tool_name or domain in {"document", "spread"}:
-        return "active_document"
-    return "indesign"
 
 
 def assert_switch_cases_present() -> None:
