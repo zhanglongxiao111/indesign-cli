@@ -19,7 +19,7 @@
 | Task 2 15 个域并行迁移 | completed | per-domain implementation subagents (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 最终复审 PASS；15 域迁移、150-tool 聚合、CLI metadata 对账、help registry 派生、`page`/`group` 顺序与拆分均已通过 |
 | Task 3 原子切换与物理删除 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二轮复审 PASS；入口切换、旧结构物理删除、full golden A 门禁和旧口径清理均已通过 |
 | Task 4 CLI artifact-only 终态 | completed | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 二次复审 PASS；artifact-only catalog/internal bridge、legacy token 门禁、E2E backend 口径和 Task 4 验证清单均已通过 |
-| Task 5 测试架构终态 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 可在 Task 4 阶段并行评估，未启动 |
+| Task 5 测试架构终态 | in_progress | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 已启动：拆分 E2E scenarios 与 Python CLI 测试，删除旧聚合测试入口，tool-suite 改 artifact 驱动 |
 | Task 6 终局验收 | pending | controller + review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 未启动 |
 | Task 7 文档与治理同步 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
 
