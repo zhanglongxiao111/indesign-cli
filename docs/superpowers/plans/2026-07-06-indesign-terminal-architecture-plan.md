@@ -14,7 +14,7 @@
 
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
-| Task 0 冻结、快照与基线导出 | spec_fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 未通过：pre-freeze stabilization 锚点仍写成 `adc13f2`，需改为真实提交集合与完整 touched surface |
+| Task 0 冻结、快照与基线导出 | spec_review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | pre-freeze stabilization 锚点已改为真实提交集合与完整 touched surface，等待 review 确认 |
 | Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
@@ -77,14 +77,29 @@
 
 Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline blocker fixes。它们的目的只是在现有架构上得到可录制、可重放的稳定基线；它们不是 Task 1+ 的终态架构迁移，也不能扩展为新增工具、改工具语义或重写 handler/schema/runner。
 
-允许范围只包含阻塞 C=150 快照构造、CLI catalog/schema 稳定性或 D offline runner 通过的最小修复：
+允许范围只包含阻塞 C=150 快照构造、CLI catalog/schema 稳定性、contract baseline 真实性或 D offline runner 通过的最小修复。真实 stabilization 提交集合是：
+
+- `adc13f2`：首次落盘 Task 0 baseline，同时包含 D blocker 修复、exposed schema 漏项修复和 E2E 关闭目标修复。
+- `4fe0c03`：修复 C 快照覆盖缺口和 D stale failure artifact。
+- `ed59ed7`：把 contract baseline 推断收回到 CLI 当前口径。
+- `881ed01`：抽出 `catalog.py` canonical `_destructive()` helper，并把 D inventory 纳入 `cli.primitive/feedback.report`。
+- `5c3f7bc`：为 D runner 增加 fresh raw catalog evidence 校验和 golden evidence 文件。
+
+代码和 golden 的冻结点定义为 `5c3f7bc` 完成之后、Task 1 启动之前；后续文档提交只说明边界，不改变基线事实。
+
+完整 sanctioned touched surface：
 
 - `src/handlers/groupHandlers.js`：修正 `page.add_item_to_group` 使用不存在的 `group.add(item)`，改为保留原 group 元数据并通过 `page.groups.add(groupItems)` 重新成组；否则 D runner 无法通过。
 - `src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`：补齐 3 处 exposed schema 漏项，使 C 快照构造和 CLI catalog/schema 输出稳定；这不是新增工具。
 - `tests/real-e2e/lib/scenarios.mjs`：`close_document` 在 D runner 中显式传入 `expectedDocumentName` 和 `allowDiscard`，避免多文档状态下关闭目标不明确。
-- `scripts/migration/record_golden.mjs` 与 golden 目录：D runner 输出写入 raw evidence（命令、退出码、`stdoutJson` 或 tail、`stderrTail`），使 D full offline 的通过证据可审查。
+- `scripts/migration/record_golden.mjs`：补齐 C 参数构造覆盖、清理 stale D failure、使用稳定 D run-id 投影，并在 D runner 后读取 raw `reports/tool-catalog-summary.json` / `tool-catalog.json` 做硬校验。
+- `scripts/migration/contract_baseline.py`：按当前 CLI 真实目录导出 150 个 Node-backed 工具 contract baseline，switch-only 工具通过 CLI canonical helper/contract path 推断字段。
+- `agent-harness/cli_anything/indesign/core/catalog.py` 与 `agent-harness/cli_anything/indesign/tests/test_core.py`：最小抽取 `_destructive()` canonical helper，并覆盖 `feedback.report` / `cli.primitive` catalog 口径。
+- `tests/real-e2e/lib/catalog.mjs`：把 `cli.primitive` 纳入 D inventory，使 feedback 域进入 raw D evidence。
+- `tests/migration/record-golden-d-evidence.test.mjs`：验证 D raw evidence golden 文件包含 `total=150`、`cli.primitive=1` 和 `feedback.report`。
+- `docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/golden/`：A/B/C/D 快照、contract baseline、schema net-new whitelist、skip 清单和 D raw evidence 文件。
 
-已落地证据：`adc13f2` 同时包含上述 blocker fixes、`scripts/migration/record_golden.mjs`、`scripts/migration/contract_baseline.py` 和 `golden/` 快照。冻结点定义为这些 stabilization 修复完成之后、正式 golden 录制之前；后续 Task 1+ 的 golden diff 均以该 stabilized baseline 为准。
+后续 Task 1+ 的 golden diff 均以该 stabilized baseline 为准。
 
 冻结后仍保持原计划原则：不新增工具、不改工具行为；除计划白名单明确记录的 schema 净新增、help 派生输出和 artifact 字段外，Task 1+ 的 golden 回放必须白名单外 diff 为零。
 
@@ -95,6 +110,8 @@ Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline 
 - Create: `scripts/migration/contract_baseline.py`
 - Generate: `docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/golden/`（A/B/C/D 快照与 contract 基线表）
 - Create: `docs/AI协作/本地Agent/进行中/2026-07-06_终态重构/README.md`（迁移目录入口）
+- Modify during pre-freeze stabilization only: `src/handlers/groupHandlers.js`、`src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`、`tests/real-e2e/lib/scenarios.mjs`、`agent-harness/cli_anything/indesign/core/catalog.py`、`agent-harness/cli_anything/indesign/tests/test_core.py`、`tests/real-e2e/lib/catalog.mjs`
+- Create during pre-freeze stabilization only: `tests/migration/record-golden-d-evidence.test.mjs`
 
 - [ ] 前置确认：反馈闭环批 1（`docs/superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` Task 1–3，含 `feedback` 域）已合并 `master`——它会改变 `tool list` 输出，必须先合并再录 golden master。
 - [ ] 建分支 `refactor/terminal-architecture`。
