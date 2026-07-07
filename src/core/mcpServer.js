@@ -3,11 +3,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { call } from './toolRouter.js';
-import { registry } from '../tools/index.js';
+import { registry as defaultRegistry } from '../tools/index.js';
+import { assertPublicProfile, isToolVisibleToProfile } from '../tools/_contract.js';
 
-function listToolsForProfile(profile) {
+function listToolsForProfile(profile, registry) {
     return registry.tools
-        .filter((tool) => tool.profiles.includes(profile))
+        .filter((tool) => isToolVisibleToProfile(tool, profile))
         .map((tool) => ({
             name: tool.name,
             description: tool.description,
@@ -15,7 +16,9 @@ function listToolsForProfile(profile) {
         }));
 }
 
-export function createMcpServer({ profile }) {
+export function createMcpServer({ profile, registry = defaultRegistry }) {
+    assertPublicProfile(profile);
+
     const server = new Server(
         {
             name: profile === 'advanced' ? 'indesign-template-orchestrator' : 'indesign-server-complete',
@@ -29,13 +32,13 @@ export function createMcpServer({ profile }) {
     );
 
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: listToolsForProfile(profile)
+        tools: listToolsForProfile(profile, registry)
     }));
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         try {
-            const result = await call(name, args || {});
+            const result = await call(name, args || {}, { profile, registry });
             return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
         } catch (error) {
             return { content: [{ type: 'text', text: `Error: ${error.message}` }] };
@@ -44,8 +47,8 @@ export function createMcpServer({ profile }) {
 
     return {
         server,
-        listTools: () => listToolsForProfile(profile),
-        callTool: (name, args = {}) => call(name, args),
+        listTools: () => listToolsForProfile(profile, registry),
+        callTool: (name, args = {}) => call(name, args, { profile, registry }),
         async run() {
             const transport = new StdioServerTransport();
             await server.connect(transport);

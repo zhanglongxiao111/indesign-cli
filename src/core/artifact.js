@@ -76,13 +76,38 @@ function comparableArtifact(artifact) {
     };
 }
 
+function readExistingArtifact() {
+    if (!fs.existsSync(ARTIFACT_PATH)) {
+        return null;
+    }
+    return JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8'));
+}
+
+function withPreservedGeneratedAtIfUnchanged(artifact) {
+    const existing = readExistingArtifact();
+    if (!existing) {
+        return artifact;
+    }
+    if (stableStringify(comparableArtifact(artifact)) !== stableStringify(comparableArtifact(existing))) {
+        return artifact;
+    }
+    return {
+        ...artifact,
+        generated_at: existing.generated_at
+    };
+}
+
 export function generateArtifact() {
-    return artifactPayload();
+    return withPreservedGeneratedAtIfUnchanged(artifactPayload());
 }
 
 export function writeArtifact() {
     const artifact = generateArtifact();
-    fs.writeFileSync(ARTIFACT_PATH, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+    const nextContent = `${JSON.stringify(artifact, null, 2)}\n`;
+    const existingContent = fs.existsSync(ARTIFACT_PATH) ? fs.readFileSync(ARTIFACT_PATH, 'utf8') : null;
+    if (existingContent !== nextContent) {
+        fs.writeFileSync(ARTIFACT_PATH, nextContent, 'utf8');
+    }
     return artifact;
 }
 
@@ -91,7 +116,7 @@ export function checkArtifact() {
         throw new Error(`Artifact missing: ${ARTIFACT_PATH}`);
     }
     const current = comparableArtifact(generateArtifact());
-    const existing = comparableArtifact(JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8')));
+    const existing = comparableArtifact(readExistingArtifact());
     if (stableStringify(current) !== stableStringify(existing)) {
         throw new Error('Artifact is out of date. Run: node src/core/artifact.js --write');
     }

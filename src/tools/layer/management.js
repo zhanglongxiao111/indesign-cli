@@ -155,4 +155,4 @@ export const listLayers = defineTool({
     }
 });
 
-export const tools = [createLayer, setActiveLayer, listLayers];
+export const tools = [createLayer, listLayers, setActiveLayer];

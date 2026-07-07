@@ -1,4 +1,5 @@
-const VALID_PROFILES = new Set(['classic', 'advanced']);
+export const PUBLIC_PROFILES = ['classic', 'advanced'];
+const VALID_PROFILES = new Set(PUBLIC_PROFILES);
 const CONTRACT_KEYS = [
     'needsInDesign',
     'requiresActiveDocument',
@@ -38,11 +39,28 @@ function validateProfiles(profiles, toolName) {
     if (!Array.isArray(profiles)) {
         throw new Error(`${toolName}.profiles must be an array`);
     }
+    if (new Set(profiles).size !== profiles.length) {
+        throw new Error(`${toolName}.profiles must not contain duplicates`);
+    }
     for (const profile of profiles) {
         if (!VALID_PROFILES.has(profile)) {
             throw new Error(`${toolName}.profiles contains invalid profile: ${profile}`);
         }
     }
+    if (profiles.length > 1) {
+        throw new Error(`${toolName}.profiles must be one of: [], ['classic'], ['advanced']`);
+    }
+}
+
+export function assertPublicProfile(profile) {
+    if (!VALID_PROFILES.has(profile)) {
+        throw new Error(`Invalid profile: ${profile}`);
+    }
+}
+
+export function isToolVisibleToProfile(tool, profile) {
+    assertPublicProfile(profile);
+    return tool.profiles.length === 1 && tool.profiles[0] === profile;
 }
 
 function validateInputSchema(inputSchema, toolName) {
