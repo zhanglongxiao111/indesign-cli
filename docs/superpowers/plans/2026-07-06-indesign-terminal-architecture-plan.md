@@ -14,7 +14,7 @@
 
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
-| Task 0 冻结、快照与基线导出 | spec_review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | contract baseline SSOT 修复已提交 `ed59ed7`：删除重复推断函数，switch-only 通过 `catalog.py` canonical inference 重导；等待复审 |
+| Task 0 冻结、快照与基线导出 | spec_fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 未通过：contract baseline 仍本地硬算 `destructive`，D inventory 漏 `cli.primitive/feedback.report`；需收口到 canonical helper 并重录 D |
 | Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
