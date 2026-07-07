@@ -14,7 +14,7 @@
 
 | Task | 状态 | 负责人 | 更新时间 | 备注 |
 | ---- | ---- | ------ | -------- | ---- |
-| Task 0 冻结、快照与基线导出 | spec_fixing | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | spec review 未通过：原计划未区分 pre-freeze baseline blocker fixes 与冻结后 golden 录制；需把已发生的 D/C blocker 修复显式归档为冻结前稳定化边界 |
+| Task 0 冻结、快照与基线导出 | spec_review | implementation subagent (`gpt-5.5 high`) / review subagent (`gpt-5.4 xhigh`) | 2026-07-07 | 已补充 pre-freeze stabilization 边界，等待 review 确认 Task 0 golden 是 stabilization 后 baseline |
 | Task 1 终态骨架 + layer 试点域 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 等 Task 0 spec/code review 通过后启动 |
 | Task 2 15 个域并行迁移 | pending | per-domain implementation subagents (`gpt-5.5 high`) | 2026-07-07 | 必须等 Task 1 layer 试点打穿后启动 |
 | Task 3 原子切换与物理删除 | pending | implementation subagent (`gpt-5.5 high`) | 2026-07-07 | 未启动 |
@@ -27,7 +27,7 @@
 
 - 本计划取代 `docs/superpowers/plans/2026-07-05-indesign-architecture-refactor-plan.md`。
 - 全程在专用分支 `refactor/terminal-architecture` 上执行；golden master 全绿 + 全量验证矩阵通过后才合并 `master`。回滚 = 放弃分支。
-- 重构期间冻结功能开发：不新增工具、不改工具行为。golden master 录制后到 Task 6 验收前，`master` 上如有并行提交必须 rebase 并重录快照。
+- 重构期间冻结功能开发：不新增工具、不改工具行为。冻结点在 pre-freeze stabilization 完成后、正式 golden master 录制前；golden master 录制后到 Task 6 验收前，`master` 上如有并行提交必须 rebase 并重录快照。
 - 语义契约计划已重写为 `docs/superpowers/plans/2026-07-06-indesign-tool-semantics-plan.md`（终态口径），在本计划完成并合并 `master` 后执行。
 - 不写伪代码。每个任务只描述文件范围、机械动作、验证命令和完成条件。
 
@@ -72,6 +72,21 @@
 6. 域 `index.js` 聚合本域全部 `tools` 并导出。
 
 ---
+
+## Pre-freeze stabilization
+
+Task 0 允许在正式冻结和 golden master 录制前完成有限的 baseline blocker fixes。它们的目的只是在现有架构上得到可录制、可重放的稳定基线；它们不是 Task 1+ 的终态架构迁移，也不能扩展为新增工具、改工具语义或重写 handler/schema/runner。
+
+允许范围只包含阻塞 C=150 快照构造、CLI catalog/schema 稳定性或 D offline runner 通过的最小修复：
+
+- `src/handlers/groupHandlers.js`：修正 `page.add_item_to_group` 使用不存在的 `group.add(item)`，改为保留原 group 元数据并通过 `page.groups.add(groupItems)` 重新成组；否则 D runner 无法通过。
+- `src/types/toolDefinitionsContent.js`、`src/types/toolDefinitionsMasterSpread.js`、`src/types/toolDefinitionsPage.js`：补齐 3 处 exposed schema 漏项，使 C 快照构造和 CLI catalog/schema 输出稳定；这不是新增工具。
+- `tests/real-e2e/lib/scenarios.mjs`：`close_document` 在 D runner 中显式传入 `expectedDocumentName` 和 `allowDiscard`，避免多文档状态下关闭目标不明确。
+- `scripts/migration/record_golden.mjs` 与 golden 目录：D runner 输出写入 raw evidence（命令、退出码、`stdoutJson` 或 tail、`stderrTail`），使 D full offline 的通过证据可审查。
+
+已落地证据：`adc13f2` 同时包含上述 blocker fixes、`scripts/migration/record_golden.mjs`、`scripts/migration/contract_baseline.py` 和 `golden/` 快照。冻结点定义为这些 stabilization 修复完成之后、正式 golden 录制之前；后续 Task 1+ 的 golden diff 均以该 stabilized baseline 为准。
+
+冻结后仍保持原计划原则：不新增工具、不改工具行为；除计划白名单明确记录的 schema 净新增、help 派生输出和 artifact 字段外，Task 1+ 的 golden 回放必须白名单外 diff 为零。
 
 ## Task 0: 冻结、快照与基线导出
 
