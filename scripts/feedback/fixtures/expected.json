@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "input": {
+    "files": 4,
+    "events": 8,
+    "bad_lines": 1,
+    "unknown_fields": {
+      "unexpected": 1
+    }
+  },
+  "totals": {
+    "sessions": 4,
+    "tool_calls": 6,
+    "feedback": 2,
+    "errors": 3,
+    "script_run": 1
+  },
+  "by_cli_version": {
+    "0.4.0": {
+      "sessions": 4,
+      "tool_calls": 6,
+      "escape_hatch_sessions": 1,
+      "escape_hatch_rate": 0.25,
+      "first_success_rate": 0.25,
+      "session_tail_success_rate": 0.75,
+      "calls_per_session": {
+        "min": 1,
+        "max": 2,
+        "avg": 1.5
+      }
+    }
+  },
+  "friction": {
+    "error_code_by_tool": [
+      {
+        "error_code": "ARGS_UNKNOWN_KEY",
+        "tool_id": "style.apply_paragraph_style",
+        "count": 1
+      },
+      {
+        "error_code": "MCP_TOOL_FAILED",
+        "tool_id": "graphics.place_image",
+        "count": 1
+      },
+      {
+        "error_code": "NO_ACTIVE_DOCUMENT",
+        "tool_id": "document.create_document",
+        "count": 1
+      }
+    ],
+    "retry_rate_by_tool": [
+      {
+        "tool_id": "style.apply_paragraph_style",
+        "failures": 1,
+        "retries": 1,
+        "retry_rate": 1.0
+      },
+      {
+        "tool_id": "document.create_document",
+        "failures": 1,
+        "retries": 0,
+        "retry_rate": 0.0
+      },
+      {
+        "tool_id": "graphics.place_image",
+        "failures": 1,
+        "retries": 0,
+        "retry_rate": 0.0
+      }
+    ],
+    "escape_hatch_precursors": [
+      {
+        "tool_id": "document.create_document",
+        "error_code": "NO_ACTIVE_DOCUMENT",
+        "count": 1
+      }
+    ],
+    "feedback_by_code": [
+      {
+        "code": "SCHEMA_CONFUSING",
+        "count": 1,
+        "tools": [
+          "style.apply_paragraph_style"
+        ]
+      },
+      {
+        "code": "TOOL_GAP",
+        "count": 1,
+        "tools": [
+          "document.create_document"
+        ]
+      }
+    ]
+  },
+  "origin_distribution": [
+    {
+      "origin_key": "origin-a",
+      "sessions": 2,
+      "events": 4
+    },
+    {
+      "origin_key": "origin-b",
+      "sessions": 1,
+      "events": 3
+    },
+    {
+      "origin_key": "origin-c",
+      "sessions": 1,
+      "events": 1
+    }
+  ],
+  "cwd_distribution": [
+    {
+      "cwd_hash": "cwd-a",
+      "sessions": 2,
+      "events": 4
+    },
+    {
+      "cwd_hash": "cwd-b",
+      "sessions": 1,
+      "events": 3
+    },
+    {
+      "cwd_hash": "cwd-c",
+      "sessions": 1,
+      "events": 1
+    }
+  ]
+}

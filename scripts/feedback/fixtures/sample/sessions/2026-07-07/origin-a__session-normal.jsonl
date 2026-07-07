@@ -1,0 +1,1 @@
+{"ts":"2026-07-07T00:00:01+00:00","session_id":"session-normal","origin_key":"origin-a","cwd_hash":"cwd-a","cli_version":"0.4.0","event":"tool_call","tool_id":"export.verify","source":"cli","ok":true,"duration_ms":20,"arg_keys":["path"],"unexpected":"drop-me"}

@@ -1,0 +1,2 @@
+{"ts":"2026-07-07T00:03:00+00:00","session_id":"session-abandoned","origin_key":"origin-c","cwd_hash":"cwd-c","cli_version":"0.4.0","event":"tool_call","tool_id":"graphics.place_image","source":"classic","ok":false,"error_code":"MCP_TOOL_FAILED","duration_ms":30,"arg_keys":["path"]}
+not-json

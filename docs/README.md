@@ -52,6 +52,9 @@
 | `superpowers/plans/2026-07-06-indesign-tool-semantics-plan.md` | 语义契约实施计划（终态口径） |
 | `superpowers/specs/2026-07-06-indesign-agent-feedback-loop-design.md` | Agent 反馈闭环系统设计 |
 | `superpowers/plans/2026-07-06-indesign-agent-feedback-loop-plan.md` | Agent 反馈闭环实施计划 |
+| `AI协作/反馈循环/README.md` | Agent 反馈循环周报、摩擦簇和分析材料目录 |
+| `AI协作/反馈循环/分析Agent任务书.md` | 定时分析 Agent 的固定任务书 |
+| `技术决策/2026-07-06-agent反馈闭环流程.md` | Agent 反馈闭环的长期流程约束 |
 
 已取代存档：`2026-07-04-indesign-architecture-refactor-design.md`、`2026-07-05-indesign-architecture-refactor-plan.md`、`2026-07-04-indesign-tool-semantics-plan.md`（顶部均有取代标注，不要按其执行）。
 
