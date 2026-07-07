@@ -5,8 +5,8 @@
     "classicListTools": 114,
     "cliDiscoverableTools": 150,
     "schemaNetNewWhitelist": 9,
-    "skips": 1,
-    "toolCallSnapshots": 149
+    "skips": 0,
+    "toolCallSnapshots": 150
   },
   "generatedBy": "scripts/migration/record_golden.mjs",
   "schemaVersion": 1

@@ -1,5 +1,5 @@
 {
-  "count": 149,
+  "count": 150,
   "expectedNodeBackedCount": 150,
   "snapshots": [
     {
@@ -107,7 +107,7 @@
     },
     {
       "args": {
-        "filePath": "D:/AI/mcp-indesign/.golden-placeholder"
+        "filePath": "D:\\AI\\mcp-indesign\\.indesign-cli\\terminal-golden-fixtures\\run_jsx_file_golden.jsx"
       },
       "domain": "template",
       "name": "run_jsx_file",
@@ -117,8 +117,13 @@
         "success": "boolean",
         "timestamp": "string"
       },
-      "scriptCount": 0,
-      "scripts": [],
+      "scriptCount": 1,
+      "scripts": [
+        {
+          "filePath": "D:\\AI\\mcp-indesign\\.indesign-cli\\terminal-golden-fixtures\\run_jsx_file_golden.jsx",
+          "kind": "file"
+        }
+      ],
       "source": "advanced"
     },
     {
@@ -2014,6 +2019,36 @@
         {
           "kind": "inline",
           "script": "if (app.documents.length === 0) {\n  \"No document open\";\n} else {\n  var doc = app.activeDocument;\n  if (1 >= doc.pages.length) {\n    \"Page index out of range\";\n  } else {\n    var page = doc.pages[1];\n    try {\n      var xmlElement = doc.xmlElements.itemByName(\"golden\");\n      var placedItem = page.placeXML(xmlElement, [10, 10], false);\n      \"XML content placed successfully on page\";\n    } catch (error) {\n      \"Error placing XML content: \" + error.message;\n    }\n  }\n}"
+        }
+      ],
+      "source": "classic"
+    },
+    {
+      "args": {
+        "data": [
+          [
+            "Header 1",
+            "Header 2"
+          ],
+          [
+            "Row 1",
+            "Value"
+          ]
+        ]
+      },
+      "domain": null,
+      "name": "populate_table",
+      "responseShape": {
+        "operation": "string",
+        "result": "string",
+        "success": "boolean",
+        "timestamp": "string"
+      },
+      "scriptCount": 1,
+      "scripts": [
+        {
+          "kind": "inline",
+          "script": "if (app.documents.length === 0) {\n  \"No document open\";\n} else {\n  var doc = app.activeDocument;\n  var page = app.activeWindow.activePage || doc.pages[0];\n\n  try {\n    // Find table in text frames\n    var table = null;\n    var tableCount = 0;\n\n    for (var i = 0; i < page.textFrames.length; i++) {\n      var textFrame = page.textFrames[i];\n      if (textFrame.tables.length > 0) {\n        if (tableCount === 0) {\n          table = textFrame.tables[0];\n          break;\n        }\n        tableCount++;\n      }\n    }\n\n    if (!table) {\n      \"Table index 0 not found\";\n    } else {\n      // Populate table with data\n      var data = [[\"Header 1\",\"Header 2\"],[\"Row 1\",\"Value\"]];\n      var startRow = 0;\n      var startColumn = 0;\n\n      for (var row = 0; row < data.length; row++) {\n        for (var col = 0; col < data[row].length; col++) {\n          var cellRow = startRow + row;\n          var cellCol = startColumn + col;\n\n          if (cellRow < table.rows.length && cellCol < table.columns.length) {\n            var cell = table.cells.item(cellRow, cellCol);\n            cell.contents = data[row][col];\n          }\n        }\n      }\n\n      \"Table populated successfully\";\n    }\n  } catch (error) {\n    \"Error populating table: \" + error.message;\n  }\n}"
         }
       ],
       "source": "classic"

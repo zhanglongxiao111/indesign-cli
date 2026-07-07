@@ -119,6 +119,19 @@ const ADVANCED_HANDLER_MAP = {
   populate_template_slots: 'fillTemplateFromSlots',
 };
 
+const D_COMMANDS = [
+  {
+    id: 'architecture_presentation_full_offline',
+    stableRunId: 'terminal_architecture_golden_architecture_presentation',
+    args: ['tests/real-e2e/run-architecture-presentation.mjs', '--full', '--offline', '--run-id', 'terminal_architecture_golden_architecture_presentation'],
+  },
+  {
+    id: 'agent_ux_hardening_offline',
+    stableRunId: 'terminal_architecture_golden_agent_ux_hardening',
+    args: ['tests/real-e2e/run-agent-ux-hardening.mjs', '--offline', '--run-id', 'terminal_architecture_golden_agent_ux_hardening'],
+  },
+];
+
 function objectSchema(properties, required = []) {
   const schema = { type: 'object', additionalProperties: false, properties };
   if (required.length) schema.required = required;
@@ -129,6 +142,25 @@ async function writeJson(relativePath, value) {
   const outputPath = path.join(goldenDir, relativePath);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, `${stableStringify(value)}\n`, 'utf8');
+}
+
+async function prepareGoldenFixtures() {
+  const fixtureDir = path.join(repoRoot, '.indesign-cli', 'terminal-golden-fixtures');
+  const jsxPath = path.join(fixtureDir, 'run_jsx_file_golden.jsx');
+  await fs.mkdir(fixtureDir, { recursive: true });
+  await fs.writeFile(jsxPath, '"__GOLDEN_JSX_FILE__";\n', 'utf8');
+  return { jsxPath };
+}
+
+async function cleanupSuccessfulDArtifacts() {
+  const entries = await fs.readdir(goldenDir, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => /^D_.*\.json$/u.test(name) && name !== 'D_runner_outputs.json')
+      .map((name) => fs.unlink(path.join(goldenDir, name))),
+  );
 }
 
 function stableStringify(value) {
@@ -348,10 +380,13 @@ async function buildToolCallSnapshots(classicTools, advancedTools, hiddenDump) {
   const { InDesignMCPServer } = await import(pathToFileUrl(path.join(repoRoot, 'src/core/InDesignMCPServer.js')));
   const { AdvancedTemplateHandlers } = await import(pathToFileUrl(path.join(repoRoot, 'src/handlers/advancedTemplateHandlers.js')));
 
+  const fixtures = await prepareGoldenFixtures();
   const server = new InDesignMCPServer();
   const snapshots = [];
   const skips = [];
   let captured = [];
+  const originalExecuteScript = ScriptExecutor.executeInDesignScript;
+  const originalExecuteScriptFile = ScriptExecutor.executeInDesignScriptFile;
   ScriptExecutor.executeInDesignScript = async (script) => {
     captured.push({ kind: 'inline', script });
     return '__GOLDEN_MOCK_RESULT__';
@@ -380,66 +415,98 @@ async function buildToolCallSnapshots(classicTools, advancedTools, hiddenDump) {
   ].sort((left, right) => `${left.source}:${left.name}`.localeCompare(`${right.source}:${right.name}`));
 
   const seen = new Set();
-  for (const entry of entries) {
-    const uniqueKey = `${entry.source}:${entry.name}`;
-    if (seen.has(uniqueKey)) continue;
-    seen.add(uniqueKey);
-    const args = sampleArgs(entry.schema);
-    captured = [];
-    try {
-      let result;
-      if (entry.source === 'advanced') {
-        const method = ADVANCED_HANDLER_MAP[entry.name];
-        if (!method || typeof AdvancedTemplateHandlers[method] !== 'function') {
-          throw new Error(`advanced handler missing for ${entry.name}`);
+  try {
+    for (const entry of entries) {
+      const uniqueKey = `${entry.source}:${entry.name}`;
+      if (seen.has(uniqueKey)) continue;
+      seen.add(uniqueKey);
+      const args = sampleArgs(entry.schema);
+      applyGoldenArgOverrides(entry, args, fixtures);
+      captured = [];
+      try {
+        let result;
+        if (entry.source === 'advanced') {
+          const method = ADVANCED_HANDLER_MAP[entry.name];
+          if (!method || typeof AdvancedTemplateHandlers[method] !== 'function') {
+            throw new Error(`advanced handler missing for ${entry.name}`);
+          }
+          result = await AdvancedTemplateHandlers[method](args);
+        } else {
+          result = await server.handleToolCall(entry.name, args);
         }
-        result = await AdvancedTemplateHandlers[method](args);
-      } else {
-        result = await server.handleToolCall(entry.name, args);
+        snapshots.push({
+          name: entry.name,
+          source: entry.source,
+          domain: entry.domain,
+          args,
+          scriptCount: captured.length,
+          scripts: captured,
+          responseShape: responseShape(result),
+          evidence: entry.evidence || undefined,
+        });
+      } catch (error) {
+        skips.push({
+          name: entry.name,
+          source: entry.source,
+          domain: entry.domain,
+          args,
+          reason: error.message,
+          evidence: entry.evidence || undefined,
+        });
       }
-      snapshots.push({
-        name: entry.name,
-        source: entry.source,
-        domain: entry.domain,
-        args,
-        scriptCount: captured.length,
-        scripts: captured,
-        responseShape: responseShape(result),
-        evidence: entry.evidence || undefined,
-      });
-    } catch (error) {
-      skips.push({
-        name: entry.name,
-        source: entry.source,
-        domain: entry.domain,
-        args,
-        reason: error.message,
-        evidence: entry.evidence || undefined,
-      });
     }
+  } finally {
+    ScriptExecutor.executeInDesignScript = originalExecuteScript;
+    ScriptExecutor.executeInDesignScriptFile = originalExecuteScriptFile;
   }
 
   return { snapshots, skips };
+}
+
+function applyGoldenArgOverrides(entry, args, fixtures) {
+  if (entry.name === 'populate_table') {
+    args.data = [['Header 1', 'Header 2'], ['Row 1', 'Value']];
+  }
+  if (entry.name === 'run_jsx_file') {
+    args.filePath = fixtures.jsxPath;
+  }
 }
 
 function pathToFileUrl(filePath) {
   return `file:///${filePath.replace(/\\/g, '/').replace(/^([A-Za-z]):/, '$1:')}`;
 }
 
+function withActualDRunId(command, index) {
+  const actualRunId = `${command.stableRunId}_${process.pid}_${Date.now()}_${index}`;
+  return {
+    ...command,
+    actualRunId,
+    actualArgs: command.args.map((arg) => (arg === command.stableRunId ? actualRunId : arg)),
+  };
+}
+
+function normalizeDOutput(value, actualRunId, stableRunId) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeDOutput(item, actualRunId, stableRunId));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, normalizeDOutput(child, actualRunId, stableRunId)]),
+    );
+  }
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return value
+    .replaceAll(actualRunId, stableRunId)
+    .replaceAll(actualRunId.replace(/\\/g, '/'), stableRunId);
+}
+
 async function runD() {
-  const commands = [
-    {
-      id: 'architecture_presentation_full_offline',
-      args: ['tests/real-e2e/run-architecture-presentation.mjs', '--full', '--offline', '--run-id', 'terminal_architecture_golden_architecture_presentation'],
-    },
-    {
-      id: 'agent_ux_hardening_offline',
-      args: ['tests/real-e2e/run-agent-ux-hardening.mjs', '--offline', '--run-id', 'terminal_architecture_golden_agent_ux_hardening'],
-    },
-  ];
   const results = [];
-  for (const command of commands) {
-    const result = await runProcess(process.execPath, command.args, { timeout: 30 * 60 * 1000 });
+  for (let index = 0; index < D_COMMANDS.length; index += 1) {
+    const command = withActualDRunId(D_COMMANDS[index], index);
+    const result = await runProcess(process.execPath, command.actualArgs, { timeout: 30 * 60 * 1000 });
     let parsedStdout = null;
     try {
       parsedStdout = JSON.parse(result.stdout);
@@ -450,9 +517,9 @@ async function runD() {
       id: command.id,
       command: ['node', ...command.args].join(' '),
       exitCode: result.exitCode,
-      stdoutJson: parsedStdout,
-      stdoutTail: parsedStdout ? undefined : result.stdout.split(/\r?\n/).slice(-40),
-      stderrTail: result.stderr.split(/\r?\n/).filter(Boolean).slice(-80),
+      stdoutJson: parsedStdout ? normalizeDOutput(parsedStdout, command.actualRunId, command.stableRunId) : null,
+      stdoutTail: parsedStdout ? undefined : normalizeDOutput(result.stdout.split(/\r?\n/).slice(-40), command.actualRunId, command.stableRunId),
+      stderrTail: normalizeDOutput(result.stderr.split(/\r?\n/).filter(Boolean).slice(-80), command.actualRunId, command.stableRunId),
     });
     if (result.exitCode !== 0) {
       await writeJson(`D_${command.id}.json`, results[results.length - 1]);
@@ -497,6 +564,7 @@ async function main() {
   await writeJson('skip_list.json', skips);
 
   const dResults = await runD();
+  await cleanupSuccessfulDArtifacts();
   await writeJson('D_runner_outputs.json', dResults);
 
   await writeJson('manifest.json', {
