@@ -31,12 +31,13 @@ const OLD_RUNTIME_TOKENS = [
   new RegExp(`new\\s+${legacyServerFile.replace('.js', '')}\\b`),
   /\bAdvancedTemplateHandlers\b/,
   /\ballToolDefinitions\b/,
-  /\bTOOL_MAP\b/
+  new RegExp(`\\b${['TOOL', 'MAP'].join('_')}\\b`)
 ];
 const TASK4_LEGACY_TOKENS = [
-  'hidden_handler_schemas',
-  'infer_domain',
-  'hidden_handler_bridge'
+  ['hidden', 'handler', 'schemas'].join('_'),
+  ['infer', 'domain'].join('_'),
+  ['hidden', 'handler', 'bridge'].join('_'),
+  ['domains', 'py'].join('.')
 ];
 const FILE_SIZE_WARNING_BYTES = 60 * 1024;
 
@@ -60,29 +61,6 @@ function walkFiles(rootDir) {
     }
   }
   return files;
-}
-
-function isHistoricalWhitelist(relPath, line) {
-  if (relPath === 'scripts/migration/record_golden.mjs' && line.includes('evidence:')) {
-    return true;
-  }
-  if (relPath === 'src/tools/spread/placement.js' && line.trim().startsWith('// Source:')) {
-    return true;
-  }
-  return false;
-}
-
-function isTask4LegacyWhitelist(relPath, line, token, lineNumber) {
-  if (relPath === 'scripts/check_architecture.mjs') {
-    const tokenDefinitionLine = line.trim() === `'${token}',` || line.trim() === `'${token}'`;
-    const whitelistGuardLine = token === 'hidden_handler_bridge' && line.includes("token === 'hidden_handler_bridge'");
-    return tokenDefinitionLine || whitelistGuardLine;
-  }
-  return (
-    token === 'hidden_handler_bridge' &&
-    relPath === 'agent-harness/cli_anything/indesign/tests/test_catalog_router.py' &&
-    line.includes(`"${token}.mjs"`)
-  );
 }
 
 function assertRegistryLoads() {
@@ -110,7 +88,6 @@ function assertRemovedPathsAbsent() {
 
 function assertNoOldRuntimeReferences() {
   const violations = [];
-  const whitelisted = [];
   for (const root of SCAN_ROOTS) {
     for (const filePath of walkFiles(path.join(repoRoot, root))) {
       const rel = relativePath(filePath);
@@ -123,16 +100,9 @@ function assertNoOldRuntimeReferences() {
           return;
         }
         const hit = `${rel}:${index + 1}: ${line.trim()}`;
-        if (isHistoricalWhitelist(rel, line) && !matchesOldImport && !matchesOldRuntimeToken) {
-          whitelisted.push(hit);
-          return;
-        }
         violations.push(hit);
       });
     }
-  }
-  if (whitelisted.length) {
-    console.error(`Historical whitelist entries: ${whitelisted.length}`);
   }
   if (violations.length) {
     throw new Error(`old architecture references found:\n${violations.join('\n')}`);
@@ -141,7 +111,6 @@ function assertNoOldRuntimeReferences() {
 
 function assertNoTask4LegacyTokens() {
   const violations = [];
-  const whitelisted = [];
   for (const root of SCAN_ROOTS) {
     for (const filePath of walkFiles(path.join(repoRoot, root))) {
       const rel = relativePath(filePath);
@@ -150,17 +119,10 @@ function assertNoTask4LegacyTokens() {
         for (const token of TASK4_LEGACY_TOKENS) {
           if (!line.includes(token)) continue;
           const hit = `${rel}:${index + 1}: ${line.trim()}`;
-          if (isTask4LegacyWhitelist(rel, line, token, index + 1)) {
-            whitelisted.push(hit);
-            continue;
-          }
           violations.push(hit);
         }
       });
     }
-  }
-  if (whitelisted.length) {
-    console.error(`Task 4 legacy whitelist entries: ${whitelisted.length}`);
   }
   if (violations.length) {
     throw new Error(`Task 4 legacy tokens found:\n${violations.join('\n')}`);

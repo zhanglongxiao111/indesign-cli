@@ -96,7 +96,6 @@ export const placeXmlOnSpread = defineSpreadTool({
     description: 'Place XML content on a spread',
     profiles: INTERNAL_PROFILE,
     contract: spreadContract({ requiresActiveDocument: true }),
-    // Source: src/handlers/spreadHandlers.js placeXmlOnSpread destructures spreadIndex/xmlElementName/x/y/autoflowing/pageIndexWithinSpread.
     inputSchema: {
         additionalProperties: false,
         properties: {

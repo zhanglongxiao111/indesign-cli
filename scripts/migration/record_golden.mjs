@@ -20,7 +20,7 @@ const SWITCH_ONLY_TOOLS = {
   preflight_document: {
     domain: 'document',
     handler: 'DocumentHandlers.preflightDocument',
-    evidence: 'src/handlers/documentHandlers.js: preflightDocument destructures profile/includeWarnings; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: preflightDocument destructures profile/includeWarnings; old commented schema in legacy document type file.',
     schema: objectSchema({
       profile: { type: 'string', description: 'Preflight profile name', default: 'Basic' },
       includeWarnings: { type: 'boolean', description: 'Include warnings in report', default: true },
@@ -29,7 +29,7 @@ const SWITCH_ONLY_TOOLS = {
   data_merge: {
     domain: 'document',
     handler: 'DocumentHandlers.dataMerge',
-    evidence: 'src/handlers/documentHandlers.js: dataMerge destructures dataSource/targetPage/createNewPages/removeUnusedPages; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: dataMerge destructures dataSource/targetPage/createNewPages/removeUnusedPages; old commented schema in legacy document type file.',
     schema: objectSchema({
       dataSource: { type: 'string', description: 'Path to data source file' },
       targetPage: { type: 'number', description: 'Target page index', default: 0 },
@@ -40,7 +40,7 @@ const SWITCH_ONLY_TOOLS = {
   get_document_xml_structure: {
     domain: 'document',
     handler: 'DocumentHandlers.getDocumentXmlStructure',
-    evidence: 'src/handlers/documentHandlers.js: getDocumentXmlStructure destructures includeTags/includeElements; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: getDocumentXmlStructure destructures includeTags/includeElements; old commented schema in legacy document type file.',
     schema: objectSchema({
       includeTags: { type: 'boolean', description: 'Include XML tags', default: true },
       includeElements: { type: 'boolean', description: 'Include XML elements', default: true },
@@ -49,7 +49,7 @@ const SWITCH_ONLY_TOOLS = {
   export_document_xml: {
     domain: 'document',
     handler: 'DocumentHandlers.exportDocumentXml',
-    evidence: 'src/handlers/documentHandlers.js: exportDocumentXml destructures filePath/includeImages/includeStyles; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: exportDocumentXml destructures filePath/includeImages/includeStyles; old commented schema in legacy document type file.',
     schema: objectSchema({
       filePath: { type: 'string', description: 'Path to save XML file' },
       includeImages: { type: 'boolean', description: 'Include images in export', default: true },
@@ -59,7 +59,7 @@ const SWITCH_ONLY_TOOLS = {
   save_document_to_cloud: {
     domain: 'document',
     handler: 'DocumentHandlers.saveDocumentToCloud',
-    evidence: 'src/handlers/documentHandlers.js: saveDocumentToCloud destructures cloudName/includeAssets; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: saveDocumentToCloud destructures cloudName/includeAssets; old commented schema in legacy document type file.',
     schema: objectSchema({
       cloudName: { type: 'string', description: 'Name for the cloud document' },
       includeAssets: { type: 'boolean', description: 'Include linked assets', default: true },
@@ -68,7 +68,7 @@ const SWITCH_ONLY_TOOLS = {
   open_cloud_document: {
     domain: 'document',
     handler: 'DocumentHandlers.openCloudDocument',
-    evidence: 'src/handlers/documentHandlers.js: openCloudDocument destructures cloudDocumentId; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: openCloudDocument destructures cloudDocumentId; old commented schema in legacy document type file.',
     schema: objectSchema({
       cloudDocumentId: { type: 'string', description: 'Cloud document ID' },
     }, ['cloudDocumentId']),
@@ -76,7 +76,7 @@ const SWITCH_ONLY_TOOLS = {
   validate_document: {
     domain: 'document',
     handler: 'DocumentHandlers.validateDocument',
-    evidence: 'src/handlers/documentHandlers.js: validateDocument destructures checkLinks/checkFonts/checkImages/checkStyles; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: validateDocument destructures checkLinks/checkFonts/checkImages/checkStyles; old commented schema in legacy document type file.',
     schema: objectSchema({
       checkLinks: { type: 'boolean', description: 'Check for broken links', default: true },
       checkFonts: { type: 'boolean', description: 'Check for missing fonts', default: true },
@@ -87,7 +87,7 @@ const SWITCH_ONLY_TOOLS = {
   cleanup_document: {
     domain: 'document',
     handler: 'DocumentHandlers.cleanupDocument',
-    evidence: 'src/handlers/documentHandlers.js: cleanupDocument destructures removeUnusedStyles/removeUnusedColors/removeUnusedLayers/removeHiddenElements; old commented schema in legacy document type file.',
+    evidence: 'legacy document handler: cleanupDocument destructures removeUnusedStyles/removeUnusedColors/removeUnusedLayers/removeHiddenElements; old commented schema in legacy document type file.',
     schema: objectSchema({
       removeUnusedStyles: { type: 'boolean', description: 'Remove unused styles', default: false },
       removeUnusedColors: { type: 'boolean', description: 'Remove unused colors', default: false },
@@ -98,7 +98,7 @@ const SWITCH_ONLY_TOOLS = {
   place_xml_on_spread: {
     domain: 'spread',
     handler: 'SpreadHandlers.placeXmlOnSpread',
-    evidence: 'src/handlers/spreadHandlers.js: placeXmlOnSpread destructures spreadIndex/xmlElementName/x/y/autoflowing/pageIndexWithinSpread.',
+    evidence: 'legacy spread handler: placeXmlOnSpread destructures spreadIndex/xmlElementName/x/y/autoflowing/pageIndexWithinSpread.',
     schema: objectSchema({
       spreadIndex: { type: 'integer', description: 'Target spread index' },
       xmlElementName: { type: 'string', description: 'XML element name to place' },

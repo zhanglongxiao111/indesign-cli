@@ -36,7 +36,7 @@ skills/indesign-cli/SKILL.md
 - 文件模式保留 `$.fileName` 和相对 `#include` 行为。
 - stdin 模式适合临时探针脚本，并支持中文输入。
 - JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)` 的字符串。
-- 返回 JSON 字符串时，CLI 输出会包含 `data.result_json`，避免调用方二次解析 `data.parsed.result`。
+- 返回 JSON 对象字符串时，CLI 输出会把解析后的对象字段直接放在 `data.parsed`；普通文本结果仍在 `data.parsed.result`。
 - 成功和失败都会记录到当前目录的 `.indesign-cli/session.json`。
 
 环境变量 `INDESIGN_CLI_SERVER_ROOT` 可把内置 Node server 目录固定到稳定短路径（须包含 `package.json`、`src/index.js`、`src/advanced/index.js`），用于规避长路径下 `winax` 构建失败；排查步骤见根 `README.md`。

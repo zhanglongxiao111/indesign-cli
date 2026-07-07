@@ -16,7 +16,7 @@
 - 支持 `script run <file.jsx>` 和 `script run --stdin`。
 - `--stdin` 支持中文脚本输入，会按 UTF-8 和本机编码兜底读取。
 - ExtendScript 执行环境会补最小 `JSON.stringify` / `JSON.parse`，Agent 可以直接让 JSX 返回 JSON 字符串。
-- JSX 返回 JSON 字符串时，CLI 会保留 `data.parsed.result`，并额外提供已解析的 `data.result_json`。
+- JSX 返回 JSON 对象字符串时，CLI 会把解析后的对象字段直接放在 `data.parsed`；普通文本结果仍在 `data.parsed.result`。
 - 失败调用也会写入 `.indesign-cli/session.json`，便于复盘最近一次失败。
 - 复杂多步骤操作优先写进一个 JSX 文件，避免跨 Node 子进程依赖内存状态。
 

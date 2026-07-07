@@ -149,7 +149,7 @@ indesign-cli tool call <tool_id> --args-file test\workspace\args.json
 - 判断执行结果时看 `ok`、`exit_code`、`tool_success`、`warnings` 和 `data`，不要只看自然语言输出。
 - 失败时按 `error.code`、`error.message`、`error.hint` 自我纠正；命令行拼装错误返回 `BAD_CLI_ARGS`，`error.details.usage` 里有正确用法。
 - JSX 可以返回普通字符串，也可以返回 `JSON.stringify(...)`。
-- JSX 返回 JSON 字符串时，优先读取 `data.result_json`，不要让后续步骤重复解析 `data.parsed.result`。
+- JSX 返回 JSON 对象字符串时，读取 `data.parsed` 下的对象字段；普通文本仍在 `data.parsed.result`。
 - `state_uncertain: true` 表示 InDesign 或文件系统状态可能已改变；先运行 `indesign-cli session doctor`，不要盲目重试写操作。
 
 ## 状态模型

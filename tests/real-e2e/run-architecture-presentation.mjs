@@ -97,9 +97,7 @@ async function runAssets(run) {
 
 async function ensureInventoryAndAssets(run, results) {
   results.phases.push({ phase: 'inventory', ...(await runInventory(run)) });
-  if (run.options.offline) {
-    results.phases.push({ phase: 'assets', ...(await runAssets(run)) });
-  }
+  results.phases.push({ phase: 'assets', ...(await runAssets(run)) });
 }
 
 async function main() {

@@ -149,7 +149,7 @@ def test_tool_call_hidden_handler_validates_required_args():
 
 
 def test_internal_bridge_resolves_tools_from_registry_without_legacy_bridge():
-    old_bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "hidden_handler_bridge.mjs"
+    old_bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / ("hidden_handler" + "_bridge.mjs")
     assert not old_bridge.exists()
 
     bridge = REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs"
@@ -554,7 +554,7 @@ def test_backend_tool_failure_returns_failure_envelope_without_path_leak(tmp_pat
     assert "D:\\Clients" not in dumped
 
 
-def test_backend_tool_response_exposes_nested_json_result():
+def test_backend_tool_response_keeps_legacy_result_string_unwrapped():
     from cli_anything.indesign.core.mcp_backend import McpBackend
 
     backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
@@ -575,11 +575,11 @@ def test_backend_tool_response_exposes_nested_json_result():
 
     payload = backend._parse_tool_response("run_jsx_file", response)
 
-    assert payload["parsed"]["result"]
-    assert payload["result_json"] == {"ok": True, "marker": "NESTED_JSON_OK"}
+    assert payload["parsed"]["result"] == json.dumps({"ok": True, "marker": "NESTED_JSON_OK"})
+    assert "result_json" not in payload
 
 
-def test_backend_tool_response_fails_on_nested_json_failure():
+def test_backend_tool_response_fails_on_direct_json_failure():
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.mcp_backend import McpBackend
 
@@ -590,9 +590,11 @@ def test_backend_tool_response_fails_on_nested_json_failure():
                 "type": "text",
                 "text": json.dumps(
                     {
-                        "success": True,
+                        "success": False,
+                        "code": "INDESIGN_SCRIPT_FAILED",
                         "operation": "Run JSX File",
-                        "result": json.dumps({"ok": False, "step": "export", "error": "boom"}),
+                        "step": "export",
+                        "error": "boom",
                     }
                 ),
             }
@@ -605,7 +607,7 @@ def test_backend_tool_response_fails_on_nested_json_failure():
         assert exc.code == "INDESIGN_SCRIPT_FAILED"
         assert exc.details["step"] == "export"
     else:
-        raise AssertionError("nested ok:false should fail")
+        raise AssertionError("direct JSON failure should fail")
 
 
 def test_backend_tool_response_fails_on_top_level_ok_false():

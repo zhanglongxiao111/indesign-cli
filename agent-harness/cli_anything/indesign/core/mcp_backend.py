@@ -171,19 +171,6 @@ class McpBackend:
                 code, message = legacy
                 raise CliError(message, code=code, details={"tool": name, "result": scrub_text_paths(parsed["result"])})
 
-        if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
-            try:
-                result_json = json.loads(parsed["result"])
-            except json.JSONDecodeError:
-                result_json = None
-        else:
-            result_json = None
-
-        if isinstance(result_json, dict) and result_json.get("ok") is False:
-            details = {"tool": name, **result_json}
-            message = str(result_json.get("error") or result_json.get("message") or "InDesign script failed")
-            raise CliError(message, code=str(result_json.get("code") or "INDESIGN_SCRIPT_FAILED"), details=details)
-
         if response.get("isError") or (
             isinstance(parsed, dict) and (parsed.get("success") is False or parsed.get("ok") is False)
         ):
@@ -221,7 +208,4 @@ class McpBackend:
                 code, message = legacy
             raise CliError(message, code=code, details=details)
 
-        payload = {"content": content, "parsed": parsed}
-        if isinstance(result_json, dict):
-            payload["result_json"] = result_json
-        return payload
+        return {"content": content, "parsed": parsed}

@@ -54,9 +54,8 @@ def test_real_indesign_creates_and_saves_document(tmp_path):
     json_result = run_cli("script", "run", str(json_script_path))
     assert json_result.returncode == 0, json_result.stdout + json_result.stderr
     json_payload = json.loads(json_result.stdout)
-    returned_json = json.loads(json_payload["data"]["parsed"]["result"])
-    assert returned_json["marker"] == "JSON_POLYFILL_OK"
-    assert returned_json["text"] == "中文"
+    assert json_payload["data"]["parsed"]["marker"] == "JSON_POLYFILL_OK"
+    assert json_payload["data"]["parsed"]["text"] == "中文"
 
     output_path = tmp_path / "cli-anything-real-e2e.indd"
     output_jsx_path = str(output_path).replace("\\", "/")
