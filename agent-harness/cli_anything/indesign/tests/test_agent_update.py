@@ -9,6 +9,7 @@ from cli_anything.indesign.core.agent_update import (
     UserUpdateLock,
     compare_versions,
     copy_artifact,
+    ensure_agent_ready,
     install_or_replace_exe,
     install_root,
     parse_manifest,
@@ -165,3 +166,27 @@ def test_install_or_replace_exe_writes_update_state(tmp_path):
     assert state["version"] == "0.4.2"
     assert state["source"] == "test"
     assert state["status"] == "updated"
+
+
+def test_ensure_agent_ready_continues_when_manifest_unavailable_but_exe_exists(tmp_path, monkeypatch):
+    root = tmp_path / "install"
+    exe = root / "bin" / "indesign-cli-agent.exe"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"current")
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.install_root", lambda: root)
+
+    result = ensure_agent_ready(command_args=["tool", "domains"], sources=[str(tmp_path / "missing-latest.json")])
+
+    assert result["updated"] is False
+    assert result["warnings"][0]["code"] == "UPDATE_CHECK_FAILED"
+    assert not (root / "runtime").exists()
+    assert not (root / "current").exists()
+
+
+def test_ensure_agent_ready_fails_initial_install_when_sources_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.install_root", lambda: tmp_path / "install")
+
+    with pytest.raises(CliError) as exc:
+        ensure_agent_ready(command_args=["tool", "domains"], sources=[str(tmp_path / "missing-latest.json")])
+
+    assert exc.value.code == "INITIAL_INSTALL_FAILED"

@@ -224,5 +224,47 @@ def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> P
     return target
 
 
+def load_first_manifest(sources: list[str] | tuple[str, ...] | None = None) -> tuple[Manifest | None, list[dict[str, Any]]]:
+    warnings: list[dict[str, Any]] = []
+    for source in sources or DEFAULT_SOURCES:
+        try:
+            if str(source).startswith(("http://", "https://")):
+                raise CliError(
+                    "HTTP manifest loading is not implemented yet",
+                    code="UPDATE_HTTP_NOT_IMPLEMENTED",
+                    details={"source": source},
+                )
+            return read_manifest_file(Path(source)), warnings
+        except CliError as exc:
+            warnings.append({"code": exc.code, "source": source, "message": exc.message})
+    return None, warnings
+
+
 def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = None) -> dict[str, Any]:
-    return {"updated": False, "warnings": [], "command_args": command_args, "sources": sources}
+    root = install_root()
+    exe = agent_exe_path(root)
+    manifest, warnings = load_first_manifest(sources)
+    if manifest is None:
+        if exe.exists():
+            return {"updated": False, "version": None, "warnings": warnings, "command_args": command_args}
+        raise CliError(
+            "Cannot install indesign-cli-agent because no update source is available",
+            code="INITIAL_INSTALL_FAILED",
+            details={"sources": list(sources or DEFAULT_SOURCES), "warnings": warnings},
+        )
+    if not exe.exists():
+        install_or_replace_exe(manifest, root=root)
+        return {
+            "updated": True,
+            "version": manifest.version,
+            "source": manifest.source,
+            "warnings": warnings,
+            "command_args": command_args,
+        }
+    return {
+        "updated": False,
+        "version": manifest.version,
+        "source": manifest.source,
+        "warnings": warnings,
+        "command_args": command_args,
+    }
