@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.request import urlopen
 
 from .errors import CliError
 
@@ -134,6 +135,8 @@ def sha256_file(path: Path) -> str:
 
 
 def copy_artifact(source_url: str, target: Path, *, expected_sha256: str) -> Path:
+    if source_url.startswith(("http://", "https://")):
+        return copy_http_artifact(source_url, target, expected_sha256=expected_sha256)
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         target.unlink()
@@ -155,6 +158,38 @@ def copy_artifact(source_url: str, target: Path, *, expected_sha256: str) -> Pat
             "indesign-cli-agent artifact sha256 mismatch",
             code="UPDATE_SHA256_MISMATCH",
             details={"source": source_url, "expected": expected_sha256, "actual": actual},
+        )
+    return target
+
+
+def read_http_json(url: str) -> dict[str, Any]:
+    try:
+        with urlopen(url, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8-sig"))
+    except Exception as exc:
+        raise CliError("Cannot read HTTP release manifest", code="UPDATE_CHECK_FAILED", details={"source": url}) from exc
+    if not isinstance(payload, dict):
+        raise CliError("HTTP release manifest must be a JSON object", code="UPDATE_MANIFEST_INVALID", details={"source": url})
+    return payload
+
+
+def copy_http_artifact(url: str, target: Path, *, expected_sha256: str) -> Path:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        target.unlink()
+    try:
+        with urlopen(url, timeout=60) as response:
+            target.write_bytes(response.read())
+    except Exception as exc:
+        target.unlink(missing_ok=True)
+        raise CliError("Cannot download indesign-cli-agent artifact", code="UPDATE_ARTIFACT_NOT_FOUND", details={"source": url}) from exc
+    actual = sha256_file(target)
+    if actual.lower() != expected_sha256.lower():
+        target.unlink(missing_ok=True)
+        raise CliError(
+            "indesign-cli-agent artifact sha256 mismatch",
+            code="UPDATE_SHA256_MISMATCH",
+            details={"source": url, "expected": expected_sha256, "actual": actual},
         )
     return target
 
@@ -229,11 +264,7 @@ def load_first_manifest(sources: list[str] | tuple[str, ...] | None = None) -> t
     for source in sources or DEFAULT_SOURCES:
         try:
             if str(source).startswith(("http://", "https://")):
-                raise CliError(
-                    "HTTP manifest loading is not implemented yet",
-                    code="UPDATE_HTTP_NOT_IMPLEMENTED",
-                    details={"source": source},
-                )
+                return parse_manifest(read_http_json(str(source)), source=str(source)), warnings
             return read_manifest_file(Path(source)), warnings
         except CliError as exc:
             warnings.append({"code": exc.code, "source": source, "message": exc.message})

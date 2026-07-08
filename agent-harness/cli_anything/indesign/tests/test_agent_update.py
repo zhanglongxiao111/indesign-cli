@@ -1,5 +1,6 @@
 import json
 import hashlib
+from io import BytesIO
 
 import pytest
 
@@ -8,12 +9,14 @@ from cli_anything.indesign.core.agent_update import (
     Manifest,
     UserUpdateLock,
     compare_versions,
+    copy_http_artifact,
     copy_artifact,
     ensure_agent_ready,
     install_or_replace_exe,
     install_root,
     parse_manifest,
     parse_version,
+    read_http_json,
     read_manifest_file,
     sha256_file,
     update_state_path,
@@ -190,3 +193,34 @@ def test_ensure_agent_ready_fails_initial_install_when_sources_missing(tmp_path,
         ensure_agent_ready(command_args=["tool", "domains"], sources=[str(tmp_path / "missing-latest.json")])
 
     assert exc.value.code == "INITIAL_INSTALL_FAILED"
+
+
+def test_read_http_json_uses_utf8_json(monkeypatch):
+    class Response:
+        def __enter__(self):
+            return BytesIO(json.dumps({"ok": True}).encode("utf-8"))
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.urlopen", lambda url, timeout=30: Response())
+
+    assert read_http_json("https://example.test/latest.json") == {"ok": True}
+
+
+def test_copy_http_artifact_verifies_sha(monkeypatch, tmp_path):
+    data = b"http agent"
+
+    class Response:
+        def __enter__(self):
+            return BytesIO(data)
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.urlopen", lambda url, timeout=60: Response())
+    target = tmp_path / "agent.exe"
+
+    copy_http_artifact("https://example.test/agent.exe", target, expected_sha256=hashlib.sha256(data).hexdigest())
+
+    assert target.read_bytes() == data
