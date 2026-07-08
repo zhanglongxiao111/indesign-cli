@@ -46,6 +46,7 @@
 | `superpowers/specs/2026-07-01-indesign-cli-agent-ux-hardening-design.md` | indesign-cli Agent 体验与可靠性整改方案 |
 | `superpowers/plans/2026-07-01-indesign-cli-agent-ux-hardening-plan.md` | indesign-cli Agent 体验与可靠性整改实施计划 |
 | `superpowers/specs/2026-07-03-indesign-cli-agent-bootstrapper-design.md` | indesign-cli Agent 单文件自举发布与强制更新方案 |
+| `superpowers/specs/2026-07-08-indesign-cli-agent-user-update-design.md` | indesign-cli Agent 用户级单 EXE 更新方案（NAS 优先、GitHub 兜底、Agent 主动更新） |
 | `superpowers/specs/2026-07-03-indesign-tool-semantics-design.md` | InDesign 工具语义领域设计（落点以 2026-07-06 语义 plan 为准） |
 | `superpowers/specs/2026-07-06-indesign-terminal-architecture-design.md` | 终态架构设计（tool-module 共置、一次性重构） |
 | `superpowers/plans/2026-07-06-indesign-terminal-architecture-plan.md` | 终态架构一次性重构实施计划 |
