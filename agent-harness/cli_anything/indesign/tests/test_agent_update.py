@@ -9,11 +9,13 @@ from cli_anything.indesign.core.agent_update import (
     UserUpdateLock,
     compare_versions,
     copy_artifact,
+    install_or_replace_exe,
     install_root,
     parse_manifest,
     parse_version,
     read_manifest_file,
     sha256_file,
+    update_state_path,
 )
 from cli_anything.indesign.core.errors import CliError
 
@@ -119,3 +121,47 @@ def test_user_update_lock_blocks_second_holder(tmp_path):
                 pass
     assert exc.value.code == "UPDATE_LOCK_TIMEOUT"
     assert not lock_path.exists()
+
+
+def _manifest_for(source, sha: str) -> Manifest:
+    return Manifest(version="0.4.2", artifact_url=str(source), github_url=None, sha256=sha, source="test")
+
+
+def test_install_or_replace_exe_installs_to_user_bin_and_cleans_tmp(tmp_path):
+    source = tmp_path / "release" / "indesign-cli-agent.exe"
+    source.parent.mkdir()
+    source.write_bytes(b"new agent")
+    sha = hashlib.sha256(b"new agent").hexdigest()
+    target = install_or_replace_exe(_manifest_for(source, sha), root=tmp_path / "install")
+    assert target == tmp_path / "install" / "bin" / "indesign-cli-agent.exe"
+    assert target.read_bytes() == b"new agent"
+    assert list((tmp_path / "install" / "tmp").glob("*")) == []
+    assert list((tmp_path / "install" / "bin").glob(".*.new")) == []
+    assert not (tmp_path / "install" / "bin" / "indesign-cli-agent.exe.bak").exists()
+
+
+def test_install_or_replace_exe_keeps_old_exe_when_checksum_fails(tmp_path):
+    root = tmp_path / "install"
+    current = root / "bin" / "indesign-cli-agent.exe"
+    current.parent.mkdir(parents=True)
+    current.write_bytes(b"old agent")
+    source = tmp_path / "release" / "indesign-cli-agent.exe"
+    source.parent.mkdir()
+    source.write_bytes(b"new agent")
+    with pytest.raises(CliError):
+        install_or_replace_exe(_manifest_for(source, "e" * 64), root=root)
+    assert current.read_bytes() == b"old agent"
+    assert not (root / "bin" / "indesign-cli-agent.exe.bak").exists()
+
+
+def test_install_or_replace_exe_writes_update_state(tmp_path):
+    source = tmp_path / "release" / "indesign-cli-agent.exe"
+    source.parent.mkdir()
+    source.write_bytes(b"new agent")
+    sha = hashlib.sha256(b"new agent").hexdigest()
+    root = tmp_path / "install"
+    install_or_replace_exe(_manifest_for(source, sha), root=root)
+    state = json.loads(update_state_path(root).read_text(encoding="utf-8"))
+    assert state["version"] == "0.4.2"
+    assert state["source"] == "test"
+    assert state["status"] == "updated"

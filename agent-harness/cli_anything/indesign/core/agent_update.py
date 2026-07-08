@@ -48,6 +48,10 @@ def state_dir(root: Path | None = None) -> Path:
     return (root or install_root()) / "state"
 
 
+def update_state_path(root: Path | None = None) -> Path:
+    return state_dir(root) / "update-state.json"
+
+
 def parse_version(value: str | None) -> tuple[int, int, int] | None:
     if not value:
         return None
@@ -186,3 +190,35 @@ class UserUpdateLock:
             self.path.unlink()
         except FileNotFoundError:
             pass
+
+
+def write_update_state(root: Path, payload: dict[str, Any]) -> None:
+    path = update_state_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> Path:
+    actual_root = root or install_root()
+    target = agent_exe_path(actual_root)
+    temp_download = tmp_dir(actual_root) / f"{os.getpid()}.download"
+    staged = target.with_name(f".{target.name}.{os.getpid()}.new")
+    lock = state_dir(actual_root) / "update.lock"
+    with UserUpdateLock(lock):
+        copy_artifact(manifest.artifact_url, temp_download, expected_sha256=manifest.sha256)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if staged.exists():
+            staged.unlink()
+        shutil.move(str(temp_download), str(staged))
+        try:
+            os.replace(staged, target)
+        finally:
+            temp_download.unlink(missing_ok=True)
+            staged.unlink(missing_ok=True)
+        write_update_state(
+            actual_root,
+            {"status": "updated", "version": manifest.version, "source": manifest.source, "target": str(target)},
+        )
+    return target
