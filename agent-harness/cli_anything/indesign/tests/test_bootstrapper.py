@@ -1,45 +1,13 @@
 from support import *
 
 
-def test_agent_bootstrapper_refuses_to_run_when_required_update_fails(tmp_path):
-    install_root = tmp_path / "install"
-    current_dir = install_root / "current"
-    current_dir.mkdir(parents=True)
-    (current_dir / "manifest.json").write_text(json.dumps({"version": "0.4.1"}), encoding="utf-8")
-
-    release = tmp_path / "release" / "indesign-cli-agent.exe"
-    release.parent.mkdir(parents=True)
-    release.write_text("new release", encoding="utf-8")
-    latest = tmp_path / "latest.json"
-    latest.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "version": "0.4.2",
-                "force": True,
-                "url": str(release),
-                "sha256": "0" * 64,
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    result = run_agent_module(
-        "run",
-        "--install-root",
-        str(install_root),
-        "--source",
-        str(latest),
-        "--",
-        "--version",
-    )
+def test_agent_bootstrapper_rejects_legacy_run_source():
+    result = run_agent_module("run", "--source", "latest.json", "--", "--version")
 
     assert result.returncode == 1
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
-    assert payload["error"]["code"] == "UPDATE_REQUIRED_BUT_FAILED"
-    assert payload["current"] == "0.4.1"
-    assert payload["latest"] == "0.4.2"
+    assert payload["error"]["code"] == "LEGACY_COMMAND_REMOVED"
 
 
 def test_agent_bootstrapper_builds_runtime_env(tmp_path):
@@ -62,54 +30,34 @@ def test_agent_bootstrapper_builds_runtime_env(tmp_path):
     assert env["PATH"] == "x"
 
 
-def test_agent_bootstrapper_installs_embedded_runtime_without_node_or_npm(tmp_path):
-    embedded = tmp_path / "embedded-runtime"
-    node = embedded / "node" / "node.exe"
-    server = embedded / "server"
-    node.parent.mkdir(parents=True)
-    node.write_text("", encoding="utf-8")
-    (server / "src" / "advanced").mkdir(parents=True)
-    (server / "node_modules" / "winax").mkdir(parents=True)
-    (server / "package.json").write_text("{}", encoding="utf-8")
-    (server / "src" / "index.js").write_text("// classic", encoding="utf-8")
-    (server / "src" / "advanced" / "index.js").write_text("// advanced", encoding="utf-8")
+def test_agent_bootstrapper_rejects_legacy_update_source():
+    result = run_agent_module("update", "--source", "latest.json")
 
-    release = tmp_path / "release" / "indesign-cli-agent.exe"
-    release.parent.mkdir(parents=True)
-    release.write_text("bootstrapper", encoding="utf-8")
-    digest = __import__("hashlib").sha256(release.read_bytes()).hexdigest()
-    latest = tmp_path / "latest.json"
-    latest.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "version": "0.4.2",
-                "force": True,
-                "url": str(release),
-                "sha256": digest,
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    install_root = tmp_path / "install"
-    result = run_agent_module(
-        "update",
-        "--install-root",
-        str(install_root),
-        "--source",
-        str(latest),
-        env_overrides={"INDESIGN_CLI_EMBEDDED_RUNTIME_ROOT": str(embedded)},
-    )
-
-    assert result.returncode == 0
+    assert result.returncode == 1
     payload = json.loads(result.stdout)
-    assert payload["ok"] is True
-    current = json.loads((install_root / "current" / "manifest.json").read_text(encoding="utf-8"))
-    runtime_root = Path(current["runtime_root"])
-    assert current["version"] == "0.4.2"
-    assert (runtime_root / "node" / "node.exe").exists()
-    assert (runtime_root / "server" / "node_modules" / "winax").exists()
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "LEGACY_COMMAND_REMOVED"
+
+
+def test_agent_bootstrapper_direct_command_dispatches(monkeypatch):
+    from cli_anything.indesign import agent_bootstrapper
+
+    calls: dict[str, object] = {}
+
+    def fake_ensure_agent_ready(*, command_args, sources=None):
+        calls["ready"] = {"command_args": command_args, "sources": sources}
+        return {"updated": False, "warnings": []}
+
+    def fake_run_child(cli_args, runtime_root=None):
+        calls["child"] = {"cli_args": cli_args, "runtime_root": runtime_root}
+        return {"exit_code": 0, "stdout_json": {"ok": True}, "stdout_tail": "", "stderr_tail": ""}
+
+    monkeypatch.setattr(agent_bootstrapper, "ensure_agent_ready", fake_ensure_agent_ready)
+    monkeypatch.setattr(agent_bootstrapper, "run_child", fake_run_child)
+
+    assert agent_bootstrapper.main(["tool", "domains"]) == 0
+    assert calls["ready"] == {"command_args": ["tool", "domains"], "sources": None}
+    assert calls["child"] == {"cli_args": ["tool", "domains"], "runtime_root": None}
 
 
 def test_agent_bootstrapper_console_alias_and_build_script_are_declared():

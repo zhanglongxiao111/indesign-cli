@@ -222,3 +222,7 @@ def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> P
             {"status": "updated", "version": manifest.version, "source": manifest.source, "target": str(target)},
         )
     return target
+
+
+def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = None) -> dict[str, Any]:
+    return {"updated": False, "warnings": [], "command_args": command_args, "sources": sources}

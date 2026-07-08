@@ -9,6 +9,7 @@ from typing import Any
 
 from . import __version__
 from .core.bootstrapper import build_runtime_env, current_manifest, default_install_root, ensure_updated
+from .core.agent_update import ensure_agent_ready
 from .core.envelope import now_ms
 from .core.errors import CliError
 from .core.paths import scrub_text_paths
@@ -73,15 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pretty", action="store_true", help="输出缩进 JSON")
     sub = parser.add_subparsers(dest="command")
 
-    run = sub.add_parser("run", help="强制更新后执行 indesign-cli 命令")
-    run.add_argument("--source", required=True, help="latest.json 路径")
-    run.add_argument("--install-root", help="安装根目录；测试和受控环境可覆盖")
-    run.add_argument("cli_args", nargs=argparse.REMAINDER, help="-- 后面的 indesign-cli 参数")
-
-    update = sub.add_parser("update", help="强制检查并安装最新 runtime")
-    update.add_argument("--source", required=True, help="latest.json 路径")
-    update.add_argument("--install-root", help="安装根目录；测试和受控环境可覆盖")
-    update.add_argument("--quiet", action="store_true", help="兼容 Agent 静默参数；仍输出 JSON")
+    sub.add_parser("install", help="安装或更新用户级 indesign-cli-agent 命令")
 
     health = sub.add_parser("health", help="读取 bootstrapper 和当前 runtime 状态")
     health.add_argument("--source", help="latest.json 路径；传入时会做强制更新检查")
@@ -110,8 +103,8 @@ def child_command(cli_args: list[str]) -> list[str]:
     return [sys.executable, "-m", "cli_anything.indesign", *cli_args]
 
 
-def run_child(cli_args: list[str], runtime_root: Path) -> dict[str, Any]:
-    env = build_runtime_env(runtime_root)
+def run_child(cli_args: list[str], runtime_root: Path | None = None) -> dict[str, Any]:
+    env = build_runtime_env(runtime_root) if runtime_root else None
     result = subprocess.run(
         child_command(cli_args),
         text=True,
@@ -135,9 +128,43 @@ def run_child(cli_args: list[str], runtime_root: Path) -> dict[str, Any]:
 
 def run(argv: list[str] | None = None) -> int:
     start = now_ms()
+    actual_argv = list(sys.argv[1:] if argv is None else argv)
+    pretty = False
+    if actual_argv and actual_argv[0] == "--pretty":
+        pretty = True
+        actual_argv = actual_argv[1:]
+    if not actual_argv:
+        raise CliError("Command is required", code="COMMAND_REQUIRED")
+    if actual_argv[0] in {"run", "update"}:
+        raise CliError(
+            "The old indesign-cli-agent run/update --source entry has been removed",
+            code="LEGACY_COMMAND_REMOVED",
+            details={"command": actual_argv[0]},
+            next_action="Use indesign-cli-agent <indesign-cli args...> or indesign-cli-agent install.",
+        )
+    if actual_argv[0] == "install":
+        data = ensure_agent_ready(command_args=["install"])
+        return emit(ok("install", data, elapsed(start)), pretty=pretty)
+    if actual_argv[0] not in {"health", "version"}:
+        update_data = ensure_agent_ready(command_args=actual_argv)
+        child = run_child(actual_argv)
+        payload = ok("run", {"update": update_data, "child": child}, elapsed(start))
+        if child["exit_code"] != 0:
+            payload["ok"] = False
+            payload["exit_code"] = child["exit_code"]
+            payload["error"] = {
+                "type": "CliError",
+                "code": "CHILD_COMMAND_FAILED",
+                "message": "indesign-cli command failed",
+                "details": {"child_exit_code": child["exit_code"]},
+                "retryable": False,
+                "hint": "Inspect data.child.stdout_json for the underlying CLI error.",
+            }
+        return emit(payload, pretty=pretty)
+
     parser = build_parser()
-    args = parser.parse_args(argv)
-    pretty = bool(getattr(args, "pretty", False))
+    args = parser.parse_args((["--pretty"] if pretty else []) + actual_argv)
+    pretty = pretty or bool(getattr(args, "pretty", False))
     if args.command is None:
         raise CliError("Command is required", code="COMMAND_REQUIRED")
 
