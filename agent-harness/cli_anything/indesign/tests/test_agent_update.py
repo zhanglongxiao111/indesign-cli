@@ -19,6 +19,7 @@ from cli_anything.indesign.core.agent_update import (
     path_needs_registration,
     read_http_json,
     read_manifest_file,
+    register_user_command,
     sha256_file,
     update_state_path,
     updated_user_path,
@@ -197,6 +198,57 @@ def test_ensure_agent_ready_fails_initial_install_when_sources_missing(tmp_path,
     assert exc.value.code == "INITIAL_INSTALL_FAILED"
 
 
+def test_ensure_agent_ready_updates_existing_outdated_exe(tmp_path, monkeypatch):
+    root = tmp_path / "install"
+    current = root / "bin" / "indesign-cli-agent.exe"
+    current.parent.mkdir(parents=True)
+    current.write_bytes(b"old agent")
+    update_state_path(root).parent.mkdir(parents=True)
+    update_state_path(root).write_text(json.dumps({"version": "0.4.1"}), encoding="utf-8")
+    release = tmp_path / "release" / "indesign-cli-agent.exe"
+    release.parent.mkdir()
+    release.write_bytes(b"new agent")
+    latest = tmp_path / "latest.json"
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": "indesign-cli-agent",
+                "version": "0.4.2",
+                "artifact": {"url": str(release), "sha256": hashlib.sha256(b"new agent").hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.install_root", lambda: root)
+
+    result = ensure_agent_ready(command_args=["tool", "domains"], sources=[str(latest)])
+
+    assert result["updated"] is True
+    assert result["version"] == "0.4.2"
+    assert current.read_bytes() == b"new agent"
+
+
+def test_install_or_replace_exe_falls_back_to_github_url_when_primary_artifact_missing(tmp_path):
+    fallback = tmp_path / "fallback" / "indesign-cli-agent.exe"
+    fallback.parent.mkdir()
+    fallback.write_bytes(b"github agent")
+    manifest = Manifest(
+        version="0.4.2",
+        artifact_url=str(tmp_path / "missing" / "indesign-cli-agent.exe"),
+        github_url=str(fallback),
+        sha256=hashlib.sha256(b"github agent").hexdigest(),
+        source="test",
+    )
+    root = tmp_path / "install"
+
+    target = install_or_replace_exe(manifest, root=root)
+
+    assert target.read_bytes() == b"github agent"
+    state = json.loads(update_state_path(root).read_text(encoding="utf-8"))
+    assert state["artifact_source"] == str(fallback)
+
+
 def test_read_http_json_uses_utf8_json(monkeypatch):
     class Response:
         def __enter__(self):
@@ -243,3 +295,19 @@ def test_updated_user_path_appends_bin_once(tmp_path):
 
     assert first.endswith(str(bin_path))
     assert second == first
+
+
+def test_register_user_command_writes_user_path_without_process_path(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import agent_update
+
+    written: dict[str, str] = {}
+    monkeypatch.setenv("PATH", r"C:\Windows;C:\System")
+    monkeypatch.setattr(agent_update, "read_user_path", lambda: r"C:\Users\me\bin")
+    monkeypatch.setattr(agent_update, "write_user_path", lambda value: written.setdefault("path", value))
+
+    result = register_user_command(root=tmp_path)
+
+    assert result["registered"] is True
+    assert written["path"].startswith(r"C:\Users\me\bin")
+    assert str(tmp_path / "bin") in written["path"]
+    assert r"C:\Windows" not in written["path"]

@@ -60,6 +60,42 @@ def test_agent_bootstrapper_direct_command_dispatches(monkeypatch):
     assert calls["child"] == {"cli_args": ["tool", "domains"], "runtime_root": None}
 
 
+def test_agent_bootstrapper_run_child_uses_embedded_runtime_when_available(monkeypatch, tmp_path):
+    from cli_anything.indesign import agent_bootstrapper
+
+    runtime_root = tmp_path / "runtime"
+    node = runtime_root / "node" / "node.exe"
+    server = runtime_root / "server"
+    node.parent.mkdir(parents=True)
+    node.write_text("", encoding="utf-8")
+    (server / "src" / "advanced").mkdir(parents=True)
+    (server / "package.json").write_text("{}", encoding="utf-8")
+    (server / "src" / "index.js").write_text("// classic", encoding="utf-8")
+    (server / "src" / "advanced" / "index.js").write_text("// advanced", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    class Result:
+        returncode = 0
+        stdout = '{"ok":true}'
+        stderr = ""
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["env"] = kwargs["env"]
+        return Result()
+
+    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: runtime_root)
+    monkeypatch.setattr(agent_bootstrapper.subprocess, "run", fake_run)
+
+    result = agent_bootstrapper.run_child(["--version"])
+
+    assert result["exit_code"] == 0
+    env = captured["env"]
+    assert env["INDESIGN_CLI_RUNTIME_ROOT"] == str(runtime_root.resolve())
+    assert env["INDESIGN_CLI_NODE"] == str(node.resolve())
+    assert env["INDESIGN_CLI_SERVER_ROOT"] == str(server.resolve())
+
+
 def test_agent_bootstrapper_install_registers_user_command(monkeypatch, capsys):
     from cli_anything.indesign import agent_bootstrapper
 
@@ -78,6 +114,13 @@ def test_agent_bootstrapper_install_registers_user_command(monkeypatch, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
     assert payload["data"]["registration"]["registered"] is True
+
+
+def test_agent_bootstrapper_health_help_does_not_expose_source():
+    result = run_agent_module("health", "--help")
+
+    assert result.returncode == 0
+    assert "--source" not in result.stdout
 
 
 def test_agent_bootstrapper_console_alias_and_build_script_are_declared():

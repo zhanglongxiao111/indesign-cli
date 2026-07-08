@@ -53,6 +53,17 @@ def update_state_path(root: Path | None = None) -> Path:
     return state_dir(root) / "update-state.json"
 
 
+def read_update_state(root: Path | None = None) -> dict[str, Any] | None:
+    path = update_state_path(root)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def parse_version(value: str | None) -> tuple[int, int, int] | None:
     if not value:
         return None
@@ -194,6 +205,27 @@ def copy_http_artifact(url: str, target: Path, *, expected_sha256: str) -> Path:
     return target
 
 
+def copy_manifest_artifact(manifest: Manifest, target: Path) -> str:
+    sources = [manifest.artifact_url]
+    if manifest.github_url and manifest.github_url not in sources:
+        sources.append(manifest.github_url)
+    last_error: CliError | None = None
+    for source in sources:
+        try:
+            copy_artifact(source, target, expected_sha256=manifest.sha256)
+            return source
+        except CliError as exc:
+            last_error = exc
+            target.unlink(missing_ok=True)
+    if last_error is not None:
+        raise last_error
+    raise CliError(
+        "Release manifest artifact is invalid",
+        code="UPDATE_MANIFEST_INVALID",
+        details={"source": manifest.source},
+    )
+
+
 class UserUpdateLock:
     def __init__(self, path: Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = path
@@ -242,7 +274,7 @@ def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> P
     staged = target.with_name(f".{target.name}.{os.getpid()}.new")
     lock = state_dir(actual_root) / "update.lock"
     with UserUpdateLock(lock):
-        copy_artifact(manifest.artifact_url, temp_download, expected_sha256=manifest.sha256)
+        artifact_source = copy_manifest_artifact(manifest, temp_download)
         target.parent.mkdir(parents=True, exist_ok=True)
         if staged.exists():
             staged.unlink()
@@ -254,7 +286,13 @@ def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> P
             staged.unlink(missing_ok=True)
         write_update_state(
             actual_root,
-            {"status": "updated", "version": manifest.version, "source": manifest.source, "target": str(target)},
+            {
+                "status": "updated",
+                "version": manifest.version,
+                "source": manifest.source,
+                "artifact_source": artifact_source,
+                "target": str(target),
+            },
         )
     return target
 
@@ -292,10 +330,23 @@ def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = N
             "warnings": warnings,
             "command_args": command_args,
         }
+    state = read_update_state(root)
+    current_version = str((state or {}).get("version") or "") or None
+    if compare_versions(current_version, manifest.version) < 0:
+        install_or_replace_exe(manifest, root=root)
+        return {
+            "updated": True,
+            "version": manifest.version,
+            "source": manifest.source,
+            "previous_version": current_version,
+            "warnings": warnings,
+            "command_args": command_args,
+        }
     return {
         "updated": False,
         "version": manifest.version,
         "source": manifest.source,
+        "current_version": current_version,
         "warnings": warnings,
         "command_args": command_args,
     }
@@ -318,16 +369,41 @@ def updated_user_path(bin_path: str, *, current_path: str | None = None) -> str:
     return f"{current}{os.pathsep if current else ''}{bin_path}"
 
 
+def read_user_path() -> str:
+    if os.name != "nt":
+        return os.environ.get("PATH", "")
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ) as key:
+            for name in ("Path", "PATH"):
+                try:
+                    value, _ = winreg.QueryValueEx(key, name)
+                    return str(value)
+                except FileNotFoundError:
+                    continue
+    except FileNotFoundError:
+        return ""
+    return ""
+
+
+def write_user_path(value: str) -> None:
+    if os.name != "nt":
+        os.environ["PATH"] = value
+        return
+    import winreg
+
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+        winreg.SetValueEx(key, "Path", 0, winreg.REG_EXPAND_SZ, value)
+
+
 def register_user_command(root: Path | None = None) -> dict[str, Any]:
     actual_root = root or install_root()
     directory = str(bin_dir(actual_root))
-    new_path = updated_user_path(directory)
-    if new_path == os.environ.get("PATH", ""):
+    current_user_path = read_user_path()
+    new_user_path = updated_user_path(directory, current_path=current_user_path)
+    if new_user_path == current_user_path:
         return {"registered": False, "bin": directory}
-    if os.name == "nt":
-        import winreg
-
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE) as key:
-            winreg.SetValueEx(key, "Path", 0, winreg.REG_EXPAND_SZ, new_path)
-    os.environ["PATH"] = new_path
+    write_user_path(new_user_path)
+    os.environ["PATH"] = updated_user_path(directory, current_path=os.environ.get("PATH", ""))
     return {"registered": True, "bin": directory}
