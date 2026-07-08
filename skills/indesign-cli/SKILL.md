@@ -11,6 +11,15 @@ tags:
 
 # InDesign CLI
 
+## Agent 成品入口规则
+
+- 成品 EXE 用户必须使用 `indesign-cli-agent` 命令入口。
+- 正式调用前先执行 `indesign-cli-agent install` 或确认该命令可用。
+- 不使用项目目录、线程目录、`%TEMP%` 中的 EXE 副本作为长期入口。
+- 不再使用旧版 `run` 子命令配 `--source <latest.json>` 的入口。
+- 更新源由工具默认规则处理：NAS 优先，GitHub 兜底。
+- 如果更新失败但本机命令可用，可以继续执行，并在结果里说明继续使用本地版本。
+
 ## 定位
 
 使用 `indesign-cli` 连接真实 Adobe InDesign。CLI 是 Agent 运行时的工具目录、schema、参数、可调用性、健康检查和 session 输出入口；不要把这些可发现信息硬编码进任务上下文。

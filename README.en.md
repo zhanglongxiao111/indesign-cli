@@ -32,16 +32,16 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 For managed workstations and unattended agents, prefer the single-file bootstrapper instead of installing Node, npm, or compiling `winax` on every machine:
 
 ```powershell
-Copy-Item "\\server\tools\indesign-cli\bootstrap\indesign-cli-agent.exe" "$env:TEMP\indesign-cli-agent.exe" -Force
-& "$env:TEMP\indesign-cli-agent.exe" run --source "\\server\tools\indesign-cli\latest.json" -- server health --deep --connect-indesign
+indesign-cli-agent install
+indesign-cli-agent server health --deep --connect-indesign
 ```
 
-`indesign-cli-agent.exe` extracts its embedded Node runtime, server files, and prebuilt `winax` into `%LOCALAPPDATA%\indesign-cli\`. Every `run` checks `latest.json` first; if a newer version exists, it updates before executing the requested command.
+`indesign-cli-agent.exe` remains a single-file product entry. The first `install` command installs it under the current user and registers the `indesign-cli-agent` command; afterwards agents call `indesign-cli-agent <indesign-cli args...>` directly. Update sources are handled by the tool: NAS first, GitHub fallback. If an update fails but a local version already exists, the agent command continues with that local version and reports the warning in JSON.
 
 Build entry for the single-file bootstrapper:
 
 ```powershell
-python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --output-dir dist-agent
+python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --version 0.4.1 --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\releases\0.4.1\indesign-cli-agent.exe" --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.4.1/indesign-cli-agent.exe" --output-dir dist-agent
 ```
 
 The PyPI flow below remains available for developers and open-source users.

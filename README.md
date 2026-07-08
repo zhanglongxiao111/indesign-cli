@@ -32,16 +32,16 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 受控工位和无人值守 Agent 优先使用单文件自举入口，而不是让每台电脑安装 Node、npm 或编译 `winax`：
 
 ```powershell
-Copy-Item "\\server\tools\indesign-cli\bootstrap\indesign-cli-agent.exe" "$env:TEMP\indesign-cli-agent.exe" -Force
-& "$env:TEMP\indesign-cli-agent.exe" run --source "\\server\tools\indesign-cli\latest.json" -- server health --deep --connect-indesign
+indesign-cli-agent install
+indesign-cli-agent server health --deep --connect-indesign
 ```
 
-`indesign-cli-agent.exe` 会把内置 Node、server 和预编译 `winax` 释放到 `%LOCALAPPDATA%\indesign-cli\`，每次 `run` 前强制检查 `latest.json`。发现新版本时先更新，更新失败则不执行业务命令。
+`indesign-cli-agent.exe` 是单文件成品入口。首次执行 `install` 会安装到当前用户目录并注册 `indesign-cli-agent` 命令；后续 Agent 直接使用 `indesign-cli-agent <indesign-cli 参数...>`。更新源由工具默认处理：NAS 优先，GitHub 兜底；更新失败但本机已有可用版本时，会继续使用本地版本并在 JSON 结果里提示。
 
 发布单文件自举 exe 的构建入口：
 
 ```powershell
-python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --output-dir dist-agent
+python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --version 0.4.1 --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\releases\0.4.1\indesign-cli-agent.exe" --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.4.1/indesign-cli-agent.exe" --output-dir dist-agent
 ```
 
 下面的 PyPI 安装方式保留给开发者和开源用户。
