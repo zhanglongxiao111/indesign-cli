@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 from io import BytesIO
 
 import pytest
@@ -227,6 +228,50 @@ def test_ensure_agent_ready_updates_existing_outdated_exe(tmp_path, monkeypatch)
     assert result["updated"] is True
     assert result["version"] == "0.4.2"
     assert current.read_bytes() == b"new agent"
+
+
+def test_ensure_agent_ready_continues_when_replace_fails_but_exe_exists(tmp_path, monkeypatch):
+    root = tmp_path / "install"
+    current = root / "bin" / "indesign-cli-agent.exe"
+    current.parent.mkdir(parents=True)
+    current.write_bytes(b"old agent")
+    update_state_path(root).parent.mkdir(parents=True)
+    update_state_path(root).write_text(json.dumps({"version": "0.4.1"}), encoding="utf-8")
+    release = tmp_path / "release" / "indesign-cli-agent.exe"
+    release.parent.mkdir()
+    release.write_bytes(b"new agent")
+    latest = tmp_path / "latest.json"
+    latest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": "indesign-cli-agent",
+                "version": "0.4.2",
+                "artifact": {"url": str(release), "sha256": hashlib.sha256(b"new agent").hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    real_replace = os.replace
+
+    def blocked_replace(source, target):
+        if target == current:
+            raise PermissionError("exe is running")
+        return real_replace(source, target)
+
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.install_root", lambda: root)
+    monkeypatch.setattr("cli_anything.indesign.core.agent_update.os.replace", blocked_replace)
+
+    result = ensure_agent_ready(command_args=["tool", "domains"], sources=[str(latest)])
+
+    assert result["updated"] is False
+    assert result["version"] == "0.4.1"
+    assert result["latest"] == "0.4.2"
+    assert result["warnings"][0]["code"] == "UPDATE_REPLACE_FAILED"
+    assert current.read_bytes() == b"old agent"
+    assert list((root / "tmp").glob("*")) == []
+    assert list((root / "bin").glob(".*.new")) == []
 
 
 def test_install_or_replace_exe_falls_back_to_github_url_when_primary_artifact_missing(tmp_path):

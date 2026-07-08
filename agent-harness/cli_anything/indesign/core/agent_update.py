@@ -280,7 +280,14 @@ def install_or_replace_exe(manifest: Manifest, *, root: Path | None = None) -> P
             staged.unlink()
         shutil.move(str(temp_download), str(staged))
         try:
-            os.replace(staged, target)
+            try:
+                os.replace(staged, target)
+            except OSError as exc:
+                raise CliError(
+                    "Cannot replace indesign-cli-agent executable",
+                    code="UPDATE_REPLACE_FAILED",
+                    details={"target": str(target), "reason": str(exc)},
+                ) from exc
         finally:
             temp_download.unlink(missing_ok=True)
             staged.unlink(missing_ok=True)
@@ -322,7 +329,14 @@ def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = N
             details={"sources": list(sources or DEFAULT_SOURCES), "warnings": warnings},
         )
     if not exe.exists():
-        install_or_replace_exe(manifest, root=root)
+        try:
+            install_or_replace_exe(manifest, root=root)
+        except CliError as exc:
+            raise CliError(
+                "Cannot install indesign-cli-agent",
+                code="INITIAL_INSTALL_FAILED",
+                details={"source": manifest.source, "reason": exc.code, "reason_details": exc.details},
+            ) from exc
         return {
             "updated": True,
             "version": manifest.version,
@@ -333,7 +347,18 @@ def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = N
     state = read_update_state(root)
     current_version = str((state or {}).get("version") or "") or None
     if compare_versions(current_version, manifest.version) < 0:
-        install_or_replace_exe(manifest, root=root)
+        try:
+            install_or_replace_exe(manifest, root=root)
+        except CliError as exc:
+            warnings.append({"code": exc.code, "source": manifest.source, "message": exc.message})
+            return {
+                "updated": False,
+                "version": current_version,
+                "latest": manifest.version,
+                "source": manifest.source,
+                "warnings": warnings,
+                "command_args": command_args,
+            }
         return {
             "updated": True,
             "version": manifest.version,
