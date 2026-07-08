@@ -16,10 +16,12 @@ from cli_anything.indesign.core.agent_update import (
     install_root,
     parse_manifest,
     parse_version,
+    path_needs_registration,
     read_http_json,
     read_manifest_file,
     sha256_file,
     update_state_path,
+    updated_user_path,
 )
 from cli_anything.indesign.core.errors import CliError
 
@@ -224,3 +226,20 @@ def test_copy_http_artifact_verifies_sha(monkeypatch, tmp_path):
     copy_http_artifact("https://example.test/agent.exe", target, expected_sha256=hashlib.sha256(data).hexdigest())
 
     assert target.read_bytes() == data
+
+
+def test_path_needs_registration_detects_missing_bin(tmp_path):
+    bin_path = tmp_path / "bin"
+
+    assert path_needs_registration(str(bin_path), current_path="C:\\Windows") is True
+    assert path_needs_registration(str(bin_path), current_path=f"C:\\Windows;{bin_path}") is False
+
+
+def test_updated_user_path_appends_bin_once(tmp_path):
+    bin_path = tmp_path / "bin"
+
+    first = updated_user_path(str(bin_path), current_path="C:\\Windows")
+    second = updated_user_path(str(bin_path), current_path=first)
+
+    assert first.endswith(str(bin_path))
+    assert second == first

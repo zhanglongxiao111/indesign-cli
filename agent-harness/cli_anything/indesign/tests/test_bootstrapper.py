@@ -60,6 +60,26 @@ def test_agent_bootstrapper_direct_command_dispatches(monkeypatch):
     assert calls["child"] == {"cli_args": ["tool", "domains"], "runtime_root": None}
 
 
+def test_agent_bootstrapper_install_registers_user_command(monkeypatch, capsys):
+    from cli_anything.indesign import agent_bootstrapper
+
+    monkeypatch.setattr(
+        agent_bootstrapper,
+        "ensure_agent_ready",
+        lambda *, command_args, sources=None: {"updated": False, "warnings": []},
+    )
+    monkeypatch.setattr(
+        agent_bootstrapper,
+        "register_user_command",
+        lambda: {"registered": True, "bin": r"C:\Users\me\AppData\Local\indesign-cli\bin"},
+    )
+
+    assert agent_bootstrapper.main(["install"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["data"]["registration"]["registered"] is True
+
+
 def test_agent_bootstrapper_console_alias_and_build_script_are_declared():
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'indesign-cli-agent = "cli_anything.indesign.agent_bootstrapper:main"' in pyproject

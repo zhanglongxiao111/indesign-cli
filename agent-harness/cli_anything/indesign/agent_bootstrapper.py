@@ -9,7 +9,7 @@ from typing import Any
 
 from . import __version__
 from .core.bootstrapper import build_runtime_env, current_manifest, default_install_root, ensure_updated
-from .core.agent_update import ensure_agent_ready
+from .core.agent_update import ensure_agent_ready, register_user_command
 from .core.envelope import now_ms
 from .core.errors import CliError
 from .core.paths import scrub_text_paths
@@ -144,6 +144,7 @@ def run(argv: list[str] | None = None) -> int:
         )
     if actual_argv[0] == "install":
         data = ensure_agent_ready(command_args=["install"])
+        data["registration"] = register_user_command()
         return emit(ok("install", data, elapsed(start)), pretty=pretty)
     if actual_argv[0] not in {"health", "version"}:
         update_data = ensure_agent_ready(command_args=actual_argv)

@@ -299,3 +299,35 @@ def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = N
         "warnings": warnings,
         "command_args": command_args,
     }
+
+
+def _path_entries(current_path: str) -> list[str]:
+    return [entry.strip().rstrip("\\/") for entry in current_path.split(os.pathsep) if entry.strip()]
+
+
+def path_needs_registration(bin_path: str, *, current_path: str | None = None) -> bool:
+    current = current_path if current_path is not None else os.environ.get("PATH", "")
+    normalized = str(Path(bin_path)).rstrip("\\/")
+    return normalized.lower() not in {entry.lower() for entry in _path_entries(current)}
+
+
+def updated_user_path(bin_path: str, *, current_path: str | None = None) -> str:
+    current = current_path if current_path is not None else os.environ.get("PATH", "")
+    if not path_needs_registration(bin_path, current_path=current):
+        return current
+    return f"{current}{os.pathsep if current else ''}{bin_path}"
+
+
+def register_user_command(root: Path | None = None) -> dict[str, Any]:
+    actual_root = root or install_root()
+    directory = str(bin_dir(actual_root))
+    new_path = updated_user_path(directory)
+    if new_path == os.environ.get("PATH", ""):
+        return {"registered": False, "bin": directory}
+    if os.name == "nt":
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_SET_VALUE) as key:
+            winreg.SetValueEx(key, "Path", 0, winreg.REG_EXPAND_SZ, new_path)
+    os.environ["PATH"] = new_path
+    return {"registered": True, "bin": directory}
