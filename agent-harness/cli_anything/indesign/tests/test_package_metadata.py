@@ -78,6 +78,15 @@ def test_packaging_smoke_embeds_registry_artifact_with_current_hash(tmp_path):
     assert sdist_artifact["registry_hash"] == expected_hash
 
 
+def test_agent_release_manifest_uses_artifact_schema():
+    script = REPO_ROOT / "scripts" / "build_agent_bootstrapper.py"
+    text = script.read_text(encoding="utf-8")
+
+    assert '"artifact"' in text
+    assert '"github_url"' in text
+    assert '"runtime_dir"' not in text
+
+
 def test_readmes_describe_manual_skill_install_only():
     readme_zh = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")

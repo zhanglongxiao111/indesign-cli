@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
@@ -65,6 +66,35 @@ def pyinstaller_add_data_arg(source: Path, dest: str) -> str:
     return f"{source}{separator}{dest}"
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_release_manifest(output_dir: Path, *, version: str, nas_url: str, github_url: str) -> dict:
+    exe = output_dir / ("indesign-cli-agent.exe" if sys.platform == "win32" else "indesign-cli-agent")
+    digest = sha256_file(exe)
+    manifest = {
+        "schema_version": 1,
+        "name": "indesign-cli-agent",
+        "version": version,
+        "channel": "stable",
+        "platform": "windows-x64",
+        "artifact": {
+            "file": "indesign-cli-agent.exe",
+            "url": nas_url,
+            "github_url": github_url,
+            "sha256": digest,
+        },
+    }
+    (output_dir / "latest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output_dir / "sha256.txt").write_text(f"{digest}  indesign-cli-agent.exe\n", encoding="utf-8")
+    return manifest
+
+
 def build_pyinstaller_args(stage: Path, output_dir: Path, name: str = "indesign-cli-agent") -> list[str]:
     runtime = stage / "runtime"
     entrypoint = stage / "agent_bootstrapper_entry.py"
@@ -90,7 +120,17 @@ def build_pyinstaller_args(stage: Path, output_dir: Path, name: str = "indesign-
     ]
 
 
-def build_release(node_root: Path, node_modules: Path, output_dir: Path, stage: Path, *, dry_run: bool = False) -> dict:
+def build_release(
+    node_root: Path,
+    node_modules: Path,
+    output_dir: Path,
+    stage: Path,
+    *,
+    version: str,
+    nas_url: str,
+    github_url: str,
+    dry_run: bool = False,
+) -> dict:
     runtime = prepare_runtime(stage, node_root, node_modules)
     entrypoint = write_entrypoint(stage)
     args = build_pyinstaller_args(stage, output_dir)
@@ -108,6 +148,7 @@ def build_release(node_root: Path, node_modules: Path, output_dir: Path, stage: 
     payload["returncode"] = result.returncode
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+    payload["release_manifest"] = write_release_manifest(output_dir, version=version, nas_url=nas_url, github_url=github_url)
     return payload
 
 
@@ -115,6 +156,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the single-file indesign-cli-agent.exe with embedded runtime.")
     parser.add_argument("--node-root", required=True, help="Portable Node root containing node.exe")
     parser.add_argument("--node-modules", required=True, help="Prebuilt server node_modules containing winax")
+    parser.add_argument("--version", required=True, help="Release version such as 0.4.1")
+    parser.add_argument("--nas-url", required=True, help="NAS artifact URL/path for latest.json")
+    parser.add_argument("--github-url", required=True, help="GitHub artifact URL for latest.json")
     parser.add_argument("--output-dir", default="dist-agent", help="Output directory for indesign-cli-agent.exe")
     parser.add_argument("--stage", default=".build/agent-bootstrapper", help="Temporary staging directory")
     parser.add_argument("--dry-run", action="store_true", help="Prepare runtime and print PyInstaller command without building")
@@ -125,6 +169,9 @@ def main(argv: list[str] | None = None) -> int:
         node_modules=Path(args.node_modules).resolve(),
         output_dir=Path(args.output_dir).resolve(),
         stage=Path(args.stage).resolve(),
+        version=args.version,
+        nas_url=args.nas_url,
+        github_url=args.github_url,
         dry_run=args.dry_run,
     )
     print(json.dumps({"ok": True, "data": payload}, ensure_ascii=False, indent=2))
