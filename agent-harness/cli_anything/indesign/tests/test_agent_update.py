@@ -1,13 +1,21 @@
 import json
+import hashlib
+
+import pytest
 
 from cli_anything.indesign.core.agent_update import (
     DEFAULT_SOURCES,
     Manifest,
+    UserUpdateLock,
     compare_versions,
+    copy_artifact,
     install_root,
     parse_manifest,
     parse_version,
+    read_manifest_file,
+    sha256_file,
 )
+from cli_anything.indesign.core.errors import CliError
 
 
 def test_install_root_is_user_localappdata(tmp_path, monkeypatch):
@@ -56,3 +64,58 @@ def test_parse_manifest_reads_artifact_contract():
         sha256="a" * 64,
         source="nas",
     )
+
+
+def test_read_manifest_file_parses_json_manifest(tmp_path):
+    manifest_path = tmp_path / "latest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": "indesign-cli-agent",
+                "version": "0.4.1",
+                "artifact": {
+                    "url": str(tmp_path / "indesign-cli-agent.exe"),
+                    "sha256": "b" * 64,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = read_manifest_file(manifest_path)
+    assert manifest.version == "0.4.1"
+    assert manifest.source == str(manifest_path)
+
+
+def test_sha256_file_matches_hashlib(tmp_path):
+    artifact = tmp_path / "agent.exe"
+    artifact.write_bytes(b"agent")
+    assert sha256_file(artifact) == hashlib.sha256(b"agent").hexdigest()
+
+
+def test_copy_artifact_rejects_checksum_mismatch(tmp_path):
+    source = tmp_path / "agent.exe"
+    target = tmp_path / "download.exe"
+    source.write_bytes(b"bad")
+    with pytest.raises(CliError) as exc:
+        copy_artifact(str(source), target, expected_sha256="c" * 64)
+    assert exc.value.code == "UPDATE_SHA256_MISMATCH"
+    assert not target.exists()
+
+
+def test_copy_artifact_cleans_partial_file_on_missing_source(tmp_path):
+    target = tmp_path / "download.exe"
+    with pytest.raises(CliError) as exc:
+        copy_artifact(str(tmp_path / "missing.exe"), target, expected_sha256="d" * 64)
+    assert exc.value.code == "UPDATE_ARTIFACT_NOT_FOUND"
+    assert not target.exists()
+
+
+def test_user_update_lock_blocks_second_holder(tmp_path):
+    lock_path = tmp_path / "state" / "update.lock"
+    with UserUpdateLock(lock_path, timeout_seconds=0):
+        with pytest.raises(CliError) as exc:
+            with UserUpdateLock(lock_path, timeout_seconds=0):
+                pass
+    assert exc.value.code == "UPDATE_LOCK_TIMEOUT"
+    assert not lock_path.exists()
