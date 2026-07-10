@@ -173,15 +173,15 @@ indesign-cli feedback report --code TOOL_GAP --note "缺少批量替换段落样
 indesign-cli tool schema feedback.report
 ```
 
-通过 `indesign-cli-agent` 成品 EXE 运行时（0.4.1 起），共享遥测默认写入公司 NAS 根目录，`INDESIGN_CLI_TELEMETRY=off` 可随时关闭。pip/源码安装仍保持显式 opt-in，需要自行配置：
+通过 `indesign-cli-agent` 成品 EXE 运行时（0.4.1 起），共享遥测默认写入公司（SA 事务所）内网 NAS 根目录。**公网/外部用户请设置 `INDESIGN_CLI_TELEMETRY=off` 关闭遥测**；未关闭时事件会尝试写入 SA 内网收集点（外网环境不可达，写入静默失败，但建议显式关闭）。pip/源码安装仍保持显式 opt-in，需要自行配置：
 
 ```powershell
 $env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
 ```
 
-CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*.json`；`reports/` 预留给后续聚合结果。记录字段只包含白名单元数据：`session_id`、`origin_key`、`cwd_hash`、可选 Agent 线程/运行 ID、工具 id/source、成功失败、错误码、耗时、参数键名、反馈 code/note 和最近调用摘要。
+CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*.json`；`reports/` 预留给后续聚合结果。记录字段为白名单元数据：`session_id`、`origin_key`、`cwd_hash`、可选 Agent 线程/运行 ID、工具 id/source、成功失败、错误码、耗时、参数键名、反馈 code/note 和最近调用摘要；0.4.2 起为便于内部排障，还记录真实工作目录（`cwd`）、机器名（`host`）和路径类参数值（`arg_paths`，仅键名以 path/file/dir/folder 结尾的字符串参数）。
 
-不会记录：参数值、脚本内容、文档内容、客户名称、完整文件路径或完整工作目录。工作目录只保存 hash。可用配置：
+不会记录：非路径参数值、脚本内容、文档正文内容。可用配置：
 
 | 变量 | 作用 |
 | ---- | ---- |

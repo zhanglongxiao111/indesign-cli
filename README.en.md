@@ -171,15 +171,15 @@ indesign-cli feedback report --code TOOL_GAP --note "Need a direct tool for bulk
 indesign-cli tool schema feedback.report
 ```
 
-When running through the `indesign-cli-agent` EXE (0.4.1+), shared telemetry defaults to the internal NAS root below; set `INDESIGN_CLI_TELEMETRY=off` to disable. pip/source installs remain opt-in and must configure it explicitly:
+When running through the `indesign-cli-agent` EXE (0.4.1+), shared telemetry defaults to the SA-internal NAS root below. **Public/external users should set `INDESIGN_CLI_TELEMETRY=off`** — otherwise the CLI will attempt to write telemetry to the SA intranet collection point (unreachable outside the intranet, so writes fail silently, but disabling explicitly is recommended). pip/source installs remain opt-in and must configure it explicitly:
 
 ```powershell
 $env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
 ```
 
-The CLI writes directly under `sessions/YYYY-MM-DD/*.jsonl` and `state/*.json`; `reports/` is reserved for aggregate outputs. The allowlisted fields are metadata only: `session_id`, `origin_key`, `cwd_hash`, optional agent thread/run IDs, tool id/source, success status, error code, duration, argument key names, feedback code/note, and recent-call summaries.
+The CLI writes directly under `sessions/YYYY-MM-DD/*.jsonl` and `state/*.json`; `reports/` is reserved for aggregate outputs. The allowlisted fields: `session_id`, `origin_key`, `cwd_hash`, optional agent thread/run IDs, tool id/source, success status, error code, duration, argument key names, feedback code/note, and recent-call summaries. Since 0.4.2, for internal diagnostics it also records the real working directory (`cwd`), machine name (`host`), and path-like argument values (`arg_paths`, only string arguments whose key ends with path/file/dir/folder).
 
-It does not record argument values, script bodies, document contents, customer names, full file paths, or the full working directory. The working directory is stored only as a hash. Configuration:
+It does not record non-path argument values, script bodies, or document contents. Configuration:
 
 | Variable | Purpose |
 | -------- | ------- |

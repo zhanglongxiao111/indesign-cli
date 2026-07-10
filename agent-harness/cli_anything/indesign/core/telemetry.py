@@ -17,6 +17,9 @@ ALLOWED_FIELDS = {
     "session_id",
     "origin_key",
     "cwd_hash",
+    "cwd",
+    "host",
+    "arg_paths",
     "agent_thread_id",
     "agent_run_id",
     "cli_version",
@@ -172,6 +175,10 @@ def telemetry_context(*, cwd: Path | None = None, now: datetime | None = None) -
         "session_id": session_id,
         "origin_key": origin_key,
         "cwd_hash": cwd_hash,
+        # 内部遥测记录真实工作目录和机器名以便定位问题工位/项目；
+        # 公网用户应按 README 用 INDESIGN_CLI_TELEMETRY=off 关闭整个遥测。
+        "cwd": str(current_cwd),
+        "host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "",
         "cli_version": __version__,
     }
     if agent_thread_id:
@@ -189,6 +196,8 @@ def _sanitize_event(event: dict[str, Any], context: dict[str, Any]) -> dict[str,
             "session_id": context["session_id"],
             "origin_key": context["origin_key"],
             "cwd_hash": context["cwd_hash"],
+            "cwd": context["cwd"],
+            "host": context["host"],
             "cli_version": context["cli_version"],
         }
     )
@@ -230,6 +239,24 @@ def record_event(event: dict[str, Any], *, cwd: Path | None = None, now: datetim
     return payload
 
 
+_PATH_ARG_KEY_RE = re.compile(r"(path|file|dir|folder)s?$", re.IGNORECASE)
+
+
+def extract_path_args(args: dict[str, Any] | None) -> list[str]:
+    """按键名启发式抽取路径类参数值（key 以 path/file/dir/folder 结尾）。
+
+    只取字符串值；内容类参数（contents/text 等）永远不会被抽进遥测。
+    """
+    if not isinstance(args, dict):
+        return []
+    values: list[str] = []
+    for key in sorted(args):
+        value = args[key]
+        if isinstance(value, str) and value.strip() and _PATH_ARG_KEY_RE.search(str(key)):
+            values.append(value)
+    return values
+
+
 def record_tool_call(
     *,
     tool_id: str,
@@ -238,6 +265,7 @@ def record_tool_call(
     duration_ms: int,
     error_code: str | None = None,
     arg_keys: list[str] | None = None,
+    arg_paths: list[str] | None = None,
     via_batch: bool = False,
     cwd: Path | None = None,
 ) -> dict[str, Any] | None:
@@ -250,6 +278,8 @@ def record_tool_call(
     }
     if arg_keys is not None:
         event["arg_keys"] = sorted(str(key) for key in arg_keys)
+    if arg_paths:
+        event["arg_paths"] = [str(path) for path in arg_paths if str(path).strip()]
     if not ok:
         event["error_code"] = error_code or "UNSTRUCTURED"
     if via_batch:

@@ -80,9 +80,9 @@ def test_record_event_filters_fields_and_writes_nas_layout(tmp_path, monkeypatch
     assert event["tool_id"] == "export.verify"
     assert event["arg_keys"] == ["path"]
     assert "illegal" not in event
-    dumped = json.dumps(event, ensure_ascii=False)
-    assert str(cwd) not in dumped
-    assert "workspace" not in dumped
+    # 内部遥测记录真实 cwd 和机器名（2026-07-10 决策：内网工具，路径是诊断信息）
+    assert event["cwd"] == str(cwd)
+    assert event["host"] == "DESIGN-PC-01"
 
     session_files = list((root / "sessions").glob("*/*.jsonl"))
     assert len(session_files) == 1
@@ -179,9 +179,10 @@ def test_tool_call_writes_telemetry_without_argument_values(tmp_path):
     event = next(item for item in events if item["event"] == "tool_call" and item["tool_id"] == "export.verify")
     assert event["ok"] is True
     assert event["arg_keys"] == ["path"]
-    dumped = json.dumps(event, ensure_ascii=False)
-    assert str(pdf) not in dumped
-    assert "secret-client" not in dumped
+    # 路径类参数值按键名启发式记录（arg_paths），工作目录记录真实值；
+    # 非路径参数值仍然不记录。
+    assert event["arg_paths"] == [str(pdf)]
+    assert event["cwd"] == str(tmp_path)
 
 
 def test_tool_batch_records_each_step_as_via_batch(tmp_path):

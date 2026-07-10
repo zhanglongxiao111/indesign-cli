@@ -25,7 +25,7 @@ from .core.router import Router, load_args
 from .core.runtime import resolve_server_root
 from .core.scripts import run_script, run_stdin_script
 from .core.session import SessionStore
-from .core.telemetry import record_tool_call
+from .core.telemetry import extract_path_args, record_tool_call
 
 
 # server root 惰性解析：环境漂移时报 JSON envelope 而不是 import 期裸 traceback，
@@ -366,6 +366,7 @@ def run(argv: list[str] | None = None) -> int:
                     duration_ms=duration_ms,
                     error_code=exc.code,
                     arg_keys=["on_error", "plan", "timeout_ms"],
+                    arg_paths=[args.plan] if args.plan else None,
                 )
                 if exc.code == "BATCH_STEP_FAILED":
                     payload = failure(
@@ -387,6 +388,7 @@ def run(argv: list[str] | None = None) -> int:
                 ok=True,
                 duration_ms=duration_ms,
                 arg_keys=["on_error", "plan", "timeout_ms"],
+                arg_paths=[args.plan] if args.plan else None,
             )
             return emit(success(command="tool batch", data=data, duration_ms=duration_ms, tool_id=tool_id, domain=tool["domain"], source=tool["source"], warnings=warnings))
         if args.tool_command == "call":
@@ -420,6 +422,7 @@ def run(argv: list[str] | None = None) -> int:
                         duration_ms=duration_ms,
                         error_code=exc.code,
                         arg_keys=list(call_args),
+                        arg_paths=extract_path_args(call_args),
                     )
                 raise
             duration_ms = elapsed(start)
@@ -439,6 +442,7 @@ def run(argv: list[str] | None = None) -> int:
                     ok=True,
                     duration_ms=duration_ms,
                     arg_keys=list(call_args),
+                    arg_paths=extract_path_args(call_args),
                 )
             return emit(
                 success(
@@ -528,6 +532,7 @@ def run(argv: list[str] | None = None) -> int:
                 duration_ms=elapsed(start),
                 error_code=exc.code,
                 arg_keys=["file", "stdin", "timeout", "timeout_ms"],
+                arg_paths=[args.file] if args.file else None,
             )
             raise
         duration_ms = elapsed(start)
@@ -538,6 +543,7 @@ def run(argv: list[str] | None = None) -> int:
             ok=True,
             duration_ms=duration_ms,
             arg_keys=["file", "stdin", "timeout", "timeout_ms"],
+            arg_paths=[args.file] if args.file else None,
         )
         return emit(success(command="script run", data=data, duration_ms=duration_ms, tool_id="script.run", domain="script", source="script", warnings=warnings))
     if args.group == "export" and args.export_command == "verify":
@@ -555,6 +561,7 @@ def run(argv: list[str] | None = None) -> int:
                 duration_ms=elapsed(start),
                 error_code=exc.code,
                 arg_keys=["created_after", "path"],
+                arg_paths=[args.path],
             )
             raise
         duration_ms = elapsed(start)
@@ -565,6 +572,7 @@ def run(argv: list[str] | None = None) -> int:
             ok=True,
             duration_ms=duration_ms,
             arg_keys=["created_after", "path"],
+            arg_paths=[args.path],
         )
         return emit(success(command="export verify", data=data, duration_ms=duration_ms, tool_id="export.verify", domain="export", source="cli"))
     if args.group == "session":
