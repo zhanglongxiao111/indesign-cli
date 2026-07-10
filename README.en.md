@@ -171,7 +171,7 @@ indesign-cli feedback report --code TOOL_GAP --note "Need a direct tool for bulk
 indesign-cli tool schema feedback.report
 ```
 
-Shared telemetry is written only when `INDESIGN_CLI_TELEMETRY_DIR` is configured. The internal default NAS root is:
+When running through the `indesign-cli-agent` EXE (0.4.1+), shared telemetry defaults to the internal NAS root below; set `INDESIGN_CLI_TELEMETRY=off` to disable. pip/source installs remain opt-in and must configure it explicitly:
 
 ```powershell
 $env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
@@ -183,7 +183,7 @@ It does not record argument values, script bodies, document contents, customer n
 
 | Variable | Purpose |
 | -------- | ------- |
-| `INDESIGN_CLI_TELEMETRY_DIR` | Shared telemetry root; if unset, no shared telemetry is written |
+| `INDESIGN_CLI_TELEMETRY_DIR` | Shared telemetry root; the agent EXE injects the internal NAS default, pip/source installs write nothing when unset |
 | `INDESIGN_CLI_TELEMETRY=off` | Disable telemetry completely |
 | `INDESIGN_CLI_SESSION_ID` | Explicit full telemetry session ID |
 | `INDESIGN_CLI_AGENT_THREAD_ID` | Upstream agent thread ID, injected by the runtime |

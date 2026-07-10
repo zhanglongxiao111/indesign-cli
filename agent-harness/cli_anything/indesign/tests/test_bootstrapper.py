@@ -29,6 +29,16 @@ def test_agent_bootstrapper_builds_runtime_env(tmp_path):
     assert env["INDESIGN_CLI_SERVER_ROOT"] == str(server)
     assert env["PATH"] == "x"
 
+    from cli_anything.indesign.core.bootstrapper import DEFAULT_TELEMETRY_DIR
+
+    assert env["INDESIGN_CLI_TELEMETRY_DIR"] == DEFAULT_TELEMETRY_DIR
+
+    kept = build_runtime_env(runtime_root, base_env={"PATH": "x", "INDESIGN_CLI_TELEMETRY_DIR": r"D:\custom"})
+    assert kept["INDESIGN_CLI_TELEMETRY_DIR"] == r"D:\custom"
+
+    disabled = build_runtime_env(runtime_root, base_env={"PATH": "x", "INDESIGN_CLI_TELEMETRY": "off"})
+    assert "INDESIGN_CLI_TELEMETRY_DIR" not in disabled
+
 
 def test_agent_bootstrapper_rejects_legacy_update_source():
     result = run_agent_module("update", "--source", "latest.json")

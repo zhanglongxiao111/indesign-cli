@@ -173,7 +173,7 @@ indesign-cli feedback report --code TOOL_GAP --note "缺少批量替换段落样
 indesign-cli tool schema feedback.report
 ```
 
-共享遥测只有在显式配置 `INDESIGN_CLI_TELEMETRY_DIR` 时写入。公司默认 NAS 根目录：
+通过 `indesign-cli-agent` 成品 EXE 运行时（0.4.1 起），共享遥测默认写入公司 NAS 根目录，`INDESIGN_CLI_TELEMETRY=off` 可随时关闭。pip/源码安装仍保持显式 opt-in，需要自行配置：
 
 ```powershell
 $env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
@@ -185,7 +185,7 @@ CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*
 
 | 变量 | 作用 |
 | ---- | ---- |
-| `INDESIGN_CLI_TELEMETRY_DIR` | 共享遥测根目录；未设置时不写共享遥测 |
+| `INDESIGN_CLI_TELEMETRY_DIR` | 共享遥测根目录；agent EXE 默认注入公司 NAS 路径，pip/源码安装未设置时不写共享遥测 |
 | `INDESIGN_CLI_TELEMETRY=off` | 完全关闭遥测 |
 | `INDESIGN_CLI_SESSION_ID` | 显式指定完整 telemetry session |
 | `INDESIGN_CLI_AGENT_THREAD_ID` | 上层 Agent 线程 ID，由运行时注入 |

@@ -5,6 +5,7 @@ from io import BytesIO
 
 import pytest
 
+import support  # noqa: F401  # 先于 cli_anything 导入：由它把 agent-harness 插入 sys.path
 from cli_anything.indesign.core.agent_update import (
     DEFAULT_SOURCES,
     Manifest,
