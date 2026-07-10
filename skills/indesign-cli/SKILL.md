@@ -43,7 +43,26 @@ node src/core/artifact.js --check
 
 从目标项目根目录运行命令，让 `.indesign-cli/session.json`、相对资源路径和测试产物都落在当前项目内。
 
-如果命令不存在，默认从 PyPI 安装：
+成品用户入口是 `indesign-cli-agent`。命令不存在时先做首次安装，NAS 优先：
+
+```powershell
+$m = Get-Content '\\daga-nas5\sa-ai-app\tools\indesign-cli\latest.json' -Raw | ConvertFrom-Json
+Copy-Item $m.artifact.url "$env:TEMP\indesign-cli-agent.exe" -Force
+& "$env:TEMP\indesign-cli-agent.exe" install
+Remove-Item "$env:TEMP\indesign-cli-agent.exe"
+```
+
+NAS 不可达时改用 GitHub 兜底：
+
+```powershell
+Invoke-WebRequest 'https://github.com/zhanglongxiao111/indesign-cli/releases/latest/download/indesign-cli-agent.exe' -OutFile "$env:TEMP\indesign-cli-agent.exe"
+& "$env:TEMP\indesign-cli-agent.exe" install
+Remove-Item "$env:TEMP\indesign-cli-agent.exe"
+```
+
+安装会把 EXE 放到 `%LOCALAPPDATA%\indesign-cli\bin` 并注册用户级命令；当前 shell 未刷新 PATH 时用该完整路径调用。成品 EXE 自带 Node runtime 和预编译 `winax`，不需要本机 Node、Python 或编译工具。后续所有 `indesign-cli <args>` 示例对成品用户等价于 `indesign-cli-agent <args>`。
+
+开发者从源码工作时仍可用 PyPI 方式：
 
 ```powershell
 pip install indesign-cli
