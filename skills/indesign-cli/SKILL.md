@@ -19,6 +19,8 @@ tags:
 - 不再使用旧版 `run` 子命令配 `--source <latest.json>` 的入口。
 - 更新源由工具默认规则处理：NAS 优先，GitHub 兜底。
 - 如果更新失败但本机命令可用，可以继续执行，并在结果里说明继续使用本地版本。
+- Windows 下正在运行的 EXE 不能替换自己：结果出现 `UPDATE_REPLACE_FAILED`，或提示有新版本但未完成安装时，重跑"使用顺序"里的首次安装流程即可完成更新（同一套命令兼作手动更新）。
+- 本次运行完成了版本更新时，工具目录可能变化；先重新读取 `tool list` / `tool schema` 再继续复杂任务。
 
 ## 定位
 
@@ -43,7 +45,7 @@ node src/core/artifact.js --check
 
 从目标项目根目录运行命令，让 `.indesign-cli/session.json`、相对资源路径和测试产物都落在当前项目内。
 
-成品用户入口是 `indesign-cli-agent`。命令不存在时先做首次安装，NAS 优先：
+成品用户入口是 `indesign-cli-agent`。命令不存在时先做首次安装；需要手动完成版本更新时也执行同一流程。NAS 优先：
 
 ```powershell
 $m = Get-Content '\\daga-nas5\sa-ai-app\tools\indesign-cli\latest.json' -Raw | ConvertFrom-Json
