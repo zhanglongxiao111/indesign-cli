@@ -392,6 +392,7 @@ def validate_runtime(
 ) -> dict[str, Any]:
     required = [
         runtime_root / "cli" / "indesign-cli.exe",
+        runtime_root / "cli" / "_internal" / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs",
         runtime_root / "node" / "node.exe",
         runtime_root / "server" / "package.json",
         runtime_root / "server" / "src" / "index.js",

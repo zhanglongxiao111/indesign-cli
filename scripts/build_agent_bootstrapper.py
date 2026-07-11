@@ -75,6 +75,11 @@ def build_pyinstaller_plan(
         str(stage / "pyinstaller-work" / "cli"),
         "--specpath",
         str(stage / "pyinstaller-spec" / "cli"),
+        "--add-data",
+        pyinstaller_add_data_arg(
+            AGENT_HARNESS / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs",
+            "cli_anything/indesign/node",
+        ),
         str(entries["cli"]),
     ]
     launcher_args = [

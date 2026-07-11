@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,16 @@ DEFAULT_SOURCES = DEFAULT_RUNTIME_SOURCES
 
 
 def install_root() -> Path:
+    override = os.environ.get("INDESIGN_CLI_INSTALL_ROOT")
+    if override:
+        return Path(override).resolve()
+    executable = Path(sys.executable).resolve()
+    if (
+        getattr(sys, "frozen", False)
+        and executable.name.lower() == "indesign-cli-agent.exe"
+        and executable.parent.name.lower() == "bin"
+    ):
+        return executable.parent.parent
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
     return Path(base) / "indesign-cli"
 

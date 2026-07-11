@@ -84,6 +84,9 @@ def test_pyinstaller_plan_keeps_only_persistent_cli_as_onedir(tmp_path):
     assert "--add-data" not in plan["launcher"]
     assert "--onefile" in plan["setup"]
     assert "--add-data" in plan["setup"]
+    cli_text = "\n".join(plan["cli"])
+    assert "internal_tool_bridge.mjs" in cli_text
+    assert "cli_anything/indesign/node" in cli_text.replace("\\", "/")
 
 
 def test_default_npm_uses_portable_node_root_on_windows(tmp_path):
@@ -236,6 +239,113 @@ def test_setup_installer_can_skip_path_registration_for_isolated_validation(monk
     assert setup_installer.main(["--install-root", str(root), "--no-register-path"]) == 0
     response = json.loads(capsys.readouterr().out)
     assert response["data"]["registration"] == {"registered": False, "skipped": True, "bin": str(root / "bin")}
+
+
+def test_setup_launcher_copy_failure_never_touches_current_runtime(monkeypatch, tmp_path):
+    from cli_anything.indesign import setup_installer
+
+    _write_file(tmp_path / "payload" / "indesign-cli-agent.exe", b"MZnew")
+    (tmp_path / "runtime").mkdir()
+    root = tmp_path / "installed"
+    _write_file(root / "bin" / "indesign-cli-agent.exe", b"MZold")
+    current = root / "state" / "current-runtime.json"
+    _write_file(current, b'{"version":"0.4.2"}')
+    monkeypatch.setattr(setup_installer, "setup_payload_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        setup_installer,
+        "_install_launcher",
+        lambda *_args: (_ for _ in ()).throw(OSError("launcher copy failed")),
+    )
+    monkeypatch.setattr(
+        setup_installer,
+        "install_embedded_runtime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("runtime must not be touched")),
+    )
+
+    try:
+        setup_installer.main(["--install-root", str(root), "--no-register-path"])
+    except OSError as exc:
+        assert "launcher copy failed" in str(exc)
+    else:
+        raise AssertionError("launcher copy failure was swallowed")
+    assert (root / "bin" / "indesign-cli-agent.exe").read_bytes() == b"MZold"
+    assert current.read_bytes() == b'{"version":"0.4.2"}'
+
+
+def test_setup_runtime_failure_restores_old_launcher_and_042_state(monkeypatch, tmp_path):
+    from cli_anything.indesign import setup_installer
+
+    _write_file(tmp_path / "payload" / "indesign-cli-agent.exe", b"MZnew")
+    (tmp_path / "runtime").mkdir()
+    root = tmp_path / "installed"
+    launcher = root / "bin" / "indesign-cli-agent.exe"
+    _write_file(launcher, b"MZold")
+    current = root / "state" / "current-runtime.json"
+    _write_file(current, b'{"version":"0.4.2"}')
+    monkeypatch.setattr(setup_installer, "setup_payload_root", lambda: tmp_path)
+
+    def fail_runtime(_embedded, *, root):
+        assert launcher.read_bytes() == b"MZnew"
+        raise RuntimeError("runtime validation failed")
+
+    monkeypatch.setattr(setup_installer, "install_embedded_runtime", fail_runtime)
+
+    try:
+        setup_installer.main(["--install-root", str(root), "--no-register-path"])
+    except RuntimeError as exc:
+        assert "runtime validation failed" in str(exc)
+    else:
+        raise AssertionError("runtime failure was swallowed")
+    assert launcher.read_bytes() == b"MZold"
+    assert current.read_bytes() == b'{"version":"0.4.2"}'
+
+
+def test_setup_runtime_failure_removes_new_launcher_when_none_existed(monkeypatch, tmp_path):
+    from cli_anything.indesign import setup_installer
+
+    _write_file(tmp_path / "payload" / "indesign-cli-agent.exe", b"MZnew")
+    (tmp_path / "runtime").mkdir()
+    root = tmp_path / "installed"
+    monkeypatch.setattr(setup_installer, "setup_payload_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        setup_installer,
+        "install_embedded_runtime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("runtime failed")),
+    )
+
+    try:
+        setup_installer.main(["--install-root", str(root), "--no-register-path"])
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("runtime failure was swallowed")
+    assert not (root / "bin" / "indesign-cli-agent.exe").exists()
+
+
+def test_setup_path_registration_failure_is_warning_after_successful_install(monkeypatch, tmp_path, capsys):
+    from cli_anything.indesign import setup_installer
+
+    _write_file(tmp_path / "payload" / "indesign-cli-agent.exe", b"MZnew")
+    (tmp_path / "runtime").mkdir()
+    root = tmp_path / "installed"
+    monkeypatch.setattr(setup_installer, "setup_payload_root", lambda: tmp_path)
+    monkeypatch.setattr(
+        setup_installer,
+        "install_embedded_runtime",
+        lambda _embedded, *, root: SimpleNamespace(runtime_root=root / "runtime" / "0.5.0", installed=True, warnings=()),
+    )
+    monkeypatch.setattr(
+        setup_installer,
+        "register_user_command",
+        lambda _root: (_ for _ in ()).throw(OSError("registry denied")),
+    )
+
+    assert setup_installer.main(["--install-root", str(root)]) == 0
+    response = json.loads(capsys.readouterr().out)
+    assert response["data"]["registration"]["registered"] is False
+    assert response["data"]["registration"]["code"] == "PATH_REGISTRATION_FAILED"
+    assert response["data"]["warnings"] == [{"code": "PATH_REGISTRATION_FAILED", "message": "registry denied"}]
+    assert (root / "bin" / "indesign-cli-agent.exe").read_bytes() == b"MZnew"
 
 
 def test_html_plugin_tgz_rejects_path_traversal(tmp_path):

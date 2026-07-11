@@ -37,7 +37,17 @@ def _manifest_payload(artifact, sha256, version="0.5.0"):
     }
 
 
-def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_plugin_entry=True, cli_bytes=None, include_winax_binding=True, winax_version="3.6.2"):
+def _write_runtime_zip(
+    path,
+    *,
+    marker="runtime",
+    plugin_manifest=None,
+    include_plugin_entry=True,
+    cli_bytes=None,
+    include_winax_binding=True,
+    winax_version="3.6.2",
+    include_internal_bridge=True,
+):
     plugin_manifest = plugin_manifest if plugin_manifest is not None else {
         "schema_version": 1,
         "protocol": "indesign-cli-plugin.v1",
@@ -57,6 +67,8 @@ def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_
     }
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("cli/indesign-cli.exe", cli_bytes if cli_bytes is not None else b"MZ" + marker.encode())
+        if include_internal_bridge:
+            archive.writestr("cli/_internal/cli_anything/indesign/node/internal_tool_bridge.mjs", "// bridge")
         archive.writestr("node/node.exe", b"MZnode")
         archive.writestr("server/package.json", "{}")
         archive.writestr("server/src/index.js", "// classic")
@@ -326,6 +338,24 @@ def test_runtime_component_version_mismatch_rejects_before_switch(tmp_path, comp
 
     assert exc.value.code == "RUNTIME_COMPONENT_VERSION_MISMATCH"
     assert exc.value.details["component"] == component
+    assert not (root / "state" / "current-runtime.json").exists()
+
+
+def test_runtime_validation_rejects_missing_internal_tool_bridge(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    _write_runtime_zip(archive, include_internal_bridge=False)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(manifest_file, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    assert exc.value.code == "RUNTIME_VALIDATION_FAILED"
+    missing = [path.replace("\\", "/") for path in exc.value.details["missing"]]
+    assert "cli/_internal/cli_anything/indesign/node/internal_tool_bridge.mjs" in missing
     assert not (root / "state" / "current-runtime.json").exists()
 
 

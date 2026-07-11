@@ -22,11 +22,30 @@ def setup_payload_root() -> Path:
     return Path(__file__).resolve().parent
 
 
-def _install_launcher(source: Path, target: Path) -> None:
+def _install_launcher(source: Path, target: Path) -> Path | None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(".exe.tmp")
-    shutil.copy2(source, temporary)
-    os.replace(temporary, target)
+    backup = target.with_suffix(".exe.setup-backup")
+    temporary.unlink(missing_ok=True)
+    backup.unlink(missing_ok=True)
+    had_previous = target.is_file()
+    try:
+        if had_previous:
+            shutil.copy2(target, backup)
+        shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        backup.unlink(missing_ok=True)
+        raise
+    return backup if had_previous else None
+
+
+def _rollback_launcher(target: Path, backup: Path | None) -> None:
+    if backup is None:
+        target.unlink(missing_ok=True)
+        return
+    os.replace(backup, target)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,14 +60,25 @@ def main(argv: list[str] | None = None) -> int:
     if not embedded.is_dir() or not launcher_source.is_file():
         raise SystemExit("Setup payload is incomplete")
 
-    installed = install_embedded_runtime(embedded, root=root)
     launcher_target = root / "bin" / "indesign-cli-agent.exe"
-    _install_launcher(launcher_source, launcher_target)
-    registration = (
-        {"registered": False, "skipped": True, "bin": str(root / "bin")}
-        if args.no_register_path
-        else register_user_command(root)
-    )
+    launcher_backup = _install_launcher(launcher_source, launcher_target)
+    try:
+        installed = install_embedded_runtime(embedded, root=root)
+    except Exception:
+        _rollback_launcher(launcher_target, launcher_backup)
+        raise
+    if launcher_backup is not None:
+        launcher_backup.unlink(missing_ok=True)
+    warnings = list(installed.warnings)
+    if args.no_register_path:
+        registration = {"registered": False, "skipped": True, "bin": str(root / "bin")}
+    else:
+        try:
+            registration = register_user_command(root)
+        except OSError as exc:
+            warning = {"code": "PATH_REGISTRATION_FAILED", "message": str(exc)}
+            warnings.append(warning)
+            registration = {"registered": False, "code": warning["code"], "bin": str(root / "bin")}
     response = {
         "ok": True,
         "data": {
@@ -57,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             "runtime_installed": installed.installed,
             "launcher": str(launcher_target),
             "registration": registration,
-            "warnings": list(installed.warnings),
+            "warnings": warnings,
         },
     }
     print(json.dumps(response, ensure_ascii=False, indent=2))

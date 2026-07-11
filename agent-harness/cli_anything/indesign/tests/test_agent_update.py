@@ -19,6 +19,34 @@ def test_install_root_is_user_localappdata(tmp_path, monkeypatch):
     assert install_root() == tmp_path / "LocalAppData" / "indesign-cli"
 
 
+def test_install_root_explicit_override_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("INDESIGN_CLI_INSTALL_ROOT", str(tmp_path / "managed"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    assert install_root() == (tmp_path / "managed").resolve()
+
+
+def test_frozen_installed_launcher_derives_root_from_its_bin(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import agent_update
+
+    launcher = tmp_path / "custom-root" / "bin" / "indesign-cli-agent.exe"
+    monkeypatch.delenv("INDESIGN_CLI_INSTALL_ROOT", raising=False)
+    monkeypatch.setattr(agent_update.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(agent_update.sys, "executable", str(launcher))
+
+    assert agent_update.install_root() == tmp_path / "custom-root"
+
+
+def test_frozen_setup_does_not_derive_install_root_from_its_location(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import agent_update
+
+    monkeypatch.delenv("INDESIGN_CLI_INSTALL_ROOT", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    monkeypatch.setattr(agent_update.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(agent_update.sys, "executable", str(tmp_path / "downloads" / "indesign-cli-agent-setup.exe"))
+
+    assert agent_update.install_root() == tmp_path / "LocalAppData" / "indesign-cli"
+
+
 def test_default_sources_are_runtime_manifest_nas_then_github():
     assert DEFAULT_SOURCES[0] == r"\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-latest.json"
     assert DEFAULT_SOURCES[1].endswith("/runtime-latest.json")
