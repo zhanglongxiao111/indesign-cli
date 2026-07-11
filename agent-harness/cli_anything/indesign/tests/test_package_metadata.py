@@ -30,21 +30,22 @@ def test_pyproject_exposes_remote_installable_package_and_console_aliases():
     assert __version__ == "0.5.0"
 
 
-def test_pypi_source_distribution_includes_node_server_assets():
+def test_pypi_source_distribution_includes_program_assets_but_excludes_skill():
     manifest_path = REPO_ROOT / "MANIFEST.in"
     assert manifest_path.exists()
     manifest = manifest_path.read_text(encoding="utf-8")
     assert "include package.json" in manifest
     assert "include package-lock.json" in manifest
     assert "recursive-include src *" in manifest
-    assert "recursive-include skills *" in manifest
+    assert "recursive-include skills *" not in manifest
+    assert "prune skills" in manifest
     assert "prune agent-harness/cli_anything/indesign/tests" in manifest
 
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'requires = ["setuptools>=77", "wheel"]' in pyproject
     assert 'license = "MIT"' in pyproject
     assert 'exclude = ["cli_anything.indesign.tests*"]' in pyproject
-    assert '"cli_anything.indesign" = ["skills/*.md", "node/*.mjs", "server/src/core/indesign-tool-registry.json"]' in pyproject
+    assert '"skills/' not in pyproject
 
 
 def test_packaging_smoke_embeds_registry_artifact_with_current_hash(tmp_path):
@@ -68,6 +69,7 @@ def test_packaging_smoke_embeds_registry_artifact_with_current_hash(tmp_path):
 
     wheel = next(out_dir.glob("*.whl"))
     with zipfile.ZipFile(wheel) as archive:
+        assert not any(name.startswith("cli_anything/indesign/skills/") for name in archive.namelist())
         wheel_name = "cli_anything/indesign/server/src/core/indesign-tool-registry.json"
         assert wheel_name in archive.namelist()
         wheel_artifact = json.loads(archive.read(wheel_name).decode("utf-8"))
@@ -75,6 +77,7 @@ def test_packaging_smoke_embeds_registry_artifact_with_current_hash(tmp_path):
 
     sdist = next(out_dir.glob("*.tar.gz"))
     with tarfile.open(sdist) as archive:
+        assert not any("/skills/indesign-cli/" in member.name for member in archive.getmembers())
         artifact_members = [
             member for member in archive.getmembers()
             if member.name.endswith("/src/core/indesign-tool-registry.json")
@@ -95,24 +98,35 @@ def test_agent_release_manifest_uses_artifact_schema():
     assert '"runtime_dir"' not in text
 
 
-def test_readmes_describe_manual_skill_install_only():
+def test_readmes_describe_independent_skill_publication_only():
     readme_zh = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     readme_en = (REPO_ROOT / "README.en.md").read_text(encoding="utf-8")
     harness_readme = (REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "README.md").read_text(encoding="utf-8")
 
     for text in (readme_zh, readme_en, harness_readme):
         assert "indesign-cli skill install" not in text
+        assert "skill_source_path" not in text
 
-    assert "skills/indesign-cli/SKILL.md" in readme_zh
-    assert ".codex\\skills\\indesign-cli\\SKILL.md" in readme_zh
-    assert "手动" in readme_zh
+    assert "skills/indesign-cli/" in readme_zh
+    assert ".codex\\skills\\indesign-cli\\" in readme_zh
+    assert "独立" in readme_zh
 
-    assert "skills/indesign-cli/SKILL.md" in readme_en
-    assert ".codex\\skills\\indesign-cli\\SKILL.md" in readme_en
-    assert "manually" in readme_en.lower()
+    assert "skills/indesign-cli/" in readme_en
+    assert ".codex\\skills\\indesign-cli\\" in readme_en
+    assert "independently" in readme_en.lower()
 
-    assert "skills/indesign-cli/SKILL.md" in harness_readme
-    assert ".codex\\skills\\indesign-cli\\SKILL.md" in harness_readme
+    assert "skills/indesign-cli/" in harness_readme
+    assert ".codex\\skills\\indesign-cli\\" in harness_readme
+
+
+def test_program_build_does_not_copy_skill_assets():
+    setup_text = (REPO_ROOT / "setup.py").read_text(encoding="utf-8")
+    harness_setup = (REPO_ROOT / "agent-harness" / "setup.py").read_text(encoding="utf-8")
+    runtime_text = (REPO_ROOT / "agent-harness" / "cli_anything" / "indesign" / "core" / "runtime.py").read_text(encoding="utf-8")
+
+    assert "_copy_skill_assets" not in setup_text
+    assert "skills/indesign-cli" not in harness_setup
+    assert "skill_source_path" not in runtime_text
 
 
 def test_skill_install_is_not_exposed_as_cli_or_tool():

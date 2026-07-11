@@ -122,29 +122,23 @@ indesign-cli server setup
 
 `server setup` probes the `npm` found on PATH first; if the probe fails it falls back to the `npm-cli.js` bundled with Node. If neither works it fails with `NPM_NOT_AVAILABLE`, and the local Node / npm installation needs fixing first.
 
-## 🧠 Manually install the Agent Skill
+## 🧠 Publish the Agent Skill independently
 
-If you want agents in another project to know how to use `indesign-cli`, copy the Skill document manually.
+To teach agents how to create HTML/InDesign presentations and use `indesign-cli`, publish the complete Skill directory through the company Agent channel.
 
-The source file in this repository is:
-
-```text
-skills/indesign-cli/SKILL.md
-```
-
-If you installed the CLI from PyPI, locate the packaged copy with:
-
-```powershell
-python -c "from cli_anything.indesign.core.runtime import skill_source_path; print(skill_source_path())"
-```
-
-Copy that file to the target project:
+The single publication source in this repository is:
 
 ```text
-D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
+skills/indesign-cli/
 ```
 
-The CLI no longer auto-copies the Skill. After the manual copy, agents working in that project can use the InDesign CLI with the right workflow guidance.
+Copy the complete directory to the target project. Copying only `SKILL.md` omits references and interface metadata:
+
+```text
+D:\AI\your-project\.codex\skills\indesign-cli\
+```
+
+Setup and the PyPI package contain only the program; they do not carry, install, or modify the Skill. The company Agent channel publishes the Skill independently from the repository directory above.
 
 ## 🧩 Plugin integration
 

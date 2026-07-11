@@ -1,0 +1,4 @@
+interface:
+  display_name: "InDesign 出版与演示文稿"
+  short_description: "制作 HTML 与 InDesign 演示文稿及排版文档"
+  default_prompt: "Use $indesign-cli to create or edit an HTML or InDesign presentation."

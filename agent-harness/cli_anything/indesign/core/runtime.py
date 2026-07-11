@@ -116,21 +116,3 @@ def internal_tool_bridge_path() -> Path:
     if not bridge.exists():
         raise CliError("Internal tool bridge not found", code="INTERNAL_TOOL_BRIDGE_NOT_FOUND")
     return bridge
-
-
-def skill_source_path() -> Path:
-    package_dir = package_root()
-    packaged = package_dir / "skills" / "SKILL.md"
-    if packaged.exists():
-        return packaged
-    for parent in package_dir.parents:
-        source_tree = parent / "skills" / "indesign-cli" / "SKILL.md"
-        if source_tree.exists():
-            return source_tree
-    try:
-        source = resolve_server_root() / "skills" / "indesign-cli" / "SKILL.md"
-    except CliError as exc:
-        raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND") from exc
-    if source.exists():
-        return source
-    raise CliError("Packaged skill not found", code="SKILL_NOT_FOUND")

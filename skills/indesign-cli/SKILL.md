@@ -1,15 +1,20 @@
 ---
 name: indesign-cli
-description: 当 Agent 需要通过 indesign-cli 操作真实 Adobe InDesign、执行 JSX、调用现有工具、验证导出物，或在其他项目中接入 InDesign 自动化能力时使用。
-tags:
-  - Adobe InDesign
-  - CLI
-  - 自动化
-  - 排版
-  - 设计工具
+description: Use when 用户需要制作或编辑固定分页 HTML、InDesign 演示文稿、建筑汇报、排版文档，转换 HTML 与 InDesign，辅助修改现有 INDD，或使用既有模板填充内容。
 ---
 
-# InDesign CLI
+# InDesign 出版与演示文稿
+
+## 路线选择
+
+用户只需要描述成果，不需要选择技术路线。按现有材料判断：
+
+- **从零制作、重新设计、制作演示文稿或建筑汇报**：默认先制作固定分页 HTML 作者包，再通过 builtin HTML 插件转换为 InDesign。开始创作前必须读取 [HTML 作者规则](references/html-authoring.md)。
+- **小幅修改现有 INDD**：保持现有结构和样式，直接使用 InDesign CLI。
+- **已有成熟 INDD 模板，只需填充文字和图片**：读取模板槽位后直接填充，不必绕行 HTML。
+- **现有 INDD 需要大规模重构**：先反向观察或导出作者包，再按 HTML 作者路线重建。
+
+任务边界不清楚时，先确认是否已有 INDD 或指定模板；两者都没有时按“从零制作”处理。
 
 ## Agent 成品入口规则
 
@@ -50,7 +55,7 @@ node src/core/artifact.js --check
 
 Setup 的实际 NAS/GitHub 下载位置由公司现有发布渠道提供；本 Skill 不维护第二份下载清单，也不自动下载或安装 Setup。
 
-安装后启动器位于 `%LOCALAPPDATA%\indesign-cli\bin`，完整运行环境位于 `runtime\<version>`，当前指针为 `state\current-runtime.json`。runtime 自带 CLI、Node、预编译 `winax` 和 builtin HTML 插件；浏览器使用系统 Edge。后续所有 `indesign-cli <args>` 示例对成品用户等价于 `indesign-cli-agent <args>`。Skill 仍由公司现有渠道手动分发，本 CLI 不自动安装 Skill。
+安装后启动器位于 `%LOCALAPPDATA%\indesign-cli\bin`，完整运行环境位于 `runtime\<version>`，当前指针为 `state\current-runtime.json`。runtime 自带 CLI、Node、预编译 `winax` 和 builtin HTML 插件；浏览器使用系统 Edge。后续所有 `indesign-cli <args>` 示例对成品用户等价于 `indesign-cli-agent <args>`。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
 
 开发者从源码工作时仍可用 PyPI 方式：
 

@@ -13,5 +13,5 @@ setup(
             "cli-anything-indesign=cli_anything.indesign.indesign_cli:main",
         ],
     },
-    package_data={"cli_anything.indesign": ["skills/*.md", "node/*.mjs"]},
+    package_data={"cli_anything.indesign": ["node/*.mjs"]},
 )

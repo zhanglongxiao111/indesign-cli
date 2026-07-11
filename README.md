@@ -48,7 +48,7 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 
 日常更新读取 NAS 优先、GitHub 兜底的 `runtime-latest.json`（schema v2），下载并校验 runtime ZIP，在 staging 中检查 CLI、Node、`winax`、builtin HTML 插件和系统 Edge 后原子切换。成功后只保留当前 runtime；失败时删除新 staging 并继续使用旧 runtime。日常更新不替换 `bin\indesign-cli-agent.exe`；启动器自身需要升级时重新运行新版 Setup。
 
-从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行一次 `0.5.0` Setup。Skill 源文件仍由公司现有渠道手动分发，本 CLI 不自动安装 Skill。
+从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行一次 `0.5.0` Setup。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
 
 ### 发行构建（维护者）
 
@@ -134,29 +134,23 @@ indesign-cli server setup
 
 `server setup` 会先探测 PATH 上的 `npm`；探测失败时自动回退到 Node 自带的 `npm-cli.js`。两者都不可用时报 `NPM_NOT_AVAILABLE`，需要先修复本机 Node / npm 安装。
 
-## 🧠 手动安装 Agent Skill
+## 🧠 独立发布 Agent Skill
 
-如果你希望某个项目里的 Agent 自动知道如何使用 `indesign-cli`，需要手动复制 Skill 文档。
+如果你希望某个项目里的 Agent 自动知道如何制作 HTML/InDesign 演示文稿并使用 `indesign-cli`，需要通过公司 Agent 渠道发布完整 Skill 目录。
 
-Skill 源文件在仓库中：
-
-```text
-skills/indesign-cli/SKILL.md
-```
-
-如果你是通过 PyPI 安装的 CLI，可以先定位包内副本：
-
-```powershell
-python -c "from cli_anything.indesign.core.runtime import skill_source_path; print(skill_source_path())"
-```
-
-把这个文件手动复制到目标项目：
+Skill 的唯一发布源在仓库中：
 
 ```text
-D:\AI\your-project\.codex\skills\indesign-cli\SKILL.md
+skills/indesign-cli/
 ```
 
-CLI 不再提供自动复制 Skill 的命令。复制完成后，该项目中的 Agent 才会获得这套 InDesign CLI 使用说明。
+把整个目录复制到目标项目，不能只复制 `SKILL.md`，否则会丢失 HTML 作者 reference 和展示元数据：
+
+```text
+D:\AI\your-project\.codex\skills\indesign-cli\
+```
+
+Setup 和 PyPI 包只发布程序，不携带、不安装也不修改 Skill。CLI 不提供自动复制 Skill 的命令；公司 Agent 渠道直接从上述仓库目录独立发布 Skill。
 
 ## 🧩 插件接入
 

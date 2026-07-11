@@ -43,4 +43,7 @@ include = ["cli_anything.*"]
 exclude = ["cli_anything.indesign.tests*"]
 
 [tool.setuptools.package-data]
-"cli_anything.indesign" = ["skills/*.md", "node/*.mjs", "server/src/core/indesign-tool-registry.json"]
+"cli_anything.indesign" = [
+  "node/*.mjs",
+  "server/src/core/indesign-tool-registry.json",
+]

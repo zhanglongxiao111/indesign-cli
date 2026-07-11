@@ -72,7 +72,7 @@
 - `src/advanced/` 只放高级模板服务器入口壳，不维护独立工具映射。
 - `scripts/` 只放维护脚本和轻量检查，不放临时手测脚本。
 - `tests/` 放测试入口、场景测试和测试数据。
-- `skills/` 放可手动分发到其他项目的 Agent Skill 源文件、预览图和轻量资产。
+- `skills/` 放独立发布到公司 Agent 渠道的标准 Agent Skill 目录、references、展示图和轻量模板资产。
 
 终态已删除 `src/handlers/`、`src/types/` 和 `src/core/InDesignMCPServer.js`；不要恢复 facade、fallback 或第二套工具映射。新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
 
@@ -98,13 +98,14 @@
 - Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 由 `profiles` 决定。
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
 - CLI 遥测字段必须白名单制；禁止记录参数值、脚本内容、文档内容、客户信息和完整路径。新增遥测字段必须过 review；共享遥测目录只写 NAS JSONL、`state` 和 `reports`，不写客户素材。
-- 配套 Skill 源文件在 `skills/indesign-cli/SKILL.md`；CLI 不提供自动安装命令，不能重新加入自动复制 Skill 的命令入口。
+- `skills/indesign-cli/` 是公司统一 InDesign/HTML 出版 Skill 的唯一发布源；顶层 `SKILL.md` 负责路线选择，HTML 作者规则等详细内容放 `references/`。不得在 `html-indesign` 或其他仓库维护第二份可发布 Skill。
+- CLI 不提供自动安装 Skill 的命令；Setup 和 PyPI 包只发布程序，不携带 Skill，Skill 继续由公司 Agent 渠道直接从唯一源目录独立分发。
 - 公司成品采用 `%LOCALAPPDATA%\indesign-cli\{bin,runtime,state,tmp}` 持久布局；`state/current-runtime.json` 是当前 runtime 唯一指针，业务命令不得直接从 embedded runtime 或临时解压目录运行。
 - 日常更新只消费 schema v2 `runtime-latest.json` 并安装 runtime ZIP，不替换 `bin/indesign-cli-agent.exe`。必须 staging 校验后原子切换；成功只保留当前 runtime，失败保留旧 runtime，无旧 runtime 时返回 `INITIAL_INSTALL_FAILED`。
 - builtin 插件来自当前 runtime 的 `plugins/*`，source 为 `builtin`；项目级同 ID 插件可覆盖 builtin 供开发调试。builtin 缺损必须在 health/doctor 中显式报告。
-- 系统浏览器固定为 Edge；允许 `HTML_INDESIGN_BROWSER_EXECUTABLE` 覆盖受控路径。Skill 仍由外部渠道手动发布，CLI 不自动安装。
+- 系统浏览器固定为 Edge；允许 `HTML_INDESIGN_BROWSER_EXECUTABLE` 覆盖受控路径。Skill 仍由外部渠道独立发布，CLI 不自动安装。
 - `0.4.2` 用户不做旧更新协议兼容，由公司 Agent 从 NAS 重新运行一次新版 Setup 完成迁移。
-- `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
+- `skills/indesign-cli/assets/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
 ### 2.6 HTML 插件接入边界
 
@@ -207,9 +208,11 @@
 | `src/tools/<domain>/` | 各域 tool-module：定义、schema、contract、handler 共置 |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
-| `skills/` | 可手动复制到其他项目的 Agent skill 源文件和展示资产 |
-| `skills/indesign-cli/SKILL.md` | InDesign CLI 配套 Skill 主文档 |
-| `skills/indesign-cli/preview.png` | InDesign CLI 配套 Skill 预览图 |
+| `skills/` | 独立发布到公司 Agent 渠道的标准 Skill 目录 |
+| `skills/indesign-cli/SKILL.md` | 统一 InDesign/HTML 出版 Skill 主入口与路线选择 |
+| `skills/indesign-cli/references/` | HTML 作者规则等按需加载的详细说明 |
+| `skills/indesign-cli/agents/openai.yaml` | Skill 展示与默认提示元数据 |
+| `skills/indesign-cli/assets/preview.png` | Skill 预览图 |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |

@@ -20,17 +20,19 @@ indesign-cli-agent server health --deep --connect-indesign
 indesign-cli session show
 ```
 
-配套 Skill 文档需要手动复制：
+统一 Skill 由公司 Agent 渠道独立发布，唯一源目录是：
 
 ```text
-skills/indesign-cli/SKILL.md
+skills/indesign-cli/
 ```
 
 目标项目路径：
 
 ```text
-<project-root>\.codex\skills\indesign-cli\SKILL.md
+<project-root>\.codex\skills\indesign-cli\
 ```
+
+必须复制完整目录，不能只复制 `SKILL.md`。Setup 只安装程序，不安装或更新 Skill。
 
 `script run` 是 Agent 做真实 InDesign 验证的主入口：
 

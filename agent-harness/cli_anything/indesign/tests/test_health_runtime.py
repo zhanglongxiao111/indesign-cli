@@ -1,29 +1,32 @@
 from support import *
 
 
-def test_runtime_resolves_server_root_and_packaged_skill():
-    from cli_anything.indesign.core.runtime import resolve_server_root, skill_source_path
+def test_runtime_resolves_server_root():
+    from cli_anything.indesign.core.runtime import resolve_server_root
 
     server_root = resolve_server_root()
     assert (server_root / "src" / "index.js").exists()
     assert (server_root / "src" / "advanced" / "index.js").exists()
     assert (server_root / "package.json").exists()
 
-    skill_path = skill_source_path()
-    assert skill_path.name == "SKILL.md"
-    assert skill_path == REPO_ROOT / "skills" / "indesign-cli" / "SKILL.md"
-    skill_text = skill_path.read_text(encoding="utf-8")
-    assert "name: indesign-cli" in skill_text
+def test_published_skill_is_standard_unified_html_first_skill():
+    skill_root = REPO_ROOT / "skills" / "indesign-cli"
+    skill_text = (skill_root / "SKILL.md").read_text(encoding="utf-8")
+    html_reference = (skill_root / "references" / "html-authoring.md").read_text(encoding="utf-8")
+    agent_metadata = (skill_root / "agents" / "openai.yaml").read_text(encoding="utf-8")
+
+    assert "制作或编辑固定分页 HTML、InDesign 演示文稿" in skill_text
+    assert "从零制作" in skill_text and "HTML" in skill_text
+    assert "references/html-authoring.md" in skill_text
+    assert "React、Vue 和图表库" in html_reference
+    assert "lint:authoring" in html_reference
+    assert 'display_name: "InDesign 出版与演示文稿"' in agent_metadata
+    assert "$indesign-cli" in agent_metadata
+
     assert "pip install indesign-cli" in skill_text
     assert "server health --deep" in skill_text
-    assert "打开或连接 InDesign" in skill_text
-    assert "script run --stdin" in skill_text
     assert "不得关闭用户已经打开的 InDesign 文档" in skill_text
-    assert "正式成果文件保持打开" in skill_text
     assert "D:\\AI\\html-indesign" not in skill_text
-    assert '"templatePath"' not in skill_text
-    assert '"values"' not in skill_text
-    assert "git+https://github.com" not in skill_text
     assert "cli-anything-indesign" not in skill_text
 
 
