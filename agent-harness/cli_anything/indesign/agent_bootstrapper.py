@@ -8,11 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .core.agent_update import agent_exe_path, ensure_agent_ready, install_root, read_update_state, register_user_command
+from .core.agent_update import agent_exe_path, ensure_agent_ready, install_root, register_user_command
 from .core.bootstrapper import build_runtime_env, embedded_runtime_root
 from .core.envelope import now_ms
 from .core.errors import CliError
 from .core.paths import scrub_text_paths
+from .core.runtime_install import current_runtime_root, install_embedded_runtime, read_current_runtime
+from .core.runtime_health import probe_edge
 
 
 def elapsed(start_ms: int) -> int:
@@ -97,10 +99,15 @@ def child_command(cli_args: list[str]) -> list[str]:
 
 
 def run_child(cli_args: list[str], runtime_root: Path | None = None) -> dict[str, Any]:
-    actual_runtime_root = runtime_root or embedded_runtime_root()
-    env = build_runtime_env(actual_runtime_root) if actual_runtime_root else None
+    actual_runtime_root = runtime_root
+    if actual_runtime_root is None:
+        raise CliError("No persistent runtime is active", code="RUNTIME_NOT_INSTALLED")
+    env = build_runtime_env(actual_runtime_root)
+    cli = actual_runtime_root / "cli" / "indesign-cli.exe"
+    if not cli.is_file():
+        raise CliError("Runtime CLI executable is missing", code="RUNTIME_INVALID", details={"path": str(cli)})
     result = subprocess.run(
-        child_command(cli_args),
+        [str(cli), *cli_args],
         text=True,
         encoding="utf-8",
         stdout=subprocess.PIPE,
@@ -120,6 +127,15 @@ def run_child(cli_args: list[str], runtime_root: Path | None = None) -> dict[str
     }
 
 
+def builtin_html_status(runtime_root: Path | None) -> dict[str, Any]:
+    if runtime_root is None:
+        return {"available": False, "code": "RUNTIME_NOT_ACTIVE", "path": None}
+    manifest = runtime_root / "plugins" / "html-indesign" / "manifest.json"
+    if not manifest.is_file():
+        return {"available": False, "code": "BUILTIN_PLUGIN_MISSING", "path": str(manifest)}
+    return {"available": True, "source": "builtin", "path": str(manifest)}
+
+
 def run(argv: list[str] | None = None) -> int:
     start = now_ms()
     actual_argv = list(sys.argv[1:] if argv is None else argv)
@@ -137,12 +153,26 @@ def run(argv: list[str] | None = None) -> int:
             next_action="Use indesign-cli-agent <indesign-cli args...> or indesign-cli-agent install.",
         )
     if actual_argv[0] == "install":
-        data = ensure_agent_ready(command_args=["install"])
+        root = install_root()
+        embedded = embedded_runtime_root()
+        if embedded is not None and current_runtime_root(root) is None:
+            installed = install_embedded_runtime(embedded, root=root)
+            current = read_current_runtime(root) or {}
+            data = {
+                "updated": True,
+                "version": current.get("version"),
+                "runtime_root": str(installed),
+                "source": "embedded-setup",
+                "warnings": [],
+                "command_args": ["install"],
+            }
+        else:
+            data = ensure_agent_ready(command_args=["install"])
         data["registration"] = register_user_command()
         return emit(ok("install", data, elapsed(start)), pretty=pretty)
     if actual_argv[0] not in {"health", "version"}:
         update_data = ensure_agent_ready(command_args=actual_argv)
-        child = run_child(actual_argv)
+        child = run_child(actual_argv, runtime_root=Path(update_data["runtime_root"]))
         payload = ok("run", {"update": update_data, "child": child}, elapsed(start))
         if child["exit_code"] != 0:
             payload["ok"] = False
@@ -163,21 +193,23 @@ def run(argv: list[str] | None = None) -> int:
     if args.command is None:
         raise CliError("Command is required", code="COMMAND_REQUIRED")
 
-    install_root = install_root_from_args(args)
+    install_base = install_root_from_args(args)
     if args.command == "version":
-        state = read_update_state(install_root)
+        state = read_current_runtime(install_base)
         return emit(ok("version", {"bootstrapper_version": __version__, "current": state}, elapsed(start)), pretty=pretty)
 
     if args.command == "health":
-        state = read_update_state(install_root)
-        runtime_root = embedded_runtime_root()
+        state = read_current_runtime(install_base)
+        runtime_root = current_runtime_root(install_base)
         return emit(
             ok(
                 "health",
                 {
-                    "install_root": str(install_root),
-                    "agent_exe": str(agent_exe_path(install_root)),
-                    "embedded_runtime": str(runtime_root) if runtime_root else None,
+                    "install_root": str(install_base),
+                    "agent_exe": str(agent_exe_path(install_base)),
+                    "runtime_root": str(runtime_root) if runtime_root else None,
+                    "builtin_html_plugin": builtin_html_status(runtime_root),
+                    "edge": probe_edge(),
                     "current": state,
                 },
                 elapsed(start),

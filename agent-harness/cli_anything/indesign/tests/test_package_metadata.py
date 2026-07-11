@@ -21,6 +21,14 @@ def test_pyproject_exposes_remote_installable_package_and_console_aliases():
     assert package_json["version"] == __version__
     assert package_json["author"] == "Sa"
 
+    package_lock = json.loads((REPO_ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    assert package_lock["version"] == __version__
+    assert package_lock["packages"][""]["version"] == __version__
+
+    harness_setup = (REPO_ROOT / "agent-harness" / "setup.py").read_text(encoding="utf-8")
+    assert f'version="{__version__}"' in harness_setup
+    assert __version__ == "0.5.0"
+
 
 def test_pypi_source_distribution_includes_node_server_assets():
     manifest_path = REPO_ROOT / "MANIFEST.in"

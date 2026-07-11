@@ -56,7 +56,7 @@ def test_agent_bootstrapper_direct_command_dispatches(monkeypatch):
 
     def fake_ensure_agent_ready(*, command_args, sources=None):
         calls["ready"] = {"command_args": command_args, "sources": sources}
-        return {"updated": False, "warnings": []}
+        return {"updated": False, "warnings": [], "runtime_root": r"D:\runtime\0.5.0"}
 
     def fake_run_child(cli_args, runtime_root=None):
         calls["child"] = {"cli_args": cli_args, "runtime_root": runtime_root}
@@ -67,13 +67,16 @@ def test_agent_bootstrapper_direct_command_dispatches(monkeypatch):
 
     assert agent_bootstrapper.main(["tool", "domains"]) == 0
     assert calls["ready"] == {"command_args": ["tool", "domains"], "sources": None}
-    assert calls["child"] == {"cli_args": ["tool", "domains"], "runtime_root": None}
+    assert calls["child"] == {"cli_args": ["tool", "domains"], "runtime_root": Path(r"D:\runtime\0.5.0")}
 
 
-def test_agent_bootstrapper_run_child_uses_embedded_runtime_when_available(monkeypatch, tmp_path):
+def test_agent_bootstrapper_run_child_requires_explicit_persistent_runtime(monkeypatch, tmp_path):
     from cli_anything.indesign import agent_bootstrapper
 
     runtime_root = tmp_path / "runtime"
+    cli = runtime_root / "cli" / "indesign-cli.exe"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("", encoding="utf-8")
     node = runtime_root / "node" / "node.exe"
     server = runtime_root / "server"
     node.parent.mkdir(parents=True)
@@ -94,16 +97,16 @@ def test_agent_bootstrapper_run_child_uses_embedded_runtime_when_available(monke
         captured["env"] = kwargs["env"]
         return Result()
 
-    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: runtime_root)
     monkeypatch.setattr(agent_bootstrapper.subprocess, "run", fake_run)
 
-    result = agent_bootstrapper.run_child(["--version"])
+    result = agent_bootstrapper.run_child(["--version"], runtime_root=runtime_root)
 
     assert result["exit_code"] == 0
     env = captured["env"]
     assert env["INDESIGN_CLI_RUNTIME_ROOT"] == str(runtime_root.resolve())
     assert env["INDESIGN_CLI_NODE"] == str(node.resolve())
     assert env["INDESIGN_CLI_SERVER_ROOT"] == str(server.resolve())
+    assert captured["command"] == [str(cli), "--version"]
 
 
 def test_agent_bootstrapper_install_registers_user_command(monkeypatch, capsys):
@@ -124,6 +127,29 @@ def test_agent_bootstrapper_install_registers_user_command(monkeypatch, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
     assert payload["data"]["registration"]["registered"] is True
+
+
+def test_agent_bootstrapper_install_seeds_embedded_runtime_without_network(monkeypatch, tmp_path, capsys):
+    from cli_anything.indesign import agent_bootstrapper
+
+    embedded = tmp_path / "embedded"
+    embedded.mkdir()
+    installed = tmp_path / "install" / "runtime" / "0.5.0"
+    calls = {}
+    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: embedded)
+    monkeypatch.setattr(agent_bootstrapper, "current_runtime_root", lambda root: None)
+    monkeypatch.setattr(agent_bootstrapper, "install_embedded_runtime", lambda source, root: calls.setdefault("installed", (source, root)) and installed)
+    monkeypatch.setattr(agent_bootstrapper, "ensure_agent_ready", lambda **kwargs: (_ for _ in ()).throw(AssertionError("network update should not run")))
+    monkeypatch.setattr(agent_bootstrapper, "register_user_command", lambda: {"registered": True, "bin": "bin"})
+    monkeypatch.setattr(agent_bootstrapper, "install_root", lambda: tmp_path / "install")
+
+    exit_code = agent_bootstrapper.run(["install"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["data"]["runtime_root"] == str(installed)
+    assert payload["data"]["source"] == "embedded-setup"
+    assert calls["installed"] == (embedded, tmp_path / "install")
 
 
 def test_agent_bootstrapper_health_help_does_not_expose_source():
@@ -157,3 +183,65 @@ def test_agent_bootstrapper_child_command_self_dispatches_when_frozen(monkeypatc
         "__cli__",
         "--version",
     ]
+
+
+def test_agent_bootstrapper_runs_persistent_runtime_cli_from_current_state(monkeypatch, tmp_path):
+    from cli_anything.indesign import agent_bootstrapper
+
+    runtime_root = tmp_path / "install" / "runtime" / "0.5.0"
+    cli = runtime_root / "cli" / "indesign-cli.exe"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("cli", encoding="utf-8")
+    node = runtime_root / "node" / "node.exe"
+    node.parent.mkdir()
+    node.write_text("node", encoding="utf-8")
+    server = runtime_root / "server"
+    (server / "src" / "advanced").mkdir(parents=True)
+    (server / "package.json").write_text("{}", encoding="utf-8")
+    (server / "src" / "index.js").write_text("", encoding="utf-8")
+    (server / "src" / "advanced" / "index.js").write_text("", encoding="utf-8")
+    captured = {}
+
+    class Result:
+        returncode = 0
+        stdout = '{"ok":true}'
+        stderr = ""
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["env"] = kwargs["env"]
+        return Result()
+
+    monkeypatch.setattr(agent_bootstrapper.subprocess, "run", fake_run)
+
+    result = agent_bootstrapper.run_child(["tool", "domains"], runtime_root=runtime_root)
+
+    assert result["exit_code"] == 0
+    assert captured["command"] == [str(cli), "tool", "domains"]
+    assert captured["env"]["INDESIGN_CLI_RUNTIME_ROOT"] == str(runtime_root.resolve())
+
+
+def test_agent_bootstrapper_health_reads_current_runtime_not_embedded(monkeypatch, tmp_path, capsys):
+    from cli_anything.indesign import agent_bootstrapper
+
+    root = tmp_path / "install"
+    runtime_root = root / "runtime" / "0.5.0"
+    runtime_root.mkdir(parents=True)
+    plugin = runtime_root / "plugins" / "html-indesign"
+    plugin.mkdir(parents=True)
+    (plugin / "manifest.json").write_text('{"id":"html-indesign","version":"0.2.0"}', encoding="utf-8")
+    state = root / "state" / "current-runtime.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps({"version": "0.5.0", "root": str(runtime_root), "components": {"browser": "msedge"}}), encoding="utf-8")
+    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: tmp_path / "embedded")
+    monkeypatch.setattr(agent_bootstrapper, "probe_edge", lambda: {"checked": True, "available": True, "browser": "msedge", "path": "C:\\Edge\\msedge.exe"})
+
+    exit_code = agent_bootstrapper.run(["health", "--install-root", str(root)])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["data"]["current"]["version"] == "0.5.0"
+    assert payload["data"]["runtime_root"] == str(runtime_root)
+    assert payload["data"]["builtin_html_plugin"]["available"] is True
+    assert payload["data"]["edge"]["available"] is True
+    assert "embedded_runtime" not in payload["data"]

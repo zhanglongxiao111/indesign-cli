@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -148,6 +149,15 @@ def doctor_plugin(plugin_id: str, *, cwd: Path, host_version: str, deep: bool = 
     records, discovery_warnings = discover_plugins(cwd, host_version=host_version)
     record = next((item for item in records if item.id == plugin_id), None)
     if not record:
+        runtime_root = os.environ.get("INDESIGN_CLI_RUNTIME_ROOT")
+        if plugin_id == "html-indesign" and runtime_root:
+            expected = Path(runtime_root) / "plugins" / "html-indesign" / "manifest.json"
+            raise CliError(
+                "Builtin HTML plugin is missing from the current runtime",
+                code="BUILTIN_PLUGIN_MISSING",
+                details={"id": plugin_id, "expected": str(expected)},
+                hint="Reinstall or update the current indesign-cli runtime.",
+            )
         raise CliError(
             "Plugin is not installed",
             code="PLUGIN_NOT_INSTALLED",

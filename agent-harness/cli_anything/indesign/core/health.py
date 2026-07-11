@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import site
 import subprocess
 import sys
@@ -9,6 +10,41 @@ from typing import Any
 
 from .node_setup import LONG_PATH_WARNING_THRESHOLD, SERVER_ROOT_HINT, toolchain_report
 from .runtime import package_root, resolve_node_executable, server_root_override
+from .runtime_health import probe_edge
+
+
+def _runtime_diagnostics() -> dict[str, Any]:
+    root_value = os.environ.get("INDESIGN_CLI_RUNTIME_ROOT")
+    if not root_value:
+        return {
+            "root": None,
+            "version": None,
+            "components": {},
+            "builtin_html_plugin": {"available": False, "code": "RUNTIME_NOT_ACTIVE", "path": None},
+        }
+    root = Path(root_value).resolve()
+    manifest_path = root / "plugins" / "html-indesign" / "manifest.json"
+    plugin: dict[str, Any]
+    components: dict[str, str] = {}
+    state_path = root.parent.parent / "state" / "current-runtime.json"
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8-sig"))
+        if isinstance(state, dict) and Path(str(state.get("root") or "")).resolve() == root and isinstance(state.get("components"), dict):
+            components.update({str(key): str(value) for key, value in state["components"].items()})
+    except (OSError, json.JSONDecodeError):
+        pass
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+            version = str(manifest.get("version") or "") if isinstance(manifest, dict) else ""
+        except (OSError, json.JSONDecodeError):
+            version = ""
+        if version:
+            components["html_indesign"] = version
+        plugin = {"available": True, "source": "builtin", "path": str(manifest_path), "version": version or None}
+    else:
+        plugin = {"available": False, "code": "BUILTIN_PLUGIN_MISSING", "path": str(manifest_path)}
+    return {"root": str(root), "version": root.name, "components": components, "builtin_html_plugin": plugin}
 
 
 def _server_root_diagnostics(repo_root: Path) -> dict[str, Any]:
@@ -49,6 +85,8 @@ def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) 
         "python": _python_diagnostics(),
         "server_root": _server_root_diagnostics(repo_root),
         "cwd": {"unc": str(Path.cwd()).startswith("\\\\")},
+        "runtime": _runtime_diagnostics(),
+        "edge": probe_edge(),
         "node_entry_advanced": {
             "path": "src/advanced/index.js",
             "exists": (repo_root / "src/advanced/index.js").exists(),

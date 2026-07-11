@@ -235,3 +235,53 @@ def test_plugin_doctor_reports_installed_plugin(tmp_path):
     assert payload["data"]["ok"] is True
     assert payload["data"]["plugin"] == "fake-html-plugin"
     assert any(check["name"] == "validate" for check in payload["data"]["checks"])
+
+
+def test_builtin_plugins_are_discovered_from_runtime_without_install(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.plugins.discovery import discover_plugins
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    builtin = runtime / "plugins" / "fake-html-plugin"
+    shutil.copytree(FAKE_PLUGIN_ROOT, builtin)
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+
+    records, warnings = discover_plugins(tmp_path / "project", host_version="0.5.0")
+
+    assert warnings == []
+    assert len(records) == 1
+    assert records[0].id == "fake-html-plugin"
+    assert records[0].source == "builtin"
+
+
+def test_project_plugin_overrides_builtin_plugin_with_same_id(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.plugins.discovery import discover_plugins
+    from cli_anything.indesign.core.plugins.install import install_plugin
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    builtin = runtime / "plugins" / "fake-html-plugin"
+    shutil.copytree(FAKE_PLUGIN_ROOT, builtin)
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    project = tmp_path / "project"
+    project.mkdir()
+    install_plugin(str(FAKE_PLUGIN_ROOT), cwd=project, host_version="0.5.0")
+
+    records, warnings = discover_plugins(project, host_version="0.5.0")
+
+    assert len(records) == 1
+    assert records[0].source == "project"
+    assert any("builtin" in warning and "project" in warning for warning in warnings)
+
+
+def test_plugin_doctor_reports_missing_builtin_html_explicitly(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.validate import doctor_plugin
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    runtime.mkdir(parents=True)
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+
+    with pytest.raises(CliError) as exc:
+        doctor_plugin("html-indesign", cwd=tmp_path, host_version="0.5.0")
+
+    assert exc.value.code == "BUILTIN_PLUGIN_MISSING"
+    assert exc.value.details["expected"] == str(runtime / "plugins" / "html-indesign" / "manifest.json")

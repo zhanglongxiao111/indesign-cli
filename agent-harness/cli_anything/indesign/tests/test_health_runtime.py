@@ -294,3 +294,76 @@ def test_mcp_backend_uses_resolved_node(monkeypatch, tmp_path):
 
     assert tools == []
     assert calls[0][0] == str(node.resolve())
+
+
+def test_edge_probe_prefers_controlled_executable_and_searches_standard_roots(tmp_path):
+    from cli_anything.indesign.core.runtime_health import edge_candidates, probe_edge
+
+    controlled = tmp_path / "controlled" / "msedge.exe"
+    controlled.parent.mkdir()
+    controlled.write_text("edge", encoding="utf-8")
+    env = {
+        "HTML_INDESIGN_BROWSER_EXECUTABLE": str(controlled),
+        "ProgramFiles(x86)": str(tmp_path / "pf86"),
+        "ProgramFiles": str(tmp_path / "pf"),
+        "LOCALAPPDATA": str(tmp_path / "local"),
+    }
+
+    result = probe_edge(env)
+
+    assert result["available"] is True
+    assert result["path"] == str(controlled.resolve())
+    assert edge_candidates(env)[1:] == [
+        tmp_path / "pf86" / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        tmp_path / "pf" / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        tmp_path / "local" / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+    ]
+
+
+def test_edge_probe_reports_stable_missing_code(tmp_path):
+    from cli_anything.indesign.core.runtime_health import probe_edge
+
+    result = probe_edge({"ProgramFiles": str(tmp_path / "missing")})
+
+    assert result["available"] is False
+    assert result["code"] == "EDGE_NOT_AVAILABLE"
+
+
+def test_server_health_reports_current_runtime_components_builtin_html_and_edge(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    plugin = runtime / "plugins" / "html-indesign"
+    plugin.mkdir(parents=True)
+    (plugin / "manifest.json").write_text('{"id":"html-indesign","version":"0.2.0"}', encoding="utf-8")
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"version": "0.5.0", "root": str(runtime), "components": {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "browser": "msedge"}}), encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True, "browser": "msedge", "path": "C:\\Edge\\msedge.exe"})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["root"] == str(runtime.resolve())
+    assert payload["runtime"]["version"] == "0.5.0"
+    assert payload["runtime"]["components"]["html_indesign"] == "0.2.0"
+    assert payload["runtime"]["components"]["node"] == "20.18.1"
+    assert payload["runtime"]["builtin_html_plugin"]["available"] is True
+    assert payload["edge"]["available"] is True
+
+
+def test_server_health_explicitly_reports_missing_builtin_html(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    runtime.mkdir(parents=True)
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["builtin_html_plugin"] == {
+        "available": False,
+        "code": "BUILTIN_PLUGIN_MISSING",
+        "path": str(runtime / "plugins" / "html-indesign" / "manifest.json"),
+    }

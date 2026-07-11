@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import os
 from pathlib import Path
 from typing import Any
 
 from ..errors import CliError
-from .manifest import PluginRecord, load_installed_plugin
+from .manifest import PluginRecord, load_installed_plugin, load_plugin_record
 
 
 SOURCE_PRIORITY = {
@@ -23,6 +24,27 @@ def project_plugin_dir(cwd: Path) -> Path:
 def user_plugin_dir(home: Path | None = None) -> Path:
     base = home or Path.home()
     return base / ".indesign-cli" / "plugins"
+
+
+def builtin_plugin_dir() -> Path | None:
+    runtime_root = os.environ.get("INDESIGN_CLI_RUNTIME_ROOT")
+    return Path(runtime_root) / "plugins" if runtime_root else None
+
+
+def discover_builtin_plugins(*, host_version: str) -> tuple[list[PluginRecord], list[str]]:
+    directory = builtin_plugin_dir()
+    if directory is None or not directory.exists():
+        return [], []
+    records: list[PluginRecord] = []
+    warnings: list[str] = []
+    for path in sorted(directory.iterdir()):
+        if not path.is_dir():
+            continue
+        try:
+            records.append(load_plugin_record(path, source="builtin", host_version=host_version))
+        except CliError as exc:
+            warnings.append(f"builtin plugin unavailable: {path.name}: {exc.code}")
+    return records, warnings
 
 
 def discover_project_plugins(cwd: Path, *, host_version: str) -> tuple[list[PluginRecord], list[str]]:
@@ -44,6 +66,9 @@ def discover_project_plugins(cwd: Path, *, host_version: str) -> tuple[list[Plug
 
 def discover_plugins(cwd: Path, *, host_version: str) -> tuple[list[PluginRecord], list[str]]:
     candidates, warnings = discover_project_plugins(cwd, host_version=host_version)
+    builtin, builtin_warnings = discover_builtin_plugins(host_version=host_version)
+    candidates.extend(builtin)
+    warnings.extend(builtin_warnings)
     by_id: dict[str, list[PluginRecord]] = defaultdict(list)
     for record in candidates:
         by_id[record.id].append(record)
