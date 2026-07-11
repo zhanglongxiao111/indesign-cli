@@ -328,7 +328,12 @@ def validate_builtin_plugin(
     node = runtime_root / "node" / "node.exe"
     backend = PluginBackend(record, node_executable=str(node), runner=probe_runner)
     handshake = backend.handshake({"name": "indesign-cli", "version": components["indesign_cli"], "protocol": record.manifest["protocol"]})
-    if handshake.get("id") != record.id or handshake.get("version") != record.version or handshake.get("domain") != record.domain:
+    if (
+        handshake.get("id") != record.id
+        or handshake.get("version") != record.version
+        or handshake.get("domain") != record.domain
+        or handshake.get("protocol") != record.manifest["protocol"]
+    ):
         raise CliError("Builtin plugin handshake identity is invalid", code="BUILTIN_PLUGIN_IDENTITY_INVALID", details={"handshake": handshake})
     tools = backend.list_tools()
     contract_errors: list[dict[str, Any]] = []

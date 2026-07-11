@@ -95,7 +95,15 @@ def _plugin_tools(tool_ids=HTML_TOOL_IDS, *, callable_value=True):
     ]
 
 
-def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_TOOL_IDS, callable_value=True, schema=None):
+def _probe_runner(
+    *,
+    cli_version="0.5.0",
+    node_version="20.18.1",
+    tool_ids=HTML_TOOL_IDS,
+    callable_value=True,
+    schema=None,
+    handshake_protocol="indesign-cli-plugin.v1",
+):
     def runner(args, **kwargs):
         command = str(args[0]).lower()
         if command.endswith("indesign-cli.exe"):
@@ -107,7 +115,7 @@ def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_
         else:
             request = json.loads(kwargs.get("input") or "{}")
             if request.get("method") == "plugin/handshake":
-                result = {"id": "html-indesign", "version": "0.2.0", "protocol": "indesign-cli-plugin.v1", "domain": "html"}
+                result = {"id": "html-indesign", "version": "0.2.0", "protocol": handshake_protocol, "domain": "html"}
             elif request.get("method") == "tools/list":
                 result = {"tools": _plugin_tools(tool_ids, callable_value=callable_value)}
             elif request.get("method") == "tools/schema":
@@ -365,6 +373,27 @@ def test_runtime_requires_exact_four_official_html_tools_in_catalog(tmp_path):
 
     assert exc.value.code == "BUILTIN_PLUGIN_TOOLS_INVALID"
     assert exc.value.details["expected"] == sorted(HTML_TOOL_IDS)
+
+
+def test_runtime_rejects_builtin_plugin_handshake_protocol_mismatch(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    _write_runtime_zip(archive)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(
+            manifest_file,
+            root=root,
+            edge_probe=lambda: {"available": True},
+            probe_runner=_probe_runner(handshake_protocol="wrong.protocol"),
+        )
+
+    assert exc.value.code == "BUILTIN_PLUGIN_IDENTITY_INVALID"
+    assert not (root / "state" / "current-runtime.json").exists()
 
 
 @pytest.mark.parametrize(
