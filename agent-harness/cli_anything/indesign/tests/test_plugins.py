@@ -1,6 +1,23 @@
 from support import *
 
 
+def test_plugin_backend_uses_runtime_node_environment_by_default(monkeypatch):
+    from cli_anything.indesign.core.plugins.backend import PluginBackend
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    runtime_node = r"D:\runtime\node\node.exe"
+    monkeypatch.setenv("INDESIGN_CLI_NODE", runtime_node)
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8")),
+    )
+
+    assert PluginBackend(record).node_executable == runtime_node
+
+
 def test_plugin_validate_accepts_fake_plugin():
     result = run_module("plugin", "validate", str(FAKE_PLUGIN_ROOT))
     assert result.returncode == 0

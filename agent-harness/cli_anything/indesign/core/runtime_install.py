@@ -93,10 +93,13 @@ class RuntimeUpdateLock:
 
     def __enter__(self) -> "RuntimeUpdateLock":
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        if self.path.stat().st_size == 0:
-            handle.write(b"\0")
-            handle.flush()
+        try:
+            with self.path.open("xb") as initializer:
+                initializer.write(b"\0")
+        except (FileExistsError, PermissionError):
+            if not self.path.exists():
+                raise
+        handle = self.path.open("r+b")
         start = time.monotonic()
         while True:
             try:
@@ -275,7 +278,7 @@ def _run_probe(probe_runner: Callable[..., Any], args: list[str], *, cwd: Path, 
             code="RUNTIME_PROBE_FAILED",
             details={"probe": probe, "returncode": result.returncode, "stderr": str(result.stderr or "")[-500:]},
         )
-    return {"probe": probe, "stdout": str(result.stdout or "").strip()[:200]}
+    return {"probe": probe, "stdout": str(result.stdout or "").strip()}
 
 
 OFFICIAL_HTML_TOOLS = {
@@ -542,8 +545,10 @@ def install_embedded_runtime(
     target = layout.runtime / version
     with RuntimeUpdateLock(layout.update_lock):
         existing = current_runtime_root(root)
-        if existing:
-            return RuntimeInstallResult(runtime_root=existing, installed=False)
+        if existing is not None and existing.resolve() == target.resolve():
+            validator(existing, components=manifest.components, edge_probe=edge_probe, probe_runner=probe_runner)
+            warnings = _cleanup_other_runtimes(layout, existing)
+            return RuntimeInstallResult(runtime_root=existing, installed=False, warnings=warnings)
         try:
             shutil.copytree(embedded_root, staging)
             validator(staging, components=manifest.components, edge_probe=edge_probe, probe_runner=probe_runner)

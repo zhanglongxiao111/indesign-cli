@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import uuid
 from pathlib import Path
@@ -11,10 +12,10 @@ from .manifest import PluginRecord
 
 
 class PluginBackend:
-    def __init__(self, record: PluginRecord, *, timeout: int = 30, node_executable: str = "node", runner=subprocess.run) -> None:
+    def __init__(self, record: PluginRecord, *, timeout: int = 30, node_executable: str | None = None, runner=subprocess.run) -> None:
         self.record = record
         self.timeout = timeout
-        self.node_executable = node_executable
+        self.node_executable = node_executable or os.environ.get("INDESIGN_CLI_NODE") or "node"
         self.runner = runner
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:

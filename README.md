@@ -50,6 +50,22 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 
 从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行一次 `0.5.0` Setup。Skill 源文件仍由公司现有渠道手动分发，本 CLI 不自动安装 Skill。
 
+### 发行构建（维护者）
+
+发行脚本会依次构建持久的 PyInstaller `onedir` CLI、轻量启动器、包含 Node/`winax`/HTML 插件生产依赖的 runtime ZIP，以及单个完整离线 Setup：
+
+```powershell
+python scripts\build_agent_bootstrapper.py `
+  --node-root "C:\Program Files\nodejs" `
+  --node-modules .\node_modules `
+  --html-plugin-tgz <sa-html-indesign-0.2.0.tgz> `
+  --version 0.5.0 `
+  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.0.zip" `
+  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.0/runtime-windows-x64-0.5.0.zip"
+```
+
+先加 `--dry-run` 可只校验输入并查看三段 PyInstaller 命令。外部 `runtime-latest.json` 是 ZIP 完整性事实源，写入真实 SHA-256。ZIP 和 Setup 内的 `runtime-metadata.json` 只用于离线身份/组件校验，其 SHA 字段固定为 64 个 `0`：归档无法在自身内部保存自己的最终摘要，否则写入摘要本身会再次改变摘要。
+
 下面的 PyPI 安装方式保留给开发者和开源用户。
 
 ### 1. 准备环境

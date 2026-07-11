@@ -128,6 +128,20 @@ def _probe_runner(
     return runner
 
 
+def test_cli_version_probe_keeps_complete_json_envelope(tmp_path):
+    from cli_anything.indesign.core.runtime_install import _cli_version, _run_probe
+
+    envelope = json.dumps({"schema_version": 2, "padding": "x" * 400, "data": {"version": "0.5.0"}})
+    probe = _run_probe(
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout=envelope, stderr=""),
+        ["indesign-cli.exe", "--version"],
+        cwd=tmp_path,
+        probe="cli",
+    )
+
+    assert _cli_version(probe["stdout"]) == "0.5.0"
+
+
 _probe_ok = _probe_runner()
 
 
@@ -857,6 +871,90 @@ def test_embedded_runtime_is_copied_only_into_persistent_initial_install(tmp_pat
     assert (installed / "cli" / "indesign-cli.exe").read_bytes() == b"MZembedded"
     assert read_current_runtime(root)["version"] == "0.5.0"
     assert embedded.exists()
+
+
+def test_new_setup_embedded_runtime_atomically_migrates_existing_042(tmp_path):
+    from cli_anything.indesign.core.runtime_install import install_embedded_runtime, read_current_runtime
+
+    root = tmp_path / "install"
+    old = root / "runtime" / "0.4.2"
+    old.mkdir(parents=True)
+    (root / "state").mkdir()
+    (root / "state" / "current-runtime.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.4.2",
+                "root": str(old),
+                "components": {
+                    "indesign_cli": "0.4.2",
+                    "html_indesign": "0.1.0",
+                    "node": "20.18.1",
+                    "winax": "3.6.2",
+                    "browser": "msedge",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    embedded = tmp_path / "embedded"
+    archive = tmp_path / "embedded.zip"
+    _write_runtime_zip(archive, marker="setup-050")
+    with zipfile.ZipFile(archive) as payload:
+        payload.extractall(embedded)
+    (embedded / "runtime-metadata.json").write_text(
+        json.dumps(_manifest_payload(archive, "0" * 64)),
+        encoding="utf-8",
+    )
+
+    result = install_embedded_runtime(embedded, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    assert result.installed is True
+    assert result.runtime_root == root / "runtime" / "0.5.0"
+    assert read_current_runtime(root)["version"] == "0.5.0"
+    assert not old.exists()
+
+
+def test_new_setup_embedded_migration_failure_preserves_existing_042(tmp_path):
+    from cli_anything.indesign.core.runtime_install import install_embedded_runtime, read_current_runtime
+
+    root = tmp_path / "install"
+    old = root / "runtime" / "0.4.2"
+    old.mkdir(parents=True)
+    (root / "state").mkdir()
+    state = {
+        "schema_version": 1,
+        "version": "0.4.2",
+        "root": str(old),
+        "components": {
+            "indesign_cli": "0.4.2",
+            "html_indesign": "0.1.0",
+            "node": "20.18.1",
+            "winax": "3.6.2",
+            "browser": "msedge",
+        },
+    }
+    (root / "state" / "current-runtime.json").write_text(json.dumps(state), encoding="utf-8")
+    embedded = tmp_path / "embedded"
+    archive = tmp_path / "embedded.zip"
+    _write_runtime_zip(archive)
+    with zipfile.ZipFile(archive) as payload:
+        payload.extractall(embedded)
+    (embedded / "runtime-metadata.json").write_text(
+        json.dumps(_manifest_payload(archive, "0" * 64)),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="validation failed"):
+        install_embedded_runtime(
+            embedded,
+            root=root,
+            validator=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("validation failed")),
+        )
+
+    assert read_current_runtime(root)["version"] == "0.4.2"
+    assert old.exists()
+    assert not (root / "runtime" / "0.5.0").exists()
 
 
 def test_embedded_runtime_state_switch_failure_removes_new_target(tmp_path, monkeypatch):

@@ -181,9 +181,11 @@ def test_agent_bootstrapper_console_alias_and_build_script_are_declared():
     assert script.exists()
     text = script.read_text(encoding="utf-8")
     assert "PyInstaller" in text
-    assert "--onefile" in text
-    assert "runtime" in text
-    assert "indesign-cli-agent" in text
+    assert '"--onedir"' in text
+    assert '"indesign-cli"' in text
+    assert '"runtime-windows-x64-' in text
+    assert '"indesign-cli-agent-setup"' in text
+    assert 'output_dir / "latest.json"' not in text
 
 
 def test_agent_bootstrapper_has_no_hidden_embedded_cli_dispatch(monkeypatch):
