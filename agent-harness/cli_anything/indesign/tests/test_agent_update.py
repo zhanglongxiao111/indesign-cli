@@ -30,7 +30,23 @@ def test_ensure_agent_ready_keeps_current_runtime_when_manifest_unavailable(tmp_
     runtime.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(runtime), "components": {}}), encoding="utf-8")
+    state.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.4.2",
+                "root": str(runtime),
+                "components": {
+                    "indesign_cli": "0.4.2",
+                    "html_indesign": "0.1.0",
+                    "node": "20.18.1",
+                    "winax": "3.6.0",
+                    "browser": "msedge",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr("cli_anything.indesign.core.agent_update.install_root", lambda: root)
 
     result = ensure_agent_ready(command_args=["tool", "domains"], sources=[str(tmp_path / "missing.json")])

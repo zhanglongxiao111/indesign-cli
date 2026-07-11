@@ -338,9 +338,10 @@ def test_server_health_reports_current_runtime_components_builtin_html_and_edge(
     (plugin / "manifest.json").write_text('{"id":"html-indesign","version":"0.2.0"}', encoding="utf-8")
     state = tmp_path / "state" / "current-runtime.json"
     state.parent.mkdir()
-    state.write_text(json.dumps({"version": "0.5.0", "root": str(runtime), "components": {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "browser": "msedge"}}), encoding="utf-8")
+    state.write_text(json.dumps({"schema_version": 1, "version": "0.5.0", "root": str(runtime), "components": {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "winax": "3.6.2", "browser": "msedge"}}), encoding="utf-8")
     monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
     monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True, "browser": "msedge", "path": "C:\\Edge\\msedge.exe"})
+    monkeypatch.setattr(health_module, "validate_builtin_plugin", lambda root, components: {"tools": ["html.authoring_lint", "html.build_indesign", "html.compile_instructions", "html.reverse_export"]})
 
     payload = health_module.health(REPO_ROOT, deep=False)
 
@@ -377,6 +378,10 @@ def test_server_health_reports_invalid_builtin_manifest_as_unavailable(monkeypat
     plugin.mkdir(parents=True)
     manifest = plugin / "manifest.json"
     manifest.write_text("{broken", encoding="utf-8")
+    components = {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "winax": "3.6.2", "browser": "msedge"}
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"schema_version": 1, "version": "0.5.0", "root": str(runtime), "components": components}), encoding="utf-8")
     monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
     monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
 
@@ -384,7 +389,7 @@ def test_server_health_reports_invalid_builtin_manifest_as_unavailable(monkeypat
 
     assert payload["runtime"]["builtin_html_plugin"]["available"] is False
     assert payload["runtime"]["builtin_html_plugin"]["code"] == "BUILTIN_PLUGIN_INVALID"
-    assert payload["runtime"]["builtin_html_plugin"]["reason"] == "MANIFEST_JSON_INVALID"
+    assert payload["runtime"]["builtin_html_plugin"]["reason"] == "PLUGIN_MANIFEST_JSON_INVALID"
 
 
 def test_server_health_reports_invalid_current_runtime_state_as_unavailable(monkeypatch, tmp_path):
@@ -403,3 +408,42 @@ def test_server_health_reports_invalid_current_runtime_state_as_unavailable(monk
     assert payload["runtime"]["available"] is False
     assert payload["runtime"]["code"] == "RUNTIME_STATE_INVALID"
     assert payload["runtime"]["reason"] == "CURRENT_STATE_JSON_INVALID"
+
+
+def test_server_health_reuses_formal_plugin_validation_for_semantic_errors(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    plugin = runtime / "plugins" / "html-indesign"
+    plugin.mkdir(parents=True)
+    manifest = {
+        "schema_version": 1,
+        "protocol": "indesign-cli-plugin.v1",
+        "id": "html-indesign",
+        "name": "HTML InDesign",
+        "version": "0.2.0",
+        "kind": "node-plugin",
+        "domain": "html",
+        "entry": "index.js",
+        "description": "invalid permissions",
+        "timeout_default_ms": 30000,
+        "document_state_policy": "host_reported",
+        "host_actions": ["script.run"],
+        "requires": {"indesign_cli": ">=0.5.0", "node": ">=20.18.1"},
+        "capabilities": {"tools": True},
+        "permissions": {"indesign": "direct"},
+    }
+    (plugin / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (plugin / "index.js").write_text("// plugin", encoding="utf-8")
+    components = {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "winax": "3.6.2", "browser": "msedge"}
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text(json.dumps({"schema_version": 1, "version": "0.5.0", "root": str(runtime), "components": components}), encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["builtin_html_plugin"]["available"] is False
+    assert payload["runtime"]["builtin_html_plugin"]["code"] == "BUILTIN_PLUGIN_INVALID"
+    assert payload["runtime"]["builtin_html_plugin"]["reason"] == "PLUGIN_MANIFEST_INVALID"

@@ -11,6 +11,8 @@ from typing import Any
 from .node_setup import LONG_PATH_WARNING_THRESHOLD, SERVER_ROOT_HINT, toolchain_report
 from .runtime import package_root, resolve_node_executable, server_root_override
 from .runtime_health import probe_edge
+from .runtime_install import validate_builtin_plugin
+from .errors import CliError
 
 
 def _runtime_diagnostics() -> dict[str, Any]:
@@ -45,20 +47,33 @@ def _runtime_diagnostics() -> dict[str, Any]:
             elif isinstance(state.get("components"), dict):
                 components.update({str(key): str(value) for key, value in state["components"].items()})
     if manifest_path.is_file():
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
-        except OSError:
-            plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_UNREADABLE"}
-        except json.JSONDecodeError:
-            plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_JSON_INVALID"}
+        required_components = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
+        if not required_components.issubset(components):
+            plugin = {
+                "available": False,
+                "code": "BUILTIN_PLUGIN_INVALID",
+                "path": str(manifest_path),
+                "reason": "RUNTIME_COMPONENTS_UNAVAILABLE",
+            }
         else:
-            if not isinstance(manifest, dict):
-                plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_NOT_OBJECT"}
+            try:
+                validation = validate_builtin_plugin(root, components=components)
+            except CliError as exc:
+                plugin = {
+                    "available": False,
+                    "code": "BUILTIN_PLUGIN_INVALID",
+                    "path": str(manifest_path),
+                    "reason": exc.code,
+                    "details": exc.details,
+                }
             else:
-                version = str(manifest.get("version") or "")
-                if version:
-                    components["html_indesign"] = version
-                plugin = {"available": True, "source": "builtin", "path": str(manifest_path), "version": version or None}
+                plugin = {
+                    "available": True,
+                    "source": "builtin",
+                    "path": str(manifest_path),
+                    "version": components["html_indesign"],
+                    "tools": validation["tools"],
+                }
     else:
         plugin = {"available": False, "code": "BUILTIN_PLUGIN_MISSING", "path": str(manifest_path)}
     result: dict[str, Any] = {

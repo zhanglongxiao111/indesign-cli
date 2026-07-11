@@ -15,7 +15,7 @@ DEFAULT_RUNTIME_SOURCES = (
     "https://github.com/zhanglongxiao111/indesign-cli/releases/latest/download/runtime-latest.json",
 )
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
-_REQUIRED_COMPONENTS = {"indesign_cli", "html_indesign", "node", "browser"}
+_REQUIRED_COMPONENTS = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
 
 
 @dataclass(frozen=True)

@@ -11,9 +11,11 @@ from .manifest import PluginRecord
 
 
 class PluginBackend:
-    def __init__(self, record: PluginRecord, *, timeout: int = 30) -> None:
+    def __init__(self, record: PluginRecord, *, timeout: int = 30, node_executable: str = "node", runner=subprocess.run) -> None:
         self.record = record
         self.timeout = timeout
+        self.node_executable = node_executable
+        self.runner = runner
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = {
@@ -23,8 +25,8 @@ class PluginBackend:
             "params": params or {},
         }
         try:
-            completed = subprocess.run(
-                ["node", str(self.record.entry_path)],
+            completed = self.runner(
+                [self.node_executable, str(self.record.entry_path)],
                 cwd=self.record.root,
                 input=json.dumps(payload, ensure_ascii=False),
                 text=True,

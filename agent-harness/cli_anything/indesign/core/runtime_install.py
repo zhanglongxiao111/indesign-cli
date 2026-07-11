@@ -6,7 +6,6 @@ import os
 import shutil
 import subprocess
 import time
-import uuid
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +13,11 @@ from typing import Any, Callable
 from urllib.request import urlopen
 
 from .errors import CliError
+from .catalog import Catalog, plugin_tool_entries
+from .plugins.backend import PluginBackend
+from .plugins.manifest import load_plugin_record
 from .runtime_health import probe_edge
-from .runtime_manifest import RuntimeManifest, compare_versions, load_first_runtime_manifest, read_runtime_manifest
+from .runtime_manifest import RuntimeManifest, compare_versions, load_first_runtime_manifest, parse_runtime_manifest, parse_version, read_runtime_manifest
 
 
 @dataclass(frozen=True)
@@ -58,115 +60,108 @@ class RuntimeInstallResult:
     warnings: tuple[dict[str, str], ...] = ()
 
 
-def _pid_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    if os.name == "nt":
-        import ctypes
-
-        process_query_limited_information = 0x1000
-        still_active = 259
-        kernel32 = ctypes.windll.kernel32
-        handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
-        if not handle:
-            return kernel32.GetLastError() != 87  # ERROR_INVALID_PARAMETER means no such PID.
-        try:
-            exit_code = ctypes.c_ulong()
-            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
-                return True
-            return exit_code.value == still_active
-        finally:
-            kernel32.CloseHandle(handle)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except (PermissionError, OSError):
-        return True
-    return True
-
-
 class RuntimeUpdateLock:
-    def __init__(
-        self,
-        path: Path,
-        *,
-        timeout_seconds: float = 30.0,
-        stale_after_seconds: float = 3600.0,
-        clock: Callable[[], float] = time.time,
-        pid_alive: Callable[[int], bool] = _pid_alive,
-    ) -> None:
+    def __init__(self, path: Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = path
         self.timeout_seconds = timeout_seconds
-        self.stale_after_seconds = stale_after_seconds
-        self.clock = clock
-        self.pid_alive = pid_alive
-        self._fd: int | None = None
-        self._token: str | None = None
+        self._handle = None
 
-    def _owner_is_reclaimable(self) -> bool:
-        try:
-            payload = json.loads(self.path.read_text(encoding="utf-8-sig"))
-        except (OSError, json.JSONDecodeError):
-            try:
-                age = self.clock() - self.path.stat().st_mtime
-            except OSError:
-                return False
-            return age >= self.stale_after_seconds
-        if not isinstance(payload, dict):
-            return False
-        try:
-            pid = int(payload.get("pid"))
-        except (TypeError, ValueError):
-            pid = -1
-        try:
-            started_at = float(payload.get("started_at"))
-        except (TypeError, ValueError):
-            started_at = self.clock()
-        return (pid > 0 and not self.pid_alive(pid)) or (self.clock() - started_at >= self.stale_after_seconds)
+    @staticmethod
+    def _try_lock(handle) -> None:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    @staticmethod
+    def _unlock(handle) -> None:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     def __enter__(self) -> "RuntimeUpdateLock":
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        handle = self.path.open("a+b")
+        if self.path.stat().st_size == 0:
+            handle.write(b"\0")
+            handle.flush()
         start = time.monotonic()
         while True:
             try:
-                self._fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                self._token = uuid.uuid4().hex
-                os.write(
-                    self._fd,
-                    json.dumps({"pid": os.getpid(), "started_at": self.clock(), "token": self._token}).encode("utf-8"),
-                )
+                self._try_lock(handle)
+                self._handle = handle
+                handle.seek(0)
+                handle.truncate()
+                handle.write(json.dumps({"pid": os.getpid(), "started_at": time.time()}).encode("utf-8"))
+                handle.flush()
                 return self
-            except FileExistsError as exc:
-                if self._owner_is_reclaimable():
-                    try:
-                        self.path.unlink()
-                    except FileNotFoundError:
-                        pass
-                    continue
+            except OSError as exc:
                 if time.monotonic() - start >= self.timeout_seconds:
+                    handle.close()
                     raise CliError("Timed out waiting for runtime update lock", code="UPDATE_LOCK_TIMEOUT", details={"lock": str(self.path)}) from exc
                 time.sleep(0.1)
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        if self._fd is not None:
-            os.close(self._fd)
-            self._fd = None
-        try:
-            payload = json.loads(self.path.read_text(encoding="utf-8-sig"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            return
-        if isinstance(payload, dict) and payload.get("token") == self._token:
-            self.path.unlink(missing_ok=True)
+        if self._handle is not None:
+            try:
+                self._unlock(self._handle)
+            finally:
+                self._handle.close()
+                self._handle = None
 
 
 def read_current_runtime(root: Path) -> dict[str, Any] | None:
     path = RuntimeLayout(root).current_state
+    if not path.exists():
+        return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
-        return None
-    return payload if isinstance(payload, dict) else None
+    except OSError as exc:
+        raise CliError("Current runtime state cannot be read", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_UNREADABLE"}) from exc
+    except json.JSONDecodeError as exc:
+        raise CliError("Current runtime state is not valid JSON", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_JSON_INVALID"}) from exc
+    if not isinstance(payload, dict):
+        raise CliError("Current runtime state must be an object", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_NOT_OBJECT"})
+    if payload.get("schema_version") != 1:
+        raise CliError("Current runtime state schema is unsupported", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_SCHEMA_UNSUPPORTED"})
+    version = str(payload.get("version") or "")
+    if parse_version(version) is None:
+        raise CliError("Current runtime state version is invalid", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_VERSION_INVALID"})
+    components = payload.get("components")
+    required = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
+    if (
+        not isinstance(components, dict)
+        or not required.issubset(components)
+        or not all(isinstance(components.get(key), str) and components.get(key) for key in required)
+        or components.get("browser") != "msedge"
+        or components.get("indesign_cli") != version
+    ):
+        raise CliError("Current runtime state components are invalid", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_COMPONENTS_INVALID"})
+    expected = (root / "runtime" / version).resolve()
+    root_value = payload.get("root")
+    if not isinstance(root_value, str) or os.path.normcase(str(Path(root_value).resolve())) != os.path.normcase(str(expected)):
+        raise CliError(
+            "Current runtime state root does not match its version directory",
+            code="RUNTIME_STATE_INVALID",
+            details={"path": str(path), "reason": "STATE_ROOT_MISMATCH", "expected": str(expected), "actual": root_value},
+        )
+    if not expected.is_dir():
+        raise CliError("Current runtime root is missing", code="RUNTIME_STATE_INVALID", details={"path": str(path), "reason": "STATE_ROOT_MISSING", "root": str(expected)})
+    normalized = dict(payload)
+    normalized["root"] = str(expected)
+    normalized["components"] = {str(key): str(value) for key, value in components.items()}
+    return normalized
 
 
 def current_runtime_root(root: Path) -> Path | None:
@@ -282,9 +277,79 @@ def _run_probe(probe_runner: Callable[..., Any], args: list[str], *, cwd: Path, 
     return {"probe": probe, "stdout": str(result.stdout or "").strip()[:200]}
 
 
+OFFICIAL_HTML_TOOLS = {
+    "html.authoring_lint",
+    "html.compile_instructions",
+    "html.build_indesign",
+    "html.reverse_export",
+}
+
+
+def _cli_version(stdout: str) -> str | None:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return stdout.strip() or None
+    if not isinstance(payload, dict):
+        return None
+    data = payload.get("data")
+    return str(data.get("version")) if isinstance(data, dict) and data.get("version") else None
+
+
+def _require_component_version(component: str, actual: str | None, expected: str) -> None:
+    normalized = actual[1:] if component == "node" and actual and actual.startswith("v") else actual
+    if normalized != expected:
+        raise CliError(
+            "Runtime component version does not match its manifest",
+            code="RUNTIME_COMPONENT_VERSION_MISMATCH",
+            details={"component": component, "expected": expected, "actual": normalized},
+        )
+
+
+def validate_builtin_plugin(
+    runtime_root: Path,
+    *,
+    components: dict[str, str],
+    probe_runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, Any]:
+    plugin_root = runtime_root / "plugins" / "html-indesign"
+    record = load_plugin_record(plugin_root, source="builtin", host_version=components["indesign_cli"])
+    expected_version = components["html_indesign"]
+    if record.id != "html-indesign" or record.domain != "html" or record.version != expected_version:
+        raise CliError(
+            "Builtin HTML plugin identity does not match runtime components",
+            code="BUILTIN_PLUGIN_IDENTITY_INVALID",
+            details={
+                "expected": {"id": "html-indesign", "domain": "html", "version": expected_version},
+                "actual": {"id": record.id, "domain": record.domain, "version": record.version},
+            },
+        )
+    node = runtime_root / "node" / "node.exe"
+    backend = PluginBackend(record, node_executable=str(node), runner=probe_runner)
+    handshake = backend.handshake({"name": "indesign-cli", "version": components["indesign_cli"], "protocol": record.manifest["protocol"]})
+    if handshake.get("id") != record.id or handshake.get("version") != record.version or handshake.get("domain") != record.domain:
+        raise CliError("Builtin plugin handshake identity is invalid", code="BUILTIN_PLUGIN_IDENTITY_INVALID", details={"handshake": handshake})
+    tools = backend.list_tools()
+    entries = plugin_tool_entries(record, tools)
+    catalog = Catalog(repo_root=runtime_root, tools=[]).with_exposed_tools(
+        plugin_tools=entries,
+        plugin_domain_summaries={"html": str(record.manifest.get("description") or "HTML tools")},
+        plugin_records={record.id: record},
+    )
+    discovered = {tool["id"] for tool in catalog.list_tools(domain="html", source="plugin")}
+    if discovered != OFFICIAL_HTML_TOOLS:
+        raise CliError(
+            "Builtin HTML plugin tools do not match the official catalog",
+            code="BUILTIN_PLUGIN_TOOLS_INVALID",
+            details={"expected": sorted(OFFICIAL_HTML_TOOLS), "actual": sorted(discovered)},
+        )
+    return {"record": record, "tools": sorted(discovered)}
+
+
 def validate_runtime(
     runtime_root: Path,
     *,
+    components: dict[str, str],
     edge_probe: Callable[[], dict[str, Any]] = probe_edge,
     probe_runner: Callable[..., Any] = subprocess.run,
 ) -> dict[str, Any]:
@@ -305,32 +370,23 @@ def validate_runtime(
     _require_pe(cli)
     _require_pe(node)
     _read_json_object(runtime_root / "server" / "package.json", code="RUNTIME_VALIDATION_FAILED")
-    _read_json_object(runtime_root / "server" / "node_modules" / "winax" / "package.json", code="WINAX_INVALID")
+    winax_package = _read_json_object(runtime_root / "server" / "node_modules" / "winax" / "package.json", code="WINAX_INVALID")
     winax_root = runtime_root / "server" / "node_modules" / "winax"
     if not any(winax_root.rglob("*.node")):
         raise CliError("winax native binding is missing", code="WINAX_INVALID", details={"path": str(winax_root)})
-    plugin_root = runtime_root / "plugins" / "html-indesign"
-    plugin_manifest_path = plugin_root / "manifest.json"
-    plugin_manifest = _read_json_object(plugin_manifest_path, code="BUILTIN_PLUGIN_INVALID")
-    entry = plugin_manifest.get("entry")
-    if not isinstance(entry, str) or not entry:
-        raise CliError("Builtin plugin entry is missing", code="BUILTIN_PLUGIN_INVALID", details={"path": str(plugin_manifest_path), "field": "entry"})
-    entry_path = (plugin_root / entry).resolve()
-    try:
-        entry_path.relative_to(plugin_root.resolve())
-    except ValueError as exc:
-        raise CliError("Builtin plugin entry escapes its root", code="BUILTIN_PLUGIN_INVALID", details={"entry": entry}) from exc
-    if not entry_path.is_file():
-        raise CliError("Builtin plugin entry does not exist", code="BUILTIN_PLUGIN_INVALID", details={"entry": str(entry_path)})
     probes = [
         _run_probe(probe_runner, [str(cli), "--version"], cwd=runtime_root, probe="cli"),
         _run_probe(probe_runner, [str(node), "--version"], cwd=runtime_root, probe="node"),
         _run_probe(probe_runner, [str(node), "-e", "require('winax'); process.stdout.write('ok')"], cwd=runtime_root / "server", probe="winax"),
     ]
+    _require_component_version("indesign_cli", _cli_version(probes[0]["stdout"]), components["indesign_cli"])
+    _require_component_version("node", probes[1]["stdout"], components["node"])
+    _require_component_version("winax", str(winax_package.get("version") or "") or None, components["winax"])
+    plugin = validate_builtin_plugin(runtime_root, components=components, probe_runner=probe_runner)
     edge = edge_probe()
     if edge.get("available") is not True:
         raise CliError("Microsoft Edge is not available", code="EDGE_NOT_AVAILABLE", details=edge)
-    return {"edge": edge, "probes": probes}
+    return {"edge": edge, "probes": probes, "plugin_tools": plugin["tools"]}
 
 
 def _write_current_state(layout: RuntimeLayout, payload: dict[str, Any]) -> None:
@@ -357,6 +413,28 @@ def _cleanup_other_runtimes(layout: RuntimeLayout, keep: Path) -> tuple[dict[str
     return tuple(warnings)
 
 
+def _commit_staged_runtime(
+    layout: RuntimeLayout,
+    *,
+    staging: Path,
+    target: Path,
+    state_payload: dict[str, Any],
+) -> RuntimeInstallResult:
+    target_installed = False
+    try:
+        if target.exists():
+            _remove_runtime_path(target)
+        os.replace(staging, target)
+        target_installed = True
+        _write_current_state(layout, state_payload)
+    except Exception:
+        if target_installed:
+            shutil.rmtree(target, ignore_errors=True)
+        raise
+    warnings = _cleanup_other_runtimes(layout, target)
+    return RuntimeInstallResult(runtime_root=target, installed=True, warnings=warnings)
+
+
 def install_runtime(
     manifest_source: str | Path | RuntimeManifest,
     *,
@@ -374,23 +452,20 @@ def install_runtime(
     with RuntimeUpdateLock(layout.update_lock):
         previous = current_runtime_root(root)
         if previous is not None and target.resolve() == previous.resolve():
-            validator(previous, edge_probe=edge_probe, probe_runner=probe_runner)
+            validator(previous, components=manifest.components, edge_probe=edge_probe, probe_runner=probe_runner)
             warnings = _cleanup_other_runtimes(layout, previous)
             return RuntimeInstallResult(runtime_root=previous, installed=False, warnings=warnings)
         shutil.rmtree(staging, ignore_errors=True)
-        target_installed = False
         try:
             artifact_source = _download(manifest, archive)
             staging.mkdir(parents=True)
             _safe_extract(archive, staging)
-            validator(staging, edge_probe=edge_probe, probe_runner=probe_runner)
-            if target.exists():
-                shutil.rmtree(target)
-            os.replace(staging, target)
-            target_installed = True
-            _write_current_state(
+            validator(staging, components=manifest.components, edge_probe=edge_probe, probe_runner=probe_runner)
+            return _commit_staged_runtime(
                 layout,
-                {
+                staging=staging,
+                target=target,
+                state_payload={
                     "schema_version": 1,
                     "version": manifest.version,
                     "root": str(target),
@@ -399,15 +474,9 @@ def install_runtime(
                     "artifact_source": artifact_source,
                 },
             )
-        except Exception:
-            if target_installed:
-                shutil.rmtree(target, ignore_errors=True)
-            raise
         finally:
             archive.unlink(missing_ok=True)
             shutil.rmtree(staging, ignore_errors=True)
-        warnings = _cleanup_other_runtimes(layout, target)
-        return RuntimeInstallResult(runtime_root=target, installed=True, warnings=warnings)
 
 
 def install_embedded_runtime(
@@ -417,17 +486,22 @@ def install_embedded_runtime(
     validator: Callable[..., Any] = validate_runtime,
     edge_probe: Callable[[], dict[str, Any]] = probe_edge,
     probe_runner: Callable[..., Any] = subprocess.run,
-) -> Path:
+) -> RuntimeInstallResult:
     """Seed the persistent layout from setup-owned files; never run from them."""
     metadata_path = embedded_root / "runtime-metadata.json"
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8-sig"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CliError("Embedded runtime metadata is invalid", code="EMBEDDED_RUNTIME_METADATA_INVALID", details={"path": str(metadata_path)}) from exc
-    version = str(metadata.get("version") or "") if isinstance(metadata, dict) else ""
-    components = metadata.get("components") if isinstance(metadata, dict) else None
-    if not version or not isinstance(components, dict):
-        raise CliError("Embedded runtime metadata is incomplete", code="EMBEDDED_RUNTIME_METADATA_INVALID", details={"path": str(metadata_path)})
+        if not isinstance(metadata, dict):
+            raise CliError("Embedded runtime metadata must be an object", code="UPDATE_MANIFEST_INVALID")
+        manifest = parse_runtime_manifest(metadata, source=str(metadata_path))
+    except (OSError, json.JSONDecodeError, CliError) as exc:
+        reason = exc.code if isinstance(exc, CliError) else exc.__class__.__name__
+        raise CliError(
+            "Embedded runtime metadata is invalid",
+            code="EMBEDDED_RUNTIME_METADATA_INVALID",
+            details={"path": str(metadata_path), "reason": reason},
+        ) from exc
+    version = manifest.version
     layout = RuntimeLayout(root)
     layout.create()
     staging = layout.runtime / f".staging-{version}-{os.getpid()}"
@@ -435,32 +509,23 @@ def install_embedded_runtime(
     with RuntimeUpdateLock(layout.update_lock):
         existing = current_runtime_root(root)
         if existing:
-            return existing
-        target_installed = False
+            return RuntimeInstallResult(runtime_root=existing, installed=False)
         try:
             shutil.copytree(embedded_root, staging)
-            validator(staging, edge_probe=edge_probe, probe_runner=probe_runner)
-            if target.exists():
-                shutil.rmtree(target)
-            os.replace(staging, target)
-            target_installed = True
-            _write_current_state(
+            validator(staging, components=manifest.components, edge_probe=edge_probe, probe_runner=probe_runner)
+            return _commit_staged_runtime(
                 layout,
-                {
+                staging=staging,
+                target=target,
+                state_payload={
                     "schema_version": 1,
                     "version": version,
                     "root": str(target),
-                    "components": {str(key): str(value) for key, value in components.items()},
+                    "components": manifest.components,
                     "manifest_source": "embedded-setup",
                     "artifact_source": str(embedded_root),
                 },
             )
-            _cleanup_other_runtimes(layout, target)
-            return target
-        except Exception:
-            if target_installed:
-                shutil.rmtree(target, ignore_errors=True)
-            raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 

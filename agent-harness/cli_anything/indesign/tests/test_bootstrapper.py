@@ -1,4 +1,6 @@
 from support import *
+from types import SimpleNamespace
+
 import pytest
 
 from cli_anything.indesign.core.errors import CliError
@@ -141,7 +143,11 @@ def test_agent_bootstrapper_install_seeds_embedded_runtime_without_network(monke
     calls = {}
     monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: embedded)
     monkeypatch.setattr(agent_bootstrapper, "current_runtime_root", lambda root: None)
-    monkeypatch.setattr(agent_bootstrapper, "install_embedded_runtime", lambda source, root: calls.setdefault("installed", (source, root)) and installed)
+    monkeypatch.setattr(
+        agent_bootstrapper,
+        "install_embedded_runtime",
+        lambda source, root: calls.setdefault("installed", (source, root)) and SimpleNamespace(runtime_root=installed),
+    )
     monkeypatch.setattr(agent_bootstrapper, "ensure_agent_ready", lambda **kwargs: (_ for _ in ()).throw(AssertionError("network update should not run")))
     monkeypatch.setattr(agent_bootstrapper, "register_user_command", lambda: {"registered": True, "bin": "bin"})
     monkeypatch.setattr(agent_bootstrapper, "install_root", lambda: tmp_path / "install")
@@ -283,7 +289,23 @@ def test_agent_bootstrapper_health_reads_current_runtime_not_embedded(monkeypatc
     (plugin / "manifest.json").write_text('{"id":"html-indesign","version":"0.2.0"}', encoding="utf-8")
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.5.0", "root": str(runtime_root), "components": {"browser": "msedge"}}), encoding="utf-8")
+    state.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.5.0",
+                "root": str(runtime_root),
+                "components": {
+                    "indesign_cli": "0.5.0",
+                    "html_indesign": "0.2.0",
+                    "node": "20.18.1",
+                    "winax": "3.6.0",
+                    "browser": "msedge",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: tmp_path / "embedded")
     monkeypatch.setattr(agent_bootstrapper, "probe_edge", lambda: {"checked": True, "available": True, "browser": "msedge", "path": "C:\\Edge\\msedge.exe"})
 

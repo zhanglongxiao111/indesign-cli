@@ -1,5 +1,8 @@
 import hashlib
 import json
+import os
+import threading
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -8,6 +11,13 @@ from types import SimpleNamespace
 import pytest
 
 import support  # noqa: F401
+
+HTML_TOOL_IDS = {
+    "html.authoring_lint",
+    "html.compile_instructions",
+    "html.build_indesign",
+    "html.reverse_export",
+}
 
 
 def _manifest_payload(artifact, sha256, version="0.5.0"):
@@ -20,13 +30,14 @@ def _manifest_payload(artifact, sha256, version="0.5.0"):
             "indesign_cli": version,
             "html_indesign": "0.2.0",
             "node": "20.18.1",
+            "winax": "3.6.2",
             "browser": "msedge",
         },
         "artifact": {"url": str(artifact), "github_url": "https://github.example/runtime.zip", "sha256": sha256},
     }
 
 
-def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_plugin_entry=True, cli_bytes=None, include_winax_binding=True):
+def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_plugin_entry=True, cli_bytes=None, include_winax_binding=True, winax_version="3.6.2"):
     plugin_manifest = plugin_manifest if plugin_manifest is not None else {
         "schema_version": 1,
         "protocol": "indesign-cli-plugin.v1",
@@ -36,6 +47,13 @@ def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_
         "kind": "node-plugin",
         "domain": "html",
         "entry": "index.js",
+        "description": "HTML to InDesign runtime plugin",
+        "timeout_default_ms": 30000,
+        "document_state_policy": "host_reported",
+        "host_actions": ["script.run", "export.verify", "session.show"],
+        "requires": {"indesign_cli": ">=0.5.0", "node": ">=20.18.1"},
+        "capabilities": {"tools": True, "host_actions": ["script.run", "export.verify", "session.show"]},
+        "permissions": {"filesystem": ["read_project", "write_project"], "indesign": "host_only", "network": False},
     }
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("cli/indesign-cli.exe", cli_bytes if cli_bytes is not None else b"MZ" + marker.encode())
@@ -43,7 +61,7 @@ def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_
         archive.writestr("server/package.json", "{}")
         archive.writestr("server/src/index.js", "// classic")
         archive.writestr("server/src/advanced/index.js", "// advanced")
-        archive.writestr("server/node_modules/winax/package.json", "{}")
+        archive.writestr("server/node_modules/winax/package.json", json.dumps({"name": "winax", "version": winax_version}))
         if include_winax_binding:
             archive.writestr("server/node_modules/winax/build/Release/node_activex.node", b"binding")
         archive.writestr("plugins/html-indesign/manifest.json", json.dumps(plugin_manifest) if isinstance(plugin_manifest, dict) else plugin_manifest)
@@ -51,14 +69,64 @@ def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_
             archive.writestr("plugins/html-indesign/index.js", "// plugin")
 
 
-def _probe_ok(args, **kwargs):
-    return SimpleNamespace(returncode=0, stdout="0.5.0", stderr="")
+def _plugin_tools(tool_ids=HTML_TOOL_IDS):
+    return [
+        {
+            "id": tool_id,
+            "domain": "html",
+            "name": tool_id.split(".", 1)[1],
+            "one_line_purpose": tool_id,
+            "arg_names": [],
+            "callable": True,
+            "preconditions": [],
+            "return_example": {"status": "complete"},
+            "failure_example": {"code": "PLUGIN_CALL_FAILED"},
+        }
+        for tool_id in sorted(tool_ids)
+    ]
+
+
+def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_TOOL_IDS):
+    def runner(args, **kwargs):
+        command = str(args[0]).lower()
+        if command.endswith("indesign-cli.exe"):
+            stdout = json.dumps({"ok": True, "data": {"name": "indesign-cli", "version": cli_version}})
+        elif len(args) >= 2 and args[1] == "--version":
+            stdout = f"v{node_version}"
+        elif len(args) >= 2 and args[1] == "-e":
+            stdout = "ok"
+        else:
+            request = json.loads(kwargs.get("input") or "{}")
+            if request.get("method") == "plugin/handshake":
+                result = {"id": "html-indesign", "version": "0.2.0", "protocol": "indesign-cli-plugin.v1", "domain": "html"}
+            elif request.get("method") == "tools/list":
+                result = {"tools": _plugin_tools(tool_ids)}
+            else:
+                result = {}
+            stdout = json.dumps({"jsonrpc": "2.0", "id": request.get("id"), "result": result})
+        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+    return runner
+
+
+_probe_ok = _probe_runner()
 
 
 def _write_manifest(path, artifact, *, version="0.5.0", sha256=None):
     sha = sha256 or hashlib.sha256(artifact.read_bytes()).hexdigest()
     path.write_text(json.dumps(_manifest_payload(artifact, sha, version)), encoding="utf-8")
     return path
+
+
+def _runtime_state(install_root, version="0.5.0", **changes):
+    payload = {
+        "schema_version": 1,
+        "version": version,
+        "root": str(install_root / "runtime" / version),
+        "components": _manifest_payload(install_root / "runtime.zip", "a" * 64, version)["components"],
+    }
+    payload.update(changes)
+    return payload
 
 
 def test_runtime_manifest_v2_parses_components_and_runtime_artifact(tmp_path):
@@ -77,6 +145,7 @@ def test_runtime_manifest_v2_parses_components_and_runtime_artifact(tmp_path):
             "indesign_cli": "0.5.0",
             "html_indesign": "0.2.0",
             "node": "20.18.1",
+            "winax": "3.6.2",
             "browser": "msedge",
         },
         artifact_url=str(tmp_path / "runtime.zip"),
@@ -84,6 +153,64 @@ def test_runtime_manifest_v2_parses_components_and_runtime_artifact(tmp_path):
         sha256="a" * 64,
         source="nas",
     )
+
+
+@pytest.mark.parametrize(
+    "payload, reason",
+    [
+        ("{broken", "STATE_JSON_INVALID"),
+        ({"schema_version": 2, "version": "0.5.0", "root": "x", "components": {}}, "STATE_SCHEMA_UNSUPPORTED"),
+        ({"schema_version": 1, "version": "bad", "root": "x", "components": {}}, "STATE_VERSION_INVALID"),
+        ({"schema_version": 1, "version": "0.5.0", "root": "x", "components": {}}, "STATE_COMPONENTS_INVALID"),
+    ],
+)
+def test_read_current_runtime_rejects_invalid_state_structure(tmp_path, payload, reason):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import read_current_runtime
+
+    root = tmp_path / "install"
+    state = root / "state" / "current-runtime.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(CliError) as exc:
+        read_current_runtime(root)
+
+    assert exc.value.code == "RUNTIME_STATE_INVALID"
+    assert exc.value.details["reason"] == reason
+
+
+def test_read_current_runtime_rejects_root_outside_version_directory(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import read_current_runtime
+
+    root = tmp_path / "install"
+    payload = _runtime_state(root, root=str(tmp_path / "escaped"))
+    state = root / "state" / "current-runtime.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(CliError) as exc:
+        read_current_runtime(root)
+
+    assert exc.value.code == "RUNTIME_STATE_INVALID"
+    assert exc.value.details["reason"] == "STATE_ROOT_MISMATCH"
+
+
+def test_read_current_runtime_accepts_normalized_expected_root(tmp_path):
+    from cli_anything.indesign.core.runtime_install import read_current_runtime
+
+    root = tmp_path / "install"
+    expected = root / "runtime" / "0.5.0"
+    expected.mkdir(parents=True)
+    payload = _runtime_state(root, root=str(root / "runtime" / "x" / ".." / "0.5.0"))
+    state = root / "state" / "current-runtime.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps(payload), encoding="utf-8")
+
+    current = read_current_runtime(root)
+
+    assert current["root"] == str(expected.resolve())
 
 
 @pytest.mark.parametrize("field,value", [("schema_version", 1), ("name", "indesign-cli-agent"), ("platform", "linux-x64")])
@@ -113,12 +240,114 @@ def test_runtime_manifest_v2_requires_github_fallback(tmp_path):
     assert exc.value.code == "UPDATE_MANIFEST_INVALID"
 
 
+def test_runtime_manifest_v2_requires_winax_component(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_manifest import parse_runtime_manifest
+
+    payload = _manifest_payload(tmp_path / "runtime.zip", "a" * 64)
+    payload["components"].pop("winax")
+
+    with pytest.raises(CliError) as exc:
+        parse_runtime_manifest(payload, source="nas")
+
+    assert exc.value.code == "UPDATE_MANIFEST_INVALID"
+
+
+@pytest.mark.parametrize(
+    "component, archive_kwargs, runner",
+    [
+        ("indesign_cli", {}, _probe_runner(cli_version="0.5.1")),
+        ("node", {}, _probe_runner(node_version="20.19.0")),
+        (
+            "winax",
+            {"winax_version": "3.7.0"},
+            _probe_ok,
+        ),
+    ],
+)
+def test_runtime_component_version_mismatch_rejects_before_switch(tmp_path, component, archive_kwargs, runner):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    _write_runtime_zip(archive, **archive_kwargs)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(manifest_file, root=root, edge_probe=lambda: {"available": True}, probe_runner=runner)
+
+    assert exc.value.code == "RUNTIME_COMPONENT_VERSION_MISMATCH"
+    assert exc.value.details["component"] == component
+    assert not (root / "state" / "current-runtime.json").exists()
+
+
+@pytest.mark.parametrize(
+    "manifest_change, expected_code",
+    [
+        ({"permissions": {"indesign": "direct"}}, "PLUGIN_MANIFEST_INVALID"),
+        ({"id": "other-html"}, "BUILTIN_PLUGIN_IDENTITY_INVALID"),
+        ({"domain": "other"}, "BUILTIN_PLUGIN_IDENTITY_INVALID"),
+        ({"version": "0.2.1"}, "BUILTIN_PLUGIN_IDENTITY_INVALID"),
+    ],
+)
+def test_runtime_rejects_semantically_invalid_builtin_plugin_before_switch(tmp_path, manifest_change, expected_code):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    base = {
+        "schema_version": 1,
+        "protocol": "indesign-cli-plugin.v1",
+        "id": "html-indesign",
+        "name": "HTML InDesign",
+        "version": "0.2.0",
+        "kind": "node-plugin",
+        "domain": "html",
+        "entry": "index.js",
+        "description": "HTML to InDesign runtime plugin",
+        "timeout_default_ms": 30000,
+        "document_state_policy": "host_reported",
+        "host_actions": ["script.run", "export.verify", "session.show"],
+        "requires": {"indesign_cli": ">=0.5.0", "node": ">=20.18.1"},
+        "capabilities": {"tools": True, "host_actions": ["script.run", "export.verify", "session.show"]},
+        "permissions": {"filesystem": ["read_project"], "indesign": "host_only", "network": False},
+    }
+    base.update(manifest_change)
+    _write_runtime_zip(archive, plugin_manifest=base)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(manifest_file, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    assert exc.value.code == expected_code
+    assert not (root / "state" / "current-runtime.json").exists()
+
+
+def test_runtime_requires_exact_four_official_html_tools_in_catalog(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    _write_runtime_zip(archive)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+    missing_reverse = HTML_TOOL_IDS - {"html.reverse_export"}
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(manifest_file, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_runner(tool_ids=missing_reverse))
+
+    assert exc.value.code == "BUILTIN_PLUGIN_TOOLS_INVALID"
+    assert exc.value.details["expected"] == sorted(HTML_TOOL_IDS)
+
+
 @pytest.mark.parametrize(
     "archive_kwargs, expected_code",
     [
         ({"cli_bytes": b"not-pe"}, "RUNTIME_EXECUTABLE_INVALID"),
-        ({"plugin_manifest": "{bad-json"}, "BUILTIN_PLUGIN_INVALID"),
-        ({"include_plugin_entry": False}, "BUILTIN_PLUGIN_INVALID"),
+        ({"plugin_manifest": "{bad-json"}, "PLUGIN_MANIFEST_JSON_INVALID"),
+        ({"include_plugin_entry": False}, "PLUGIN_ENTRY_NOT_FOUND"),
         ({"include_winax_binding": False}, "WINAX_INVALID"),
     ],
 )
@@ -131,7 +360,7 @@ def test_runtime_validation_rejects_invalid_payload_without_switching_or_deletin
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive, **archive_kwargs)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -155,7 +384,7 @@ def test_runtime_validation_rejects_nonzero_health_probe_without_switching(tmp_p
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -205,7 +434,7 @@ def test_runtime_install_rejects_sha_mismatch_and_keeps_current(tmp_path, monkey
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive, sha256="f" * 64)
@@ -258,7 +487,7 @@ def test_runtime_install_interrupted_validation_cleans_staging_and_preserves_cur
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -282,7 +511,7 @@ def test_runtime_install_atomic_state_switch_failure_removes_new_runtime_and_kee
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -307,7 +536,7 @@ def test_runtime_installer_never_overwrites_current_version_in_place(tmp_path):
         payload.extractall(current)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.5.0", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.5.0")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive, marker="replacement")
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -356,56 +585,59 @@ def test_runtime_update_lock_blocks_concurrent_installer(tmp_path):
     assert exc.value.code == "UPDATE_LOCK_TIMEOUT"
 
 
-def test_runtime_update_lock_reclaims_dead_owner(tmp_path):
+def test_runtime_update_lock_ignores_crash_left_metadata_when_os_lock_is_free(tmp_path):
     from cli_anything.indesign.core.runtime_install import RuntimeUpdateLock
 
     path = tmp_path / "state" / "runtime-update.lock"
     path.parent.mkdir()
     path.write_text(json.dumps({"pid": 424242, "started_at": 1000.0}), encoding="utf-8")
 
-    with RuntimeUpdateLock(path, timeout_seconds=0, stale_after_seconds=3600, clock=lambda: 1001.0, pid_alive=lambda _pid: False):
+    with RuntimeUpdateLock(path, timeout_seconds=0):
         assert path.exists()
 
-    assert not path.exists()
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    assert metadata["pid"] == os.getpid()
 
 
-def test_runtime_update_lock_reclaims_live_owner_only_after_safety_threshold(tmp_path):
-    from cli_anything.indesign.core.runtime_install import RuntimeUpdateLock
-
-    path = tmp_path / "state" / "runtime-update.lock"
-    path.parent.mkdir()
-    path.write_text(json.dumps({"pid": 42, "started_at": 1000.0}), encoding="utf-8")
-
-    with RuntimeUpdateLock(path, timeout_seconds=0, stale_after_seconds=60, clock=lambda: 1061.0, pid_alive=lambda _pid: True):
-        assert path.exists()
-
-
-def test_runtime_update_lock_does_not_reclaim_live_fresh_owner(tmp_path):
+def test_runtime_update_lock_live_owner_still_times_out_even_if_metadata_is_old(tmp_path):
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.runtime_install import RuntimeUpdateLock
 
     path = tmp_path / "state" / "runtime-update.lock"
-    path.parent.mkdir()
-    original = {"pid": 42, "started_at": 1000.0}
-    path.write_text(json.dumps(original), encoding="utf-8")
-
-    with pytest.raises(CliError) as exc:
-        with RuntimeUpdateLock(path, timeout_seconds=0, stale_after_seconds=60, clock=lambda: 1001.0, pid_alive=lambda _pid: True):
-            pass
+    with RuntimeUpdateLock(path, timeout_seconds=0):
+        with pytest.raises(CliError) as exc:
+            with RuntimeUpdateLock(path, timeout_seconds=0):
+                pass
 
     assert exc.value.code == "UPDATE_LOCK_TIMEOUT"
-    assert json.loads(path.read_text(encoding="utf-8")) == original
 
 
-def test_runtime_update_lock_exit_does_not_remove_replacement_owner(tmp_path):
+def test_two_runtime_lock_recoverers_never_enter_transaction_together(tmp_path):
     from cli_anything.indesign.core.runtime_install import RuntimeUpdateLock
 
     path = tmp_path / "state" / "runtime-update.lock"
-    with RuntimeUpdateLock(path, timeout_seconds=0):
-        replacement = {"pid": 999, "started_at": 2000.0, "token": "replacement"}
-        path.write_text(json.dumps(replacement), encoding="utf-8")
+    active = 0
+    max_active = 0
+    guard = threading.Lock()
+    start = threading.Barrier(2)
 
-    assert json.loads(path.read_text(encoding="utf-8")) == replacement
+    def recover():
+        nonlocal active, max_active
+        start.wait()
+        with RuntimeUpdateLock(path, timeout_seconds=2):
+            with guard:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.05)
+            with guard:
+                active -= 1
+        return True
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _item: recover(), range(2)))
+
+    assert results == [True, True]
+    assert max_active == 1
 
 
 def test_cleanup_failure_keeps_new_current_and_returns_structured_warning_for_retry(tmp_path, monkeypatch):
@@ -416,7 +648,7 @@ def test_cleanup_failure_keeps_new_current_and_returns_structured_warning_for_re
     old.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(old), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     archive = tmp_path / "runtime.zip"
     _write_runtime_zip(archive)
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
@@ -454,7 +686,7 @@ def test_ensure_runtime_ready_retries_cleanup_for_equal_current_version(tmp_path
     current.mkdir(parents=True)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.5.0", "root": str(current), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.5.0")), encoding="utf-8")
     manifest_file = tmp_path / "runtime-latest.json"
     manifest_file.write_text(json.dumps(_manifest_payload(tmp_path / "runtime.zip", "a" * 64)), encoding="utf-8")
     calls = []
@@ -489,14 +721,14 @@ def test_install_runtime_rereads_current_after_acquiring_lock_and_noops_stale_vi
         payload.extractall(target)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
-    state.write_text(json.dumps({"version": "0.4.2", "root": str(old), "components": {}}), encoding="utf-8")
+    state.write_text(json.dumps(_runtime_state(root, "0.4.2")), encoding="utf-8")
     manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
     real_lock = runtime_install.RuntimeUpdateLock
 
     class SwitchBeforeLockRead(real_lock):
         def __enter__(self):
             result = super().__enter__()
-            state.write_text(json.dumps({"version": "0.5.0", "root": str(target), "components": _manifest_payload(archive, "a" * 64)["components"]}), encoding="utf-8")
+            state.write_text(json.dumps(_runtime_state(root, "0.5.0")), encoding="utf-8")
             return result
 
     monkeypatch.setattr(runtime_install, "RuntimeUpdateLock", SwitchBeforeLockRead)
@@ -535,17 +767,16 @@ def test_embedded_runtime_is_copied_only_into_persistent_initial_install(tmp_pat
     with zipfile.ZipFile(archive) as payload:
         payload.extractall(embedded)
     (embedded / "runtime-metadata.json").write_text(
-        json.dumps({
-            "version": "0.5.0",
-            "components": {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "browser": "msedge"},
-        }),
+        json.dumps(_manifest_payload(archive, hashlib.sha256(archive.read_bytes()).hexdigest())),
         encoding="utf-8",
     )
     root = tmp_path / "install"
 
-    installed = install_embedded_runtime(embedded, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+    result = install_embedded_runtime(embedded, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+    installed = result.runtime_root
 
     assert installed == root / "runtime" / "0.5.0"
+    assert result.installed is True
     assert (installed / "cli" / "indesign-cli.exe").read_bytes() == b"MZembedded"
     assert read_current_runtime(root)["version"] == "0.5.0"
     assert embedded.exists()
@@ -560,7 +791,7 @@ def test_embedded_runtime_state_switch_failure_removes_new_target(tmp_path, monk
     with zipfile.ZipFile(archive) as payload:
         payload.extractall(embedded)
     (embedded / "runtime-metadata.json").write_text(
-        json.dumps({"version": "0.5.0", "components": _manifest_payload(archive, "a" * 64)["components"]}),
+        json.dumps(_manifest_payload(archive, hashlib.sha256(archive.read_bytes()).hexdigest())),
         encoding="utf-8",
     )
     root = tmp_path / "install"
@@ -571,3 +802,51 @@ def test_embedded_runtime_state_switch_failure_removes_new_target(tmp_path, monk
 
     assert not (root / "runtime" / "0.5.0").exists()
     assert not (root / "state" / "current-runtime.json").exists()
+
+
+def test_embedded_runtime_rejects_partial_metadata_contract(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_embedded_runtime
+
+    embedded = tmp_path / "embedded"
+    embedded.mkdir()
+    (embedded / "runtime-metadata.json").write_text(json.dumps({"version": "0.5.0", "components": {}}), encoding="utf-8")
+
+    with pytest.raises(CliError) as exc:
+        install_embedded_runtime(embedded, root=tmp_path / "install", edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    assert exc.value.code == "EMBEDDED_RUNTIME_METADATA_INVALID"
+    assert not (tmp_path / "install" / "state" / "current-runtime.json").exists()
+
+
+def test_embedded_cleanup_failure_keeps_valid_current_and_returns_warning(tmp_path, monkeypatch):
+    from cli_anything.indesign.core import runtime_install
+
+    embedded = tmp_path / "embedded"
+    archive = tmp_path / "embedded.zip"
+    _write_runtime_zip(archive)
+    with zipfile.ZipFile(archive) as payload:
+        payload.extractall(embedded)
+    (embedded / "runtime-metadata.json").write_text(
+        json.dumps(_manifest_payload(archive, hashlib.sha256(archive.read_bytes()).hexdigest())),
+        encoding="utf-8",
+    )
+    root = tmp_path / "install"
+    orphan = root / "runtime" / "0.4.2"
+    orphan.mkdir(parents=True)
+    real_remove = runtime_install._remove_runtime_path
+
+    def fail_orphan(path):
+        if path == orphan:
+            raise OSError("orphan locked")
+        return real_remove(path)
+
+    monkeypatch.setattr(runtime_install, "_remove_runtime_path", fail_orphan)
+
+    result = runtime_install.install_embedded_runtime(embedded, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    current = runtime_install.read_current_runtime(root)
+    assert result.installed is True
+    assert result.warnings == ({"code": "RUNTIME_CLEANUP_FAILED", "path": str(orphan), "message": "orphan locked"},)
+    assert Path(current["root"]).exists()
+    assert current["root"] == str(result.runtime_root)

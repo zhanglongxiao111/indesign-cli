@@ -164,7 +164,7 @@ def run(argv: list[str] | None = None) -> int:
             data = {
                 "updated": True,
                 "version": current.get("version"),
-                "runtime_root": str(installed),
+                "runtime_root": str(installed.runtime_root),
                 "source": "embedded-setup",
                 "warnings": [],
                 "command_args": ["install"],
