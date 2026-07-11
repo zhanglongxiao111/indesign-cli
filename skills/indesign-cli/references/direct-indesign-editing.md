@@ -1,28 +1,33 @@
 # 直接编辑 InDesign
 
-适用于小幅修改现有 INDD，不经过 HTML。
+适用于修改现有 INDD，不经过 HTML。
 
-1. 检查 InDesign 连接：
+## 选择执行方式
 
-```powershell
-indesign-cli-agent server health --deep --connect-indesign
-```
+- 只有非常小的单一修改才使用原子工具，例如替换一处文字、修改一个属性或置入一张图片。
+- 只要涉及多个对象、多个步骤、重复操作、前后依赖或统一调整，就写成 JSX 文件，通过 `script run` 一次执行。
+- 不要把一段连续编辑拆成大量原子工具调用。
 
-2. 查找工具：
+## 原子工具
 
 ```powershell
 indesign-cli-agent tool search --query "<英文动作或对象>"
-```
-
-3. 按顶层规则读取 schema、写入参数并调用：
-
-```powershell
 indesign-cli-agent tool call <tool_id> --args-file args.json
 ```
 
-没有合适工具时，才编写短小的 JSX 文件并用 `script run` 执行。
+参数以 `tool schema <tool_id>` 为准。
 
-操作规则：
+## 脚本编辑
+
+把完整操作写入一个 `.jsx` 文件，并返回包含 `ok`、`step`、`data` 和 `error` 的 JSON 结果：
+
+```powershell
+indesign-cli-agent script run "<script.jsx>" --timeout-ms 900000
+```
+
+脚本应自行完成目标确认、连续修改、保存和必要的结果检查。不要依赖上一次命令留下的变量。
+
+## 文件保护
 
 - 不关闭用户原有文档，不调用 `app.quit()`，不批量关闭文档。
 - 默认另存新文件；只有用户明确要求时才覆盖原文件。
