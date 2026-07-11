@@ -1,0 +1,36 @@
+.page-title {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font-size: 18px;
+  letter-spacing: .12em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 64px;
+  line-height: 1.05;
+}
+
+.content-panel {
+  align-self: start;
+  font-size: 24px;
+  line-height: 1.6;
+}
+
+.content-panel,
+.content-panel p,
+.folio {
+  margin: 0;
+}
+
+.folio {
+  align-self: end;
+  justify-self: end;
+  color: var(--muted);
+  font-size: 16px;
+}

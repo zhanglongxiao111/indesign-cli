@@ -132,7 +132,7 @@ The single publication source in this repository is:
 skills/indesign-cli/
 ```
 
-Copy the complete directory to the target project. Copying only `SKILL.md` omits references and interface metadata:
+Copy the complete directory to the target project. Copying only `SKILL.md` omits references, author-package scripts, starter templates, and interface metadata:
 
 ```text
 D:\AI\your-project\.codex\skills\indesign-cli\

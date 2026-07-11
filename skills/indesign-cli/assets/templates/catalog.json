@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "html-starter",
+      "name": "空白 16:9 固定分页演示文稿",
+      "kind": "html-author-package",
+      "path": "../html-starter",
+      "useWhen": "从零制作 HTML 或 InDesign 演示文稿"
+    }
+  ]
+}

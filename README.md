@@ -144,7 +144,7 @@ Skill 的唯一发布源在仓库中：
 skills/indesign-cli/
 ```
 
-把整个目录复制到目标项目，不能只复制 `SKILL.md`，否则会丢失 HTML 作者 reference 和展示元数据：
+把整个目录复制到目标项目，不能只复制 `SKILL.md`，否则会丢失 references、作者包脚本、起步模板和展示元数据：
 
 ```text
 D:\AI\your-project\.codex\skills\indesign-cli\

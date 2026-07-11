@@ -99,6 +99,7 @@
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
 - CLI 遥测字段必须白名单制；禁止记录参数值、脚本内容、文档内容、客户信息和完整路径。新增遥测字段必须过 review；共享遥测目录只写 NAS JSONL、`state` 和 `reports`，不写客户素材。
 - `skills/indesign-cli/` 是公司统一 InDesign/HTML 出版 Skill 的唯一发布源；顶层 `SKILL.md` 负责路线选择，HTML 作者规则等详细内容放 `references/`。不得在 `html-indesign` 或其他仓库维护第二份可发布 Skill。
+- 发布版 Skill 只写公司 Agent 能直接执行的入口；不得放源码仓库命令、内部 E2E 或开发测试流程。可重复且易错的动作放 `skills/indesign-cli/scripts/`，起步模板放 `assets/`。
 - CLI 不提供自动安装 Skill 的命令；Setup 和 PyPI 包只发布程序，不携带 Skill，Skill 继续由公司 Agent 渠道直接从唯一源目录独立分发。
 - 公司成品采用 `%LOCALAPPDATA%\indesign-cli\{bin,runtime,state,tmp}` 持久布局；`state/current-runtime.json` 是当前 runtime 唯一指针，业务命令不得直接从 embedded runtime 或临时解压目录运行。
 - 日常更新只消费 schema v2 `runtime-latest.json` 并安装 runtime ZIP，不替换 `bin/indesign-cli-agent.exe`。必须 staging 校验后原子切换；成功只保留当前 runtime，失败保留旧 runtime，无旧 runtime 时返回 `INITIAL_INSTALL_FAILED`。
@@ -211,6 +212,9 @@
 | `skills/` | 独立发布到公司 Agent 渠道的标准 Skill 目录 |
 | `skills/indesign-cli/SKILL.md` | 统一 InDesign/HTML 出版 Skill 主入口与路线选择 |
 | `skills/indesign-cli/references/` | HTML 作者规则等按需加载的详细说明 |
+| `skills/indesign-cli/scripts/` | 作者包创建、组装等 Agent 可直接运行的辅助脚本 |
+| `skills/indesign-cli/assets/html-starter/` | 从零制作固定分页 HTML 的起步作者包 |
+| `skills/indesign-cli/assets/templates/catalog.json` | Skill 内置模板目录 |
 | `skills/indesign-cli/agents/openai.yaml` | Skill 展示与默认提示元数据 |
 | `skills/indesign-cli/assets/preview.png` | Skill 预览图 |
 | `scripts/` | 维护脚本和轻量检查 |

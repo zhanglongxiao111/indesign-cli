@@ -1,0 +1,39 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  padding: 48px 0;
+  background: #dfe2df;
+  color: var(--ink);
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+}
+
+.deck {
+  display: grid;
+  gap: 48px;
+  justify-items: center;
+}
+
+.page {
+  width: 1600px;
+  height: 900px;
+  padding: 60px 64px 48px 72px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  column-gap: 24px;
+  row-gap: 20px;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.grid-item {
+  grid-column: var(--grid-col) / span var(--grid-span);
+  grid-row: var(--grid-row) / span var(--grid-row-span);
+}

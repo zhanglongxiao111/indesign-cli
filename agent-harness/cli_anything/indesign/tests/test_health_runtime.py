@@ -19,13 +19,14 @@ def test_published_skill_is_standard_unified_html_first_skill():
     assert "从零制作" in skill_text and "HTML" in skill_text
     assert "references/html-authoring.md" in skill_text
     assert "React、Vue 和图表库" in html_reference
-    assert "lint:authoring" in html_reference
+    assert "html.authoring_lint" in html_reference
     assert 'display_name: "InDesign 出版与演示文稿"' in agent_metadata
     assert "$indesign-cli" in agent_metadata
 
-    assert "pip install indesign-cli" in skill_text
-    assert "server health --deep" in skill_text
-    assert "不得关闭用户已经打开的 InDesign 文档" in skill_text
+    assert "references/direct-indesign-editing.md" in skill_text
+    assert "references/template-filling.md" in skill_text
+    assert "references/installation-and-update.md" in skill_text
+    assert "不关闭或覆盖用户已经打开的文档" in skill_text
     assert "D:\\AI\\html-indesign" not in skill_text
     assert "cli-anything-indesign" not in skill_text
 

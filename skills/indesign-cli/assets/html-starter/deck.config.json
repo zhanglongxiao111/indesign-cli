@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "html-starter",
+  "title": "固定分页演示文稿",
+  "profile": "architecture-report",
+  "unitMode": "presentation",
+  "targetSize": "source",
+  "entry": "deck.html",
+  "styles": [
+    "styles/tokens.css",
+    "styles/layout.css",
+    "styles/components.css",
+    "styles/pages.css"
+  ],
+  "pages": [
+    {
+      "id": "page-01",
+      "file": "pages/01-page.html"
+    }
+  ],
+  "assets": {
+    "root": "assets"
+  }
+}
