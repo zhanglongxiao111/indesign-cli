@@ -29,20 +29,26 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 
 ### Internal agent distribution
 
-For managed workstations and unattended agents, prefer the single-file bootstrapper instead of installing Node, npm, or compiling `winax` on every machine:
+Managed workstations and unattended agents use the company offline Setup to install a persistent runtime; Node, npm, and a local `winax` build are not required:
 
 ```powershell
 indesign-cli-agent install
 indesign-cli-agent server health --deep --connect-indesign
 ```
 
-`indesign-cli-agent.exe` remains a single-file product entry. The first `install` command installs it under the current user and registers the `indesign-cli-agent` command; afterwards agents call `indesign-cli-agent <indesign-cli args...>` directly. Update sources are handled by the tool: NAS first, GitHub fallback. If an update fails but a local version already exists, the agent command continues with that local version and reports the warning in JSON.
+Setup installs a lightweight launcher and a complete runtime under `%LOCALAPPDATA%\indesign-cli`. Normal commands read `state\current-runtime.json` and launch `runtime\<version>\cli\indesign-cli.exe`; the embedded runtime is used only for Setup's first offline installation.
 
-Build entry for the single-file bootstrapper:
-
-```powershell
-python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --version 0.4.1 --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\releases\0.4.1\indesign-cli-agent.exe" --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.4.1/indesign-cli-agent.exe" --output-dir dist-agent
+```text
+%LOCALAPPDATA%\indesign-cli\
+  bin\indesign-cli-agent.exe
+  runtime\<version>\{cli,node,server,plugins\html-indesign}
+  state\current-runtime.json
+  tmp\
 ```
+
+Routine updates read the schema-v2 `runtime-latest.json` from NAS first and GitHub second. The runtime ZIP is checksum-verified, extracted to staging, validated for CLI, Node, `winax`, builtin HTML plugin, and system Edge, then switched atomically. Success leaves only the current runtime; failure removes staging and keeps the previous runtime. Routine updates never replace the launcher EXE; rerun a newer Setup only when the launcher itself changes.
+
+Existing `0.4.2` workstations migrate by having the company Agent run the `0.5.0` Setup once from NAS. Skill distribution remains manual through the existing company channel; the CLI does not auto-install Skills.
 
 The PyPI flow below remains available for developers and open-source users.
 
@@ -79,7 +85,7 @@ If the response contains `ok: true` and `data.indesign_com.checked` is `true`, t
 
 ### 5. Troubleshooting common environment issues
 
-The `server health` output includes toolchain diagnostics: `python` (interpreter, user package dirs, package location), `node` / `npm` (path and version), `server_root` (source and long-path risk), and whether the current directory is a UNC path. Start there when the environment misbehaves.
+`server health` reports the current runtime root/version/components, builtin HTML plugin and system Edge status, plus the existing toolchain diagnostics. Start there when the environment misbehaves.
 
 **`ModuleNotFoundError: No module named 'cli_anything'`**
 

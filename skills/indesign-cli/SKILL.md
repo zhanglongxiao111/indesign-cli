@@ -17,9 +17,10 @@ tags:
 - 正式调用前先执行 `indesign-cli-agent install` 或确认该命令可用。
 - 不使用项目目录、线程目录、`%TEMP%` 中的 EXE 副本作为长期入口。
 - 不再使用旧版 `run` 子命令配 `--source <latest.json>` 的入口。
-- 更新源由工具默认规则处理：NAS 优先，GitHub 兜底。
+- runtime 更新源由工具默认规则处理：NAS `runtime-latest.json` 优先，GitHub 兜底。
 - 如果更新失败但本机命令可用，可以继续执行，并在结果里说明继续使用本地版本。
-- Windows 下正在运行的 EXE 不能替换自己：结果出现 `UPDATE_REPLACE_FAILED`，或提示有新版本但未完成安装时，重跑"使用顺序"里的首次安装流程即可完成更新（同一套命令兼作手动更新）。
+- 日常更新只安装并原子切换持久 runtime，不替换启动器 EXE；更新失败时继续使用 `current-runtime.json` 指向的旧 runtime。
+- 只有启动器自身需要升级时，才由公司 Agent 重新运行新版 Setup。
 - 本次运行完成了版本更新时，工具目录可能变化；先重新读取 `tool list` / `tool schema` 再继续复杂任务。
 
 ## 定位
@@ -45,24 +46,11 @@ node src/core/artifact.js --check
 
 从目标项目根目录运行命令，让 `.indesign-cli/session.json`、相对资源路径和测试产物都落在当前项目内。
 
-成品用户入口是 `indesign-cli-agent`。命令不存在时先做首次安装；需要手动完成版本更新时也执行同一流程。NAS 优先：
+成品用户入口是 `indesign-cli-agent`。命令不存在或机器仍是 `0.4.2` 时，由公司 Agent 从 NAS 运行一次新版 Setup；日常 runtime 更新由启动器自动完成。不要自行复制或替换正在运行的 EXE。
 
-```powershell
-$m = Get-Content '\\daga-nas5\sa-ai-app\tools\indesign-cli\latest.json' -Raw | ConvertFrom-Json
-Copy-Item $m.artifact.url "$env:TEMP\indesign-cli-agent.exe" -Force
-& "$env:TEMP\indesign-cli-agent.exe" install
-Remove-Item "$env:TEMP\indesign-cli-agent.exe"
-```
+Setup 的实际 NAS/GitHub 下载位置由公司现有发布渠道提供；本 Skill 不维护第二份下载清单，也不自动下载或安装 Setup。
 
-NAS 不可达时改用 GitHub 兜底：
-
-```powershell
-Invoke-WebRequest 'https://github.com/zhanglongxiao111/indesign-cli/releases/latest/download/indesign-cli-agent.exe' -OutFile "$env:TEMP\indesign-cli-agent.exe"
-& "$env:TEMP\indesign-cli-agent.exe" install
-Remove-Item "$env:TEMP\indesign-cli-agent.exe"
-```
-
-安装会把 EXE 放到 `%LOCALAPPDATA%\indesign-cli\bin` 并注册用户级命令；当前 shell 未刷新 PATH 时用该完整路径调用。成品 EXE 自带 Node runtime 和预编译 `winax`，不需要本机 Node、Python 或编译工具。后续所有 `indesign-cli <args>` 示例对成品用户等价于 `indesign-cli-agent <args>`。
+安装后启动器位于 `%LOCALAPPDATA%\indesign-cli\bin`，完整运行环境位于 `runtime\<version>`，当前指针为 `state\current-runtime.json`。runtime 自带 CLI、Node、预编译 `winax` 和 builtin HTML 插件；浏览器使用系统 Edge。后续所有 `indesign-cli <args>` 示例对成品用户等价于 `indesign-cli-agent <args>`。Skill 仍由公司现有渠道手动分发，本 CLI 不自动安装 Skill。
 
 开发者从源码工作时仍可用 PyPI 方式：
 

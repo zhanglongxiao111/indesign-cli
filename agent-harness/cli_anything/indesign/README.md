@@ -42,6 +42,6 @@ skills/indesign-cli/SKILL.md
 
 环境变量 `INDESIGN_CLI_SERVER_ROOT` 可把内置 Node server 目录固定到稳定短路径（须包含 `package.json`、`src/index.js`、`src/advanced/index.js`），用于规避长路径下 `winax` 构建失败；排查步骤见根 `README.md`。
 
-受控工位可用 `indesign-cli-agent.exe` 单文件自举入口：先执行 `indesign-cli-agent install` 注册当前用户命令，之后直接运行 `indesign-cli-agent <indesign-cli 参数...>`。更新源由工具默认处理：NAS 优先，GitHub 兜底；不再使用旧版 `run` 子命令配 `--source` 的入口。
+受控工位由离线 Setup 安装 `%LOCALAPPDATA%\indesign-cli\bin` 启动器和 `runtime\<version>` 持久运行环境。日常命令从 `state\current-runtime.json` 启动当前 runtime；NAS/GitHub 的 `runtime-latest.json` 更新只切换 runtime，不替换启动器 EXE。成功后只保留当前版本，失败继续使用旧版本；不再使用旧版 `run/update --source` 入口。
 
 本 CLI 复用当前项目的 MCP server 和 ExtendScript/COM 执行链路，不重新实现 InDesign 自动化能力。

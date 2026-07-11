@@ -29,20 +29,26 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 ### 事务所内部 Agent 分发
 
-受控工位和无人值守 Agent 优先使用单文件自举入口，而不是让每台电脑安装 Node、npm 或编译 `winax`：
+受控工位和无人值守 Agent 使用公司离线 Setup 安装持久运行环境，不需要在每台电脑安装 Node、npm 或编译 `winax`：
 
 ```powershell
 indesign-cli-agent install
 indesign-cli-agent server health --deep --connect-indesign
 ```
 
-`indesign-cli-agent.exe` 是单文件成品入口。首次执行 `install` 会安装到当前用户目录并注册 `indesign-cli-agent` 命令；后续 Agent 直接使用 `indesign-cli-agent <indesign-cli 参数...>`。更新源由工具默认处理：NAS 优先，GitHub 兜底；更新失败但本机已有可用版本时，会继续使用本地版本并在 JSON 结果里提示。
+Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesign-cli`。后续 `indesign-cli-agent <indesign-cli 参数...>` 只读取 `state\current-runtime.json` 并启动 `runtime\<version>\cli\indesign-cli.exe`；embedded runtime 只用于 Setup 的首次离线落地，不作为日常执行目录。
 
-发布单文件自举 exe 的构建入口：
-
-```powershell
-python scripts\build_agent_bootstrapper.py --node-root D:\node-v20-win-x64 --node-modules D:\indesign-cli-server\node_modules --version 0.4.1 --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\releases\0.4.1\indesign-cli-agent.exe" --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.4.1/indesign-cli-agent.exe" --output-dir dist-agent
+```text
+%LOCALAPPDATA%\indesign-cli\
+  bin\indesign-cli-agent.exe
+  runtime\<version>\{cli,node,server,plugins\html-indesign}
+  state\current-runtime.json
+  tmp\
 ```
+
+日常更新读取 NAS 优先、GitHub 兜底的 `runtime-latest.json`（schema v2），下载并校验 runtime ZIP，在 staging 中检查 CLI、Node、`winax`、builtin HTML 插件和系统 Edge 后原子切换。成功后只保留当前 runtime；失败时删除新 staging 并继续使用旧 runtime。日常更新不替换 `bin\indesign-cli-agent.exe`；启动器自身需要升级时重新运行新版 Setup。
+
+从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行一次 `0.5.0` Setup。Skill 源文件仍由公司现有渠道手动分发，本 CLI 不自动安装 Skill。
 
 下面的 PyPI 安装方式保留给开发者和开源用户。
 
@@ -81,7 +87,7 @@ indesign-cli --pretty server health --deep --connect-indesign
 
 ### 5. 常见环境问题排查
 
-`server health` 的输出包含工具链诊断：`python`（解释器、用户包目录、包位置）、`node` / `npm`（路径和版本）、`server_root`（路径来源和长路径风险）、当前目录是否 UNC。排查环境问题先看这份输出。
+`server health` 的输出包含当前 runtime 根目录/版本/组件、builtin HTML 插件、系统 Edge，以及工具链诊断。排查环境问题先看这份输出。
 
 **`ModuleNotFoundError: No module named 'cli_anything'`**
 
