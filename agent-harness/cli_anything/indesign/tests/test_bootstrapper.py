@@ -146,7 +146,11 @@ def test_agent_bootstrapper_install_seeds_embedded_runtime_without_network(monke
     monkeypatch.setattr(
         agent_bootstrapper,
         "install_embedded_runtime",
-        lambda source, root: calls.setdefault("installed", (source, root)) and SimpleNamespace(runtime_root=installed),
+        lambda source, root: calls.setdefault("installed", (source, root))
+        and SimpleNamespace(
+            runtime_root=installed,
+            warnings=({"code": "RUNTIME_CLEANUP_FAILED", "path": "old", "message": "locked"},),
+        ),
     )
     monkeypatch.setattr(agent_bootstrapper, "ensure_agent_ready", lambda **kwargs: (_ for _ in ()).throw(AssertionError("network update should not run")))
     monkeypatch.setattr(agent_bootstrapper, "register_user_command", lambda: {"registered": True, "bin": "bin"})
@@ -158,6 +162,7 @@ def test_agent_bootstrapper_install_seeds_embedded_runtime_without_network(monke
     assert exit_code == 0
     assert payload["data"]["runtime_root"] == str(installed)
     assert payload["data"]["source"] == "embedded-setup"
+    assert payload["data"]["warnings"] == [{"code": "RUNTIME_CLEANUP_FAILED", "path": "old", "message": "locked"}]
     assert calls["installed"] == (embedded, tmp_path / "install")
 
 

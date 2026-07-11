@@ -16,6 +16,7 @@ from .errors import CliError
 from .catalog import Catalog, plugin_tool_entries
 from .plugins.backend import PluginBackend
 from .plugins.manifest import load_plugin_record
+from .plugins.validate import _schema_errors, _tool_errors
 from .runtime_health import probe_edge
 from .runtime_manifest import RuntimeManifest, compare_versions, load_first_runtime_manifest, parse_runtime_manifest, parse_version, read_runtime_manifest
 
@@ -330,10 +331,36 @@ def validate_builtin_plugin(
     if handshake.get("id") != record.id or handshake.get("version") != record.version or handshake.get("domain") != record.domain:
         raise CliError("Builtin plugin handshake identity is invalid", code="BUILTIN_PLUGIN_IDENTITY_INVALID", details={"handshake": handshake})
     tools = backend.list_tools()
+    contract_errors: list[dict[str, Any]] = []
+    schemas: dict[str, dict[str, Any]] = {}
+    for tool in tools:
+        contract_errors.extend(_tool_errors(record, tool))
+        tool_id = tool.get("id")
+        if tool_id in OFFICIAL_HTML_TOOLS:
+            if tool.get("callable") is not True:
+                contract_errors.append(
+                    {"code": "PLUGIN_TOOL_INVALID", "message": "Official runtime tool must be callable", "details": {"tool_id": tool_id}}
+                )
+            try:
+                schema_payload = backend.schema(tool_id)
+            except CliError as exc:
+                contract_errors.append({"code": exc.code, "message": exc.message, "details": {"tool_id": tool_id, **exc.details}})
+            else:
+                contract_errors.extend(_schema_errors(tool, schema_payload))
+                if isinstance(schema_payload.get("inputSchema"), dict):
+                    schemas[tool_id] = schema_payload["inputSchema"]
+    if contract_errors:
+        raise CliError(
+            "Builtin HTML plugin tool contracts are invalid",
+            code="BUILTIN_PLUGIN_TOOLS_INVALID",
+            details={"errors": contract_errors},
+        )
     entries = plugin_tool_entries(record, tools)
-    catalog = Catalog(repo_root=runtime_root, tools=[]).with_exposed_tools(
-        plugin_tools=entries,
-        plugin_domain_summaries={"html": str(record.manifest.get("description") or "HTML tools")},
+    catalog = Catalog(
+        repo_root=runtime_root,
+        tools=entries,
+        domains={"html": str(record.manifest.get("description") or "HTML tools")},
+        schemas=schemas,
         plugin_records={record.id: record},
     )
     discovered = {tool["id"] for tool in catalog.list_tools(domain="html", source="plugin")}
@@ -343,6 +370,8 @@ def validate_builtin_plugin(
             code="BUILTIN_PLUGIN_TOOLS_INVALID",
             details={"expected": sorted(OFFICIAL_HTML_TOOLS), "actual": sorted(discovered)},
         )
+    for tool_id in OFFICIAL_HTML_TOOLS:
+        catalog.schema(tool_id)
     return {"record": record, "tools": sorted(discovered)}
 
 

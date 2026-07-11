@@ -166,7 +166,7 @@ def run(argv: list[str] | None = None) -> int:
                 "version": current.get("version"),
                 "runtime_root": str(installed.runtime_root),
                 "source": "embedded-setup",
-                "warnings": [],
+                "warnings": installed.warnings,
                 "command_args": ["install"],
             }
         else:

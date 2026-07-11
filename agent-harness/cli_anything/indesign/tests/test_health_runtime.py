@@ -407,7 +407,65 @@ def test_server_health_reports_invalid_current_runtime_state_as_unavailable(monk
 
     assert payload["runtime"]["available"] is False
     assert payload["runtime"]["code"] == "RUNTIME_STATE_INVALID"
-    assert payload["runtime"]["reason"] == "CURRENT_STATE_JSON_INVALID"
+    assert payload["runtime"]["reason"] == "STATE_JSON_INVALID"
+
+
+def test_server_health_uses_strict_current_runtime_schema_validation(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    runtime.mkdir(parents=True)
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text(
+        json.dumps(
+            {
+                "schema_version": 999,
+                "version": "0.5.0",
+                "root": str(runtime),
+                "components": {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": "20.18.1", "winax": "3.6.2", "browser": "msedge"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["available"] is False
+    assert payload["runtime"]["code"] == "RUNTIME_STATE_INVALID"
+    assert payload["runtime"]["reason"] == "STATE_SCHEMA_UNSUPPORTED"
+
+
+def test_server_health_rejects_active_root_that_is_not_current_state_root(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    active = tmp_path / "runtime" / "0.5.0"
+    current = tmp_path / "runtime" / "0.4.2"
+    active.mkdir(parents=True)
+    current.mkdir(parents=True)
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": "0.4.2",
+                "root": str(current),
+                "components": {"indesign_cli": "0.4.2", "html_indesign": "0.1.0", "node": "20.18.1", "winax": "3.6.2", "browser": "msedge"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(active))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["available"] is False
+    assert payload["runtime"]["code"] == "RUNTIME_STATE_INVALID"
+    assert payload["runtime"]["reason"] == "ACTIVE_RUNTIME_ROOT_MISMATCH"
 
 
 def test_server_health_reuses_formal_plugin_validation_for_semantic_errors(monkeypatch, tmp_path):

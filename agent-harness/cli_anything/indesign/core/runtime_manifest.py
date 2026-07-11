@@ -62,6 +62,17 @@ def parse_runtime_manifest(payload: dict[str, Any], *, source: str) -> RuntimeMa
     normalized_components = {str(key): str(value) for key, value in components.items() if value is not None}
     if not _REQUIRED_COMPONENTS.issubset(normalized_components) or normalized_components.get("browser") != "msedge":
         raise CliError("Runtime manifest components are invalid", code="UPDATE_MANIFEST_INVALID", details={"source": source})
+    if normalized_components.get("indesign_cli") != version:
+        raise CliError(
+            "Runtime manifest CLI component must match the runtime version",
+            code="UPDATE_MANIFEST_INVALID",
+            details={
+                "source": source,
+                "reason": "CLI_VERSION_MISMATCH",
+                "version": version,
+                "indesign_cli": normalized_components.get("indesign_cli"),
+            },
+        )
     url = str(artifact.get("url") or "")
     github_url = str(artifact.get("github_url") or "")
     sha256 = str(artifact.get("sha256") or "").lower()

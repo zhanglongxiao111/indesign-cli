@@ -69,7 +69,7 @@ def _write_runtime_zip(path, *, marker="runtime", plugin_manifest=None, include_
             archive.writestr("plugins/html-indesign/index.js", "// plugin")
 
 
-def _plugin_tools(tool_ids=HTML_TOOL_IDS):
+def _plugin_tools(tool_ids=HTML_TOOL_IDS, *, callable_value=True):
     return [
         {
             "id": tool_id,
@@ -77,7 +77,16 @@ def _plugin_tools(tool_ids=HTML_TOOL_IDS):
             "name": tool_id.split(".", 1)[1],
             "one_line_purpose": tool_id,
             "arg_names": [],
-            "callable": True,
+            "rank": 10,
+            "schema_size": "small",
+            "callable": callable_value,
+            "requires": [],
+            "side_effects": [],
+            "artifact_kinds": [],
+            "destructive": False,
+            "target_scope": "project",
+            "needs_indesign": False,
+            "produces_artifacts": False,
             "preconditions": [],
             "return_example": {"status": "complete"},
             "failure_example": {"code": "PLUGIN_CALL_FAILED"},
@@ -86,7 +95,7 @@ def _plugin_tools(tool_ids=HTML_TOOL_IDS):
     ]
 
 
-def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_TOOL_IDS):
+def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_TOOL_IDS, callable_value=True, schema=None):
     def runner(args, **kwargs):
         command = str(args[0]).lower()
         if command.endswith("indesign-cli.exe"):
@@ -100,7 +109,9 @@ def _probe_runner(*, cli_version="0.5.0", node_version="20.18.1", tool_ids=HTML_
             if request.get("method") == "plugin/handshake":
                 result = {"id": "html-indesign", "version": "0.2.0", "protocol": "indesign-cli-plugin.v1", "domain": "html"}
             elif request.get("method") == "tools/list":
-                result = {"tools": _plugin_tools(tool_ids)}
+                result = {"tools": _plugin_tools(tool_ids, callable_value=callable_value)}
+            elif request.get("method") == "tools/schema":
+                result = schema or {"inputSchema": {"type": "object", "properties": {}}}
             else:
                 result = {}
             stdout = json.dumps({"jsonrpc": "2.0", "id": request.get("id"), "result": result})
@@ -253,6 +264,20 @@ def test_runtime_manifest_v2_requires_winax_component(tmp_path):
     assert exc.value.code == "UPDATE_MANIFEST_INVALID"
 
 
+def test_runtime_manifest_rejects_cli_component_version_mismatch(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_manifest import parse_runtime_manifest
+
+    payload = _manifest_payload(tmp_path / "runtime.zip", "a" * 64)
+    payload["components"]["indesign_cli"] = "0.5.1"
+
+    with pytest.raises(CliError) as exc:
+        parse_runtime_manifest(payload, source="nas")
+
+    assert exc.value.code == "UPDATE_MANIFEST_INVALID"
+    assert exc.value.details["reason"] == "CLI_VERSION_MISMATCH"
+
+
 @pytest.mark.parametrize(
     "component, archive_kwargs, runner",
     [
@@ -340,6 +365,29 @@ def test_runtime_requires_exact_four_official_html_tools_in_catalog(tmp_path):
 
     assert exc.value.code == "BUILTIN_PLUGIN_TOOLS_INVALID"
     assert exc.value.details["expected"] == sorted(HTML_TOOL_IDS)
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [
+        _probe_runner(callable_value=False),
+        _probe_runner(schema={"inputSchema": {"type": "string"}}),
+    ],
+)
+def test_runtime_rejects_non_callable_or_invalid_schema_official_tools(tmp_path, runner):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_runtime
+
+    root = tmp_path / "install"
+    archive = tmp_path / "runtime.zip"
+    _write_runtime_zip(archive)
+    manifest_file = _write_manifest(tmp_path / "runtime-latest.json", archive)
+
+    with pytest.raises(CliError) as exc:
+        install_runtime(manifest_file, root=root, edge_probe=lambda: {"available": True}, probe_runner=runner)
+
+    assert exc.value.code == "BUILTIN_PLUGIN_TOOLS_INVALID"
+    assert not (root / "state" / "current-runtime.json").exists()
 
 
 @pytest.mark.parametrize(
@@ -817,6 +865,25 @@ def test_embedded_runtime_rejects_partial_metadata_contract(tmp_path):
 
     assert exc.value.code == "EMBEDDED_RUNTIME_METADATA_INVALID"
     assert not (tmp_path / "install" / "state" / "current-runtime.json").exists()
+
+
+def test_embedded_runtime_rejects_cli_component_version_mismatch_without_state(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.runtime_install import install_embedded_runtime
+
+    embedded = tmp_path / "embedded"
+    embedded.mkdir()
+    payload = _manifest_payload(tmp_path / "embedded.zip", "a" * 64)
+    payload["components"]["indesign_cli"] = "0.5.1"
+    (embedded / "runtime-metadata.json").write_text(json.dumps(payload), encoding="utf-8")
+    root = tmp_path / "install"
+
+    with pytest.raises(CliError) as exc:
+        install_embedded_runtime(embedded, root=root, edge_probe=lambda: {"available": True}, probe_runner=_probe_ok)
+
+    assert exc.value.code == "EMBEDDED_RUNTIME_METADATA_INVALID"
+    assert exc.value.details["reason"] == "UPDATE_MANIFEST_INVALID"
+    assert not (root / "state" / "current-runtime.json").exists()
 
 
 def test_embedded_cleanup_failure_keeps_valid_current_and_returns_warning(tmp_path, monkeypatch):

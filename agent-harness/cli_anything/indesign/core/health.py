@@ -11,7 +11,7 @@ from typing import Any
 from .node_setup import LONG_PATH_WARNING_THRESHOLD, SERVER_ROOT_HINT, toolchain_report
 from .runtime import package_root, resolve_node_executable, server_root_override
 from .runtime_health import probe_edge
-from .runtime_install import validate_builtin_plugin
+from .runtime_install import read_current_runtime, validate_builtin_plugin
 from .errors import CliError
 
 
@@ -32,20 +32,17 @@ def _runtime_diagnostics() -> dict[str, Any]:
     components: dict[str, str] = {}
     state_problem: dict[str, str] | None = None
     state_path = root.parent.parent / "state" / "current-runtime.json"
-    if state_path.exists():
-        try:
-            state = json.loads(state_path.read_text(encoding="utf-8-sig"))
-        except OSError:
-            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_UNREADABLE"}
-        except json.JSONDecodeError:
-            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_JSON_INVALID"}
+    try:
+        state = read_current_runtime(root.parent.parent)
+    except CliError as exc:
+        state_problem = {"code": exc.code, "reason": str(exc.details.get("reason") or "STATE_INVALID")}
+    else:
+        if state is None:
+            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "STATE_MISSING"}
+        elif Path(state["root"]).resolve() != root:
+            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "ACTIVE_RUNTIME_ROOT_MISMATCH"}
         else:
-            if not isinstance(state, dict):
-                state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_NOT_OBJECT"}
-            elif Path(str(state.get("root") or "")).resolve() != root:
-                state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_ROOT_MISMATCH"}
-            elif isinstance(state.get("components"), dict):
-                components.update({str(key): str(value) for key, value in state["components"].items()})
+            components.update(state["components"])
     if manifest_path.is_file():
         required_components = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
         if not required_components.issubset(components):
