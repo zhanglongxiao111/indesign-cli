@@ -75,3 +75,9 @@ def test_register_user_command_writes_user_path_without_process_path(monkeypatch
     assert result["registered"] is True
     assert str(tmp_path / "bin") in written["path"]
     assert r"C:\Windows" not in written["path"]
+
+
+def test_legacy_update_state_compatibility_api_is_removed():
+    from cli_anything.indesign.core import agent_update
+
+    assert not hasattr(agent_update, "read_update_state")

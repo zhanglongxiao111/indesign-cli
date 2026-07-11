@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .runtime_install import ensure_runtime_ready, read_current_runtime
+from .runtime_install import ensure_runtime_ready
 from .runtime_manifest import DEFAULT_RUNTIME_SOURCES, compare_versions, parse_version
 
 
@@ -22,11 +22,6 @@ def bin_dir(root: Path | None = None) -> Path:
 
 def agent_exe_path(root: Path | None = None) -> Path:
     return bin_dir(root) / "indesign-cli-agent.exe"
-
-
-def read_update_state(root: Path | None = None) -> dict[str, Any] | None:
-    """Compatibility name for callers; runtime state is the only current state."""
-    return read_current_runtime(root or install_root())
 
 
 def ensure_agent_ready(*, command_args: list[str], sources: list[str] | None = None) -> dict[str, Any]:

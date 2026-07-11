@@ -63,10 +63,10 @@ def parse_runtime_manifest(payload: dict[str, Any], *, source: str) -> RuntimeMa
     if not _REQUIRED_COMPONENTS.issubset(normalized_components) or normalized_components.get("browser") != "msedge":
         raise CliError("Runtime manifest components are invalid", code="UPDATE_MANIFEST_INVALID", details={"source": source})
     url = str(artifact.get("url") or "")
+    github_url = str(artifact.get("github_url") or "")
     sha256 = str(artifact.get("sha256") or "").lower()
-    if not url or not re.fullmatch(r"[0-9a-f]{64}", sha256):
+    if not url or not github_url or not re.fullmatch(r"[0-9a-f]{64}", sha256):
         raise CliError("Runtime artifact is invalid", code="UPDATE_MANIFEST_INVALID", details={"source": source})
-    github_url = artifact.get("github_url")
     return RuntimeManifest(
         schema_version=2,
         name="indesign-cli-runtime",
@@ -74,7 +74,7 @@ def parse_runtime_manifest(payload: dict[str, Any], *, source: str) -> RuntimeMa
         platform="windows-x64",
         components=normalized_components,
         artifact_url=url,
-        github_url=str(github_url) if github_url else None,
+        github_url=github_url,
         sha256=sha256,
         source=source,
     )

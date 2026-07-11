@@ -1,4 +1,7 @@
 from support import *
+import pytest
+
+from cli_anything.indesign.core.errors import CliError
 
 
 def test_agent_bootstrapper_rejects_legacy_run_source():
@@ -172,17 +175,65 @@ def test_agent_bootstrapper_console_alias_and_build_script_are_declared():
     assert "indesign-cli-agent" in text
 
 
-def test_agent_bootstrapper_child_command_self_dispatches_when_frozen(monkeypatch):
+def test_agent_bootstrapper_has_no_hidden_embedded_cli_dispatch(monkeypatch):
+    from cli_anything.indesign import agent_bootstrapper
+    from cli_anything.indesign import indesign_cli
+
+    calls = {}
+    monkeypatch.setattr(indesign_cli, "main", lambda _args: (_ for _ in ()).throw(AssertionError("embedded CLI dispatch used")))
+    monkeypatch.setattr(agent_bootstrapper, "ensure_agent_ready", lambda **_kwargs: {"runtime_root": r"D:\runtime\0.5.0", "warnings": []})
+
+    def fake_child(args, runtime_root=None):
+        calls["child"] = (args, runtime_root)
+        return {"exit_code": 0, "stdout_json": {}, "stdout_tail": "", "stderr_tail": ""}
+
+    monkeypatch.setattr(agent_bootstrapper, "run_child", fake_child)
+
+    assert not hasattr(agent_bootstrapper, "child_command")
+    assert agent_bootstrapper.main(["__cli__", "--version"]) == 0
+    assert calls["child"] == (["__cli__", "--version"], Path(r"D:\runtime\0.5.0"))
+
+
+@pytest.mark.parametrize(
+    "failure, reason",
+    [
+        (CliError("invalid", code="RUNTIME_VALIDATION_FAILED"), "RUNTIME_VALIDATION_FAILED"),
+        (OSError("copy failed"), "OSError"),
+    ],
+)
+def test_agent_bootstrapper_wraps_all_embedded_install_failures(monkeypatch, tmp_path, capsys, failure, reason):
     from cli_anything.indesign import agent_bootstrapper
 
-    monkeypatch.setattr(agent_bootstrapper.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(agent_bootstrapper.sys, "executable", r"D:\tools\indesign-cli-agent.exe")
+    embedded = tmp_path / "embedded"
+    embedded.mkdir()
+    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: embedded)
+    monkeypatch.setattr(agent_bootstrapper, "current_runtime_root", lambda root: None)
+    monkeypatch.setattr(agent_bootstrapper, "install_root", lambda: tmp_path / "install")
+    monkeypatch.setattr(agent_bootstrapper, "install_embedded_runtime", lambda *_args, **_kwargs: (_ for _ in ()).throw(failure))
 
-    assert agent_bootstrapper.child_command(["--version"]) == [
-        r"D:\tools\indesign-cli-agent.exe",
-        "__cli__",
-        "--version",
-    ]
+    exit_code = agent_bootstrapper.main(["install"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["error"]["code"] == "INITIAL_INSTALL_FAILED"
+    assert payload["error"]["details"]["reason"] == reason
+
+
+def test_agent_bootstrapper_preserves_embedded_metadata_reason_code(monkeypatch, tmp_path, capsys):
+    from cli_anything.indesign import agent_bootstrapper
+
+    embedded = tmp_path / "embedded"
+    embedded.mkdir()
+    monkeypatch.setattr(agent_bootstrapper, "embedded_runtime_root", lambda: embedded)
+    monkeypatch.setattr(agent_bootstrapper, "current_runtime_root", lambda root: None)
+    monkeypatch.setattr(agent_bootstrapper, "install_root", lambda: tmp_path / "install")
+
+    exit_code = agent_bootstrapper.main(["install"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["error"]["code"] == "INITIAL_INSTALL_FAILED"
+    assert payload["error"]["details"]["reason"] == "EMBEDDED_RUNTIME_METADATA_INVALID"
 
 
 def test_agent_bootstrapper_runs_persistent_runtime_cli_from_current_state(monkeypatch, tmp_path):

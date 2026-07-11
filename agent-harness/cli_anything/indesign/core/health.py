@@ -17,6 +17,8 @@ def _runtime_diagnostics() -> dict[str, Any]:
     root_value = os.environ.get("INDESIGN_CLI_RUNTIME_ROOT")
     if not root_value:
         return {
+            "available": False,
+            "code": "RUNTIME_NOT_ACTIVE",
             "root": None,
             "version": None,
             "components": {},
@@ -26,25 +28,50 @@ def _runtime_diagnostics() -> dict[str, Any]:
     manifest_path = root / "plugins" / "html-indesign" / "manifest.json"
     plugin: dict[str, Any]
     components: dict[str, str] = {}
+    state_problem: dict[str, str] | None = None
     state_path = root.parent.parent / "state" / "current-runtime.json"
-    try:
-        state = json.loads(state_path.read_text(encoding="utf-8-sig"))
-        if isinstance(state, dict) and Path(str(state.get("root") or "")).resolve() == root and isinstance(state.get("components"), dict):
-            components.update({str(key): str(value) for key, value in state["components"].items()})
-    except (OSError, json.JSONDecodeError):
-        pass
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8-sig"))
+        except OSError:
+            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_UNREADABLE"}
+        except json.JSONDecodeError:
+            state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_JSON_INVALID"}
+        else:
+            if not isinstance(state, dict):
+                state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_NOT_OBJECT"}
+            elif Path(str(state.get("root") or "")).resolve() != root:
+                state_problem = {"code": "RUNTIME_STATE_INVALID", "reason": "CURRENT_STATE_ROOT_MISMATCH"}
+            elif isinstance(state.get("components"), dict):
+                components.update({str(key): str(value) for key, value in state["components"].items()})
     if manifest_path.is_file():
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
-            version = str(manifest.get("version") or "") if isinstance(manifest, dict) else ""
-        except (OSError, json.JSONDecodeError):
-            version = ""
-        if version:
-            components["html_indesign"] = version
-        plugin = {"available": True, "source": "builtin", "path": str(manifest_path), "version": version or None}
+        except OSError:
+            plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_UNREADABLE"}
+        except json.JSONDecodeError:
+            plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_JSON_INVALID"}
+        else:
+            if not isinstance(manifest, dict):
+                plugin = {"available": False, "code": "BUILTIN_PLUGIN_INVALID", "path": str(manifest_path), "reason": "MANIFEST_NOT_OBJECT"}
+            else:
+                version = str(manifest.get("version") or "")
+                if version:
+                    components["html_indesign"] = version
+                plugin = {"available": True, "source": "builtin", "path": str(manifest_path), "version": version or None}
     else:
         plugin = {"available": False, "code": "BUILTIN_PLUGIN_MISSING", "path": str(manifest_path)}
-    return {"root": str(root), "version": root.name, "components": components, "builtin_html_plugin": plugin}
+    result: dict[str, Any] = {
+        "available": state_problem is None and root.is_dir(),
+        "root": str(root),
+        "version": root.name,
+        "components": components,
+        "builtin_html_plugin": plugin,
+    }
+    if state_problem:
+        result.update(state_problem)
+        result["state_path"] = str(state_path)
+    return result
 
 
 def _server_root_diagnostics(repo_root: Path) -> dict[str, Any]:

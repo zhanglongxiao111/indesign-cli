@@ -92,12 +92,6 @@ def install_root_from_args(args: argparse.Namespace) -> Path:
     return Path(args.install_root).resolve() if getattr(args, "install_root", None) else install_root()
 
 
-def child_command(cli_args: list[str]) -> list[str]:
-    if getattr(sys, "frozen", False):
-        return [sys.executable, "__cli__", *cli_args]
-    return [sys.executable, "-m", "cli_anything.indesign", *cli_args]
-
-
 def run_child(cli_args: list[str], runtime_root: Path | None = None) -> dict[str, Any]:
     actual_runtime_root = runtime_root
     if actual_runtime_root is None:
@@ -156,7 +150,16 @@ def run(argv: list[str] | None = None) -> int:
         root = install_root()
         embedded = embedded_runtime_root()
         if embedded is not None and current_runtime_root(root) is None:
-            installed = install_embedded_runtime(embedded, root=root)
+            try:
+                installed = install_embedded_runtime(embedded, root=root)
+            except Exception as exc:
+                reason = exc.code if isinstance(exc, CliError) else exc.__class__.__name__
+                reason_details = exc.details if isinstance(exc, CliError) else {}
+                raise CliError(
+                    "Cannot install embedded runtime",
+                    code="INITIAL_INSTALL_FAILED",
+                    details={"reason": reason, "reason_details": reason_details},
+                ) from exc
             current = read_current_runtime(root) or {}
             data = {
                 "updated": True,
@@ -223,10 +226,6 @@ def run(argv: list[str] | None = None) -> int:
 def main(argv: list[str] | None = None) -> int:
     start = now_ms()
     actual_argv = list(sys.argv[1:] if argv is None else argv)
-    if actual_argv and actual_argv[0] == "__cli__":
-        from .indesign_cli import main as indesign_cli_main
-
-        return indesign_cli_main(actual_argv[1:])
     try:
         try:
             sys.stdout.reconfigure(encoding="utf-8")

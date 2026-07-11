@@ -367,3 +367,39 @@ def test_server_health_explicitly_reports_missing_builtin_html(monkeypatch, tmp_
         "code": "BUILTIN_PLUGIN_MISSING",
         "path": str(runtime / "plugins" / "html-indesign" / "manifest.json"),
     }
+
+
+def test_server_health_reports_invalid_builtin_manifest_as_unavailable(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    plugin = runtime / "plugins" / "html-indesign"
+    plugin.mkdir(parents=True)
+    manifest = plugin / "manifest.json"
+    manifest.write_text("{broken", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["builtin_html_plugin"]["available"] is False
+    assert payload["runtime"]["builtin_html_plugin"]["code"] == "BUILTIN_PLUGIN_INVALID"
+    assert payload["runtime"]["builtin_html_plugin"]["reason"] == "MANIFEST_JSON_INVALID"
+
+
+def test_server_health_reports_invalid_current_runtime_state_as_unavailable(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    runtime = tmp_path / "runtime" / "0.5.0"
+    runtime.mkdir(parents=True)
+    state = tmp_path / "state" / "current-runtime.json"
+    state.parent.mkdir()
+    state.write_text("{broken", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setattr(health_module, "probe_edge", lambda: {"checked": True, "available": True})
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["runtime"]["available"] is False
+    assert payload["runtime"]["code"] == "RUNTIME_STATE_INVALID"
+    assert payload["runtime"]["reason"] == "CURRENT_STATE_JSON_INVALID"
