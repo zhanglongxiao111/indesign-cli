@@ -106,7 +106,7 @@
 - builtin 插件来自当前 runtime 的 `plugins/*`，source 为 `builtin`；项目级同 ID 插件可覆盖 builtin 供开发调试。builtin 缺损必须在 health/doctor 中显式报告。
 - 系统浏览器固定为 Edge；允许 `HTML_INDESIGN_BROWSER_EXECUTABLE` 覆盖受控路径。Skill 仍由外部渠道独立发布，CLI 不自动安装。
 - `0.4.2` 用户不做旧更新协议兼容，由公司 Agent 从 NAS 重新运行一次新版 Setup 完成迁移。
-- `skills/indesign-cli/assets/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
+- `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
 ### 2.6 HTML 插件接入边界
 
@@ -216,7 +216,7 @@
 | `skills/indesign-cli/assets/html-starter/` | 从零制作固定分页 HTML 的起步作者包 |
 | `skills/indesign-cli/assets/templates/catalog.json` | Skill 内置模板目录 |
 | `skills/indesign-cli/agents/openai.yaml` | Skill 展示与默认提示元数据 |
-| `skills/indesign-cli/assets/preview.png` | Skill 预览图 |
+| `skills/indesign-cli/preview.png` | Skill 预览图 |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |

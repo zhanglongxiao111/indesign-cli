@@ -1,6 +1,11 @@
 ---
 name: indesign-cli
-description: Use when 用户需要制作或编辑固定分页 HTML、InDesign 演示文稿、建筑汇报或排版文档，转换 HTML 与 InDesign，修改现有 INDD，或填充既有 InDesign 模板。
+description: 当用户需要制作或编辑固定分页 HTML、InDesign 演示文稿、建筑汇报或排版文档，转换 HTML 与 InDesign，修改现有 INDD，或填充既有 InDesign 模板时使用。
+tags:
+  - InDesign
+  - HTML 排版
+  - 演示文稿
+  - 建筑汇报
 ---
 
 # InDesign 出版与演示文稿

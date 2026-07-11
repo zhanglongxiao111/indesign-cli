@@ -5,7 +5,7 @@
 首次安装使用公司提供的 Setup：
 
 ```powershell
-& "<setup-path>\indesign-cli-agent-setup.exe" install
+& "<setup-path>\indesign-cli-agent-setup.exe"
 ```
 
 已经安装后可重新注册命令并检查更新：
