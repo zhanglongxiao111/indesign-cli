@@ -8,13 +8,15 @@ class PageItemGroupTest {
     constructor() {
         this.server = null;
         this.testResults = [];
+        this.createdDocumentName = '';
     }
 
     async startServer() {
         console.log('🚀 Starting InDesign MCP Server...');
 
         this.server = spawn('node', ['src/index.js'], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         // Wait for server to start
@@ -82,7 +84,7 @@ class PageItemGroupTest {
                             status: 'PASS',
                             result: result.result
                         });
-                        return true;
+                        return result;
                     } else {
                         console.log(`❌ ${name}: FAIL`);
                         console.log(`   Result: ${result.result}\n`);
@@ -130,12 +132,13 @@ class PageItemGroupTest {
         await this.startServer();
 
         // Test 1: Create a document with some content
-        await this.testTool('create_document', {
+        const createdDocument = await this.testTool('create_document', {
             preset: 'A4',
             orientation: 'Portrait',
             pages: 2,
             facingPages: true
         });
+        this.createdDocumentName = String(createdDocument?.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
 
         // Test 2: Create some page items to work with
         await this.testTool('create_text_frame', {
@@ -310,6 +313,12 @@ class PageItemGroupTest {
 
     async cleanup() {
         console.log('\n🧹 Cleaning up...');
+        if (this.createdDocumentName) {
+            await this.testTool('close_document', {
+                expectedDocumentName: this.createdDocumentName,
+                allowDiscard: true
+            });
+        }
         if (this.server) {
             this.server.kill();
         }
@@ -321,4 +330,4 @@ async function main() {
     await test.runPageItemGroupTests();
 }
 
-main().catch(console.error); 
+main().catch(console.error);

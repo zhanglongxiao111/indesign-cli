@@ -16,7 +16,8 @@ function log(message, type = 'info') {
 function sendMCPCommand(command) {
     return new Promise((resolve, reject) => {
         const child = spawn('node', ['src/index.js'], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';
@@ -113,4 +114,4 @@ testMCPProtocol().then(success => {
 }).catch(error => {
     log(`❌ Test failed to start: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

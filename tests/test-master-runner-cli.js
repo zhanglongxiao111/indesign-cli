@@ -11,7 +11,8 @@ const indexPath = join(__dirname, 'index.js');
 function runIndex(args, timeoutMs) {
     return new Promise((resolve) => {
         const child = spawn('node', [indexPath, ...args], {
-            stdio: ['ignore', 'pipe', 'pipe']
+            stdio: ['ignore', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';

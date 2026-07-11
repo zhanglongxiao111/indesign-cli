@@ -97,7 +97,7 @@ async function testTool(serverProcess, toolName, args = {}) {
 
             if (toolResult.success) {
                 log(`${toolName}: ✅ Success - ${toolResult.operation || 'Operation completed'}`, 'success');
-                return true;
+                return toolResult;
             } else {
                 log(`${toolName}: ❌ Failed - ${toolResult.result || 'Unknown error'}`, 'error');
                 return false;
@@ -117,7 +117,8 @@ async function testInDesignBasic() {
     log(`Server Path: ${TEST_CONFIG.serverPath}`, 'info');
 
     const serverProcess = spawn('node', [TEST_CONFIG.serverPath], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true
     });
 
     serverProcess.stderr.on('data', (data) => {
@@ -133,6 +134,7 @@ async function testInDesignBasic() {
         failed: 0,
         errors: []
     };
+    let createdDocumentName = '';
 
     try {
         // Test 1: Check if InDesign is accessible
@@ -205,6 +207,7 @@ async function testInDesignBasic() {
         testResults.total++;
         if (createTest) {
             testResults.passed++;
+            createdDocumentName = String(createTest.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
             log('✅ Basic document creation successful', 'success');
         } else {
             testResults.failed++;
@@ -243,7 +246,16 @@ async function testInDesignBasic() {
         log(`Test execution error: ${error.message}`, 'error');
         testResults.errors.push(error.message);
     } finally {
-        // Cleanup
+        if (createdDocumentName) {
+            const closed = await testTool(serverProcess, 'close_document', {
+                expectedDocumentName: createdDocumentName,
+                allowDiscard: true
+            });
+            if (!closed) {
+                testResults.failed++;
+                testResults.errors.push(`Failed to close test document: ${createdDocumentName}`);
+            }
+        }
         serverProcess.kill();
         await delay(1000);
     }
@@ -269,4 +281,4 @@ async function testInDesignBasic() {
 testInDesignBasic().catch(error => {
     log(`Test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

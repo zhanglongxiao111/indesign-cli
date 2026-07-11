@@ -96,7 +96,7 @@ async function testTool(serverProcess, toolName, args = {}) {
 
             if (toolResult.success) {
                 log(`${toolName}: ✅ Success - ${toolResult.operation || 'Operation completed'}`, 'success');
-                return true;
+                return toolResult;
             } else {
                 log(`${toolName}: ❌ Failed - ${toolResult.result || 'Unknown error'}`, 'error');
                 return false;
@@ -116,7 +116,8 @@ async function testStandardDocument() {
     log(`Server Path: ${TEST_CONFIG.serverPath}`, 'info');
 
     const serverProcess = spawn('node', [TEST_CONFIG.serverPath], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true
     });
 
     serverProcess.stderr.on('data', (data) => {
@@ -132,6 +133,7 @@ async function testStandardDocument() {
         failed: 0,
         errors: []
     };
+    let createdDocumentName = '';
 
     try {
         // Phase 1: Document Foundation
@@ -150,6 +152,7 @@ async function testStandardDocument() {
         testResults.total++;
         if (documentCreated) {
             testResults.passed++;
+            createdDocumentName = String(documentCreated.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
             log('✅ Document creation successful', 'success');
         } else {
             testResults.failed++;
@@ -371,13 +374,27 @@ async function testStandardDocument() {
         log('=== PHASE 7: Cleanup ===', 'info');
         const documentClosed = await testTool(serverProcess, 'close_document', { allowDiscard: true, forceActiveDocument: true });
         testResults.total++;
-        if (documentClosed) testResults.passed++; else testResults.failed++;
+        if (documentClosed) {
+            testResults.passed++;
+            createdDocumentName = '';
+        } else {
+            testResults.failed++;
+        }
 
     } catch (error) {
         log(`Test execution error: ${error.message}`, 'error');
         testResults.errors.push(error.message);
     } finally {
-        // Cleanup
+        if (createdDocumentName) {
+            const closed = await testTool(serverProcess, 'close_document', {
+                expectedDocumentName: createdDocumentName,
+                allowDiscard: true
+            });
+            if (!closed) {
+                testResults.failed++;
+                testResults.errors.push(`Failed to close test document: ${createdDocumentName}`);
+            }
+        }
         serverProcess.kill();
         await delay(1000);
     }

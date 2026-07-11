@@ -116,7 +116,8 @@ async function testErrorHandling() {
     log(`Server Path: ${TEST_CONFIG.serverPath}`, 'info');
 
     const serverProcess = spawn('node', [TEST_CONFIG.serverPath], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true
     });
 
     serverProcess.stderr.on('data', (data) => {
@@ -253,4 +254,4 @@ async function testErrorHandling() {
 testErrorHandling().catch(error => {
     log(`Test failed: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

@@ -217,6 +217,9 @@ assert.equal(afterWriteMtime, beforeWriteMtime, 'artifact --write should not tou
 const regeneratedArtifact = generateArtifact();
 assert.equal(regeneratedArtifact.generated_at, beforeWrite.generated_at, 'generateArtifact should preserve generated_at for unchanged payload');
 
-execFileSync('node', ['src/core/artifact.js', '--check'], { stdio: 'inherit' });
+execFileSync('node', ['src/core/artifact.js', '--check'], {
+    stdio: 'inherit',
+    windowsHide: true
+});
 
 console.log('Architecture registry checks passed');

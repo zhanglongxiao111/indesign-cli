@@ -30,7 +30,8 @@ function delay(ms) {
 function sendCommand(command) {
     return new Promise((resolve, reject) => {
         const child = spawn('node', ['src/index.js'], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';
@@ -120,7 +121,7 @@ async function testTool(toolName, args = {}) {
             if (toolResult.success) {
                 log(`✅ ${toolName}: ${toolResult.operation} completed successfully`, 'success');
                 testResults.passed++;
-                return true;
+                return toolResult;
             } else {
                 log(`❌ ${toolName}: ${toolResult.result}`, 'error');
                 testResults.failed++;
@@ -145,6 +146,7 @@ async function testTool(toolName, args = {}) {
 async function testBasicWorkflow() {
     log('🚀 Starting Basic Workflow Test', 'info');
     log('📋 Testing: Create Document → Add Pages → Create Content', 'info');
+    let createdDocumentName = '';
 
     try {
         // Step 1: Create Document (CRITICAL FIRST STEP)
@@ -165,6 +167,7 @@ async function testBasicWorkflow() {
             log('❌ Document creation failed - this is critical', 'error');
             return false;
         }
+        createdDocumentName = String(documentCreated.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
 
         await delay(3000); // Longer delay after document creation
 
@@ -242,6 +245,13 @@ async function testBasicWorkflow() {
     } catch (error) {
         log(`❌ Basic workflow test failed: ${error.message}`, 'error');
         return false;
+    } finally {
+        if (createdDocumentName) {
+            await testTool('close_document', {
+                expectedDocumentName: createdDocumentName,
+                allowDiscard: true
+            });
+        }
     }
 }
 
@@ -273,4 +283,4 @@ testBasicWorkflow().then(success => {
 }).catch(error => {
     log(`❌ Test failed to start: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

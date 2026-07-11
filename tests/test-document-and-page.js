@@ -20,7 +20,8 @@ function delay(ms) {
 function sendCommand(command) {
     return new Promise((resolve, reject) => {
         const child = spawn('node', ['src/index.js'], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';
@@ -80,7 +81,7 @@ async function testTool(toolName, args = {}) {
 
             if (toolResult.success) {
                 log(`✅ ${toolName}: ${toolResult.operation} completed successfully`, 'success');
-                return true;
+                return toolResult;
             } else {
                 log(`❌ ${toolName}: ${toolResult.result}`, 'error');
                 return false;
@@ -98,6 +99,7 @@ async function testTool(toolName, args = {}) {
 
 async function testDocumentAndPage() {
     log('🚀 Testing Document and Page Creation', 'info');
+    let createdDocumentName = '';
 
     try {
         // Step 1: Create Document
@@ -114,6 +116,7 @@ async function testDocumentAndPage() {
             log('❌ Document creation failed - cannot continue', 'error');
             return false;
         }
+        createdDocumentName = String(documentCreated.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
 
         await delay(2000); // Wait for document to be ready
 
@@ -143,6 +146,16 @@ async function testDocumentAndPage() {
     } catch (error) {
         log(`❌ Test failed: ${error.message}`, 'error');
         return false;
+    } finally {
+        if (createdDocumentName) {
+            const closed = await testTool('close_document', {
+                expectedDocumentName: createdDocumentName,
+                allowDiscard: true
+            });
+            if (!closed) {
+                throw new Error(`Failed to close test document: ${createdDocumentName}`);
+            }
+        }
     }
 }
 
@@ -158,4 +171,4 @@ testDocumentAndPage().then(success => {
 }).catch(error => {
     log(`❌ Test failed to start: ${error.message}`, 'error');
     process.exit(1);
-}); 
+});

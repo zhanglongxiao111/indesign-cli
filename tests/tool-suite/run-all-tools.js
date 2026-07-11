@@ -117,6 +117,7 @@ export class ToolSuiteRunner {
     async startServer() {
         this.server = spawn("node", ["src/index.js"], {
             stdio: ["pipe", "pipe", "pipe"],
+            windowsHide: true,
         });
 
         this.server.stderr.on("data", (chunk) => {

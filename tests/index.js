@@ -313,7 +313,8 @@ async function runTestFile(testFile) {
     return new Promise((resolve, reject) => {
         const testPath = join(__dirname, testFile);
         const testProcess = spawn('node', [testPath], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';

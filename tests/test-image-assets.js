@@ -24,7 +24,8 @@ function log(message, level = 'info') {
 async function executeTool(tool, args = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn('node', [SERVER_PATH], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true
         });
 
         let output = '';
@@ -126,6 +127,7 @@ function createTestImages() {
 async function testImageAssets() {
     log('🖼️ Image Assets Test');
     log('🔧 Demonstrating how image assets work via MCP');
+    let createdDocumentName = '';
 
     try {
         // Step 1: Create test images
@@ -152,6 +154,7 @@ async function testImageAssets() {
         if (!docResult.success) {
             throw new Error(`Failed to create document: ${docResult.result}`);
         }
+        createdDocumentName = String(docResult.result || '').match(/Document name:\s*(.+)/)?.[1]?.trim() || '';
         log('✅ Document created successfully');
         await delay(1000);
 
@@ -418,7 +421,15 @@ async function testImageAssets() {
 
     } catch (error) {
         log(`❌ Error during image assets test: ${error.message}`, 'error');
-        process.exit(1);
+        throw error;
+    } finally {
+        if (createdDocumentName) {
+            const closed = await executeTool('close_document', {
+                expectedDocumentName: createdDocumentName,
+                allowDiscard: true
+            });
+            if (!closed.success) throw new Error(`Failed to close test document: ${createdDocumentName}`);
+        }
     }
 }
 
