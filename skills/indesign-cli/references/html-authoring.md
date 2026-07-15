@@ -23,7 +23,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
 ```
 
-3. 严格检查。先把参数写入 `lint.args.json`：
+3. 只交付 HTML 时，或创作过程中想提前发现问题，运行作者检查。先把参数写入 `lint.args.json`：
 
 ```json
 {"package":"<author-root>/deck.config.json","strict":true}
@@ -33,17 +33,21 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 indesign-cli-agent tool call html.authoring_lint --args-file lint.args.json
 ```
 
-4. 需要 InDesign 时，把参数写入 `build.args.json`：
+4. 需要 InDesign 时，直接执行正式构建。正式构建会再次严格检查作者包，生成真实 InDesign 文档，并把文档里的页面、对象、文字、资源和协议事实与原 HTML 核对；核对通过后才导出成品。
+
+把参数写入 `build.args.json`：
 
 ```json
-{"package":"<author-root>/deck.config.json","outDir":"<output-dir>","outputBaseName":"presentation"}
+{"package":"<author-root>/deck.config.json","outDir":"<output-dir>","outputBaseName":"presentation","mode":"final"}
 ```
 
 ```powershell
 indesign-cli-agent tool call html.build_indesign --args-file build.args.json --timeout-ms 900000
 ```
 
-只需要 HTML 时，在严格检查通过后交付 `deck.html` 和完整作者包，不执行第 4 步。
+只有结果中的 `verified` 为 `true`，才能把 INDD/PDF/IDML 作为正式成品交付。失败时按返回的页面、对象、字段或文件修改作者源码，重新组装后再构建；不要用未修改的输入反复重试，也不要自行追加二次回环。
+
+`mode: "draft"` 会跳过真实文档核对，结果始终是未验证草稿，不能作为正式成品。只需要 HTML 时，在严格检查通过后交付 `deck.html` 和完整作者包，不执行第 4 步。
 
 ## 作者规则
 

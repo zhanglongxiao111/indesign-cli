@@ -325,3 +325,52 @@ def test_agent_bootstrapper_health_reads_current_runtime_not_embedded(monkeypatc
     assert payload["data"]["builtin_html_plugin"]["available"] is True
     assert payload["data"]["edge"]["available"] is True
     assert "embedded_runtime" not in payload["data"]
+
+
+def test_agent_bootstrapper_surfaces_underlying_child_error(monkeypatch, capsys):
+    from cli_anything.indesign import agent_bootstrapper
+
+    monkeypatch.setattr(
+        agent_bootstrapper,
+        "ensure_agent_ready",
+        lambda **_kwargs: {
+            "updated": False,
+            "warnings": [],
+            "runtime_root": r"D:\runtime\0.5.2",
+        },
+    )
+    monkeypatch.setattr(
+        agent_bootstrapper,
+        "run_child",
+        lambda *_args, **_kwargs: {
+            "exit_code": 1,
+            "stdout_json": {
+                "ok": False,
+                "error": {
+                    "type": "CliError",
+                    "code": "INDESIGN_BUILD_FAILED",
+                    "message": "Page 2 contains overset text",
+                    "details": {"phase": "indesign-build", "page": 2},
+                    "retryable": False,
+                    "hint": "Fix the text frame before rebuilding.",
+                },
+            },
+            "stdout_tail": "",
+            "stderr_tail": "",
+        },
+    )
+
+    exit_code = agent_bootstrapper.run(["tool", "call", "html.build_indesign", "--args", "args.json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["error"]["code"] == "INDESIGN_BUILD_FAILED"
+    assert payload["error"]["message"] == "Page 2 contains overset text"
+    assert payload["error"]["details"] == {
+        "phase": "indesign-build",
+        "page": 2,
+        "child_exit_code": 1,
+    }
+    assert payload["error"]["retryable"] is False
+    assert payload["error"]["hint"] == "Fix the text frame before rebuilding."
+    assert payload["data"]["child"]["stdout_json"]["error"]["code"] == "INDESIGN_BUILD_FAILED"

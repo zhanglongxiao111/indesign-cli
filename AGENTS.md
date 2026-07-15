@@ -133,6 +133,8 @@
 - `plugin doctor` 负责安装后诊断插件发现、依赖和宿主能力。
 - 工具目录支持动态 domain、`source: plugin`、`tool list --domain html`、`tool schema` 和 `tool call`。
 - 插件需要真实 InDesign 时，通过受控 host action 使用宿主能力；第一版允许 `script.run`、`export.verify`、`session.show`。
+- 有依赖关系的 host action 必须按插件返回顺序逐步执行；任一步失败立即停止，先把失败结果交还插件，不继续运行后续动作，也不对相同输入自动重试。
+- CLI 必须保留脚本返回的首个结构化错误代码、原因和页面/对象/字段定位；插件已经返回明确 `status: error` 时直接呈现，不再包装成笼统的宿主失败。
 - 插件协议规范见 `docs/superpowers/specs/2026-05-27-indesign-cli-plugin-host-protocol-design.md`。
 
 开发边界：

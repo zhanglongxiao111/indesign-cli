@@ -650,6 +650,45 @@ def test_backend_tool_response_fails_on_top_level_ok_false():
         raise AssertionError("top-level ok:false should fail")
 
 
+def test_backend_tool_response_preserves_first_structured_script_error():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "ok": False,
+                        "errors": [
+                            {
+                                "code": "TEXT_OVERSET",
+                                "message": "Page agenda, item summary-body has overset text",
+                                "pageId": "agenda",
+                                "itemId": "summary-body",
+                                "field": "content.text",
+                            }
+                        ],
+                    }
+                ),
+            }
+        ]
+    }
+
+    try:
+        backend._parse_tool_response("run_jsx_file", response)
+    except CliError as exc:
+        assert exc.code == "TEXT_OVERSET"
+        assert exc.message == "Page agenda, item summary-body has overset text"
+        assert exc.details["first_error"]["pageId"] == "agenda"
+        assert exc.details["first_error"]["itemId"] == "summary-body"
+        assert exc.details["first_error"]["field"] == "content.text"
+    else:
+        raise AssertionError("structured script error should fail")
+
+
 def test_backend_tool_response_fails_on_legacy_failure_string():
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.mcp_backend import McpBackend

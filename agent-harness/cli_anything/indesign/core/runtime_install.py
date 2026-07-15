@@ -176,6 +176,27 @@ def current_runtime_root(root: Path) -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
+def validate_runtime_shallow(runtime_root: Path) -> None:
+    required = (
+        runtime_root / "cli" / "indesign-cli.exe",
+        runtime_root / "cli" / "_internal" / "cli_anything" / "indesign" / "node" / "internal_tool_bridge.mjs",
+        runtime_root / "node" / "node.exe",
+        runtime_root / "server" / "package.json",
+        runtime_root / "server" / "src" / "index.js",
+        runtime_root / "server" / "src" / "advanced" / "index.js",
+        runtime_root / "server" / "node_modules" / "winax" / "package.json",
+        runtime_root / "plugins" / "html-indesign" / "manifest.json",
+        runtime_root / "plugins" / "html-indesign" / "index.js",
+    )
+    missing = [path.relative_to(runtime_root).as_posix() for path in required if not path.is_file()]
+    if missing:
+        raise CliError(
+            "Runtime is incomplete",
+            code="RUNTIME_VALIDATION_FAILED",
+            details={"missing": missing, "validation": "shallow"},
+        )
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -572,14 +593,16 @@ def install_embedded_runtime(
 
 def ensure_runtime_ready(*, root: Path, sources: list[str] | tuple[str, ...] | None = None, command_args: list[str] | None = None) -> dict[str, Any]:
     state = read_current_runtime(root)
-    current = current_runtime_root(root)
+    current = Path(str(state["root"])) if state else None
     manifest, warnings = load_first_runtime_manifest(sources)
     if manifest is None:
         if current:
+            validate_runtime_shallow(current)
             return {"updated": False, "version": state.get("version"), "runtime_root": str(current), "warnings": warnings, "command_args": command_args or []}
         raise CliError("Cannot install initial runtime", code="INITIAL_INSTALL_FAILED", details={"sources": list(sources or []), "warnings": warnings})
     current_version = str((state or {}).get("version") or "") or None
-    if current and compare_versions(current_version, manifest.version) > 0:
+    if current and compare_versions(current_version, manifest.version) >= 0:
+        validate_runtime_shallow(current)
         return {"updated": False, "version": current_version, "runtime_root": str(current), "source": manifest.source, "warnings": warnings, "command_args": command_args or []}
     try:
         installed = install_runtime(manifest, root=root)

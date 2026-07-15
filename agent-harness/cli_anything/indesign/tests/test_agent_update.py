@@ -14,6 +14,24 @@ from cli_anything.indesign.core.agent_update import (
 from cli_anything.indesign.core.errors import CliError
 
 
+def _write_shallow_runtime(runtime):
+    files = [
+        "cli/indesign-cli.exe",
+        "cli/_internal/cli_anything/indesign/node/internal_tool_bridge.mjs",
+        "node/node.exe",
+        "server/package.json",
+        "server/src/index.js",
+        "server/src/advanced/index.js",
+        "server/node_modules/winax/package.json",
+        "plugins/html-indesign/manifest.json",
+        "plugins/html-indesign/index.js",
+    ]
+    for relative in files:
+        path = runtime / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"MZ" if path.suffix == ".exe" else b"{}")
+
+
 def test_install_root_is_user_localappdata(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
     assert install_root() == tmp_path / "LocalAppData" / "indesign-cli"
@@ -56,6 +74,7 @@ def test_ensure_agent_ready_keeps_current_runtime_when_manifest_unavailable(tmp_
     root = tmp_path / "install"
     runtime = root / "runtime" / "0.4.2"
     runtime.mkdir(parents=True)
+    _write_shallow_runtime(runtime)
     state = root / "state" / "current-runtime.json"
     state.parent.mkdir(parents=True)
     state.write_text(

@@ -1,6 +1,6 @@
 {
   "name": "indesign-cli",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Agent-native CLI and MCP runtime for Adobe InDesign automation",
   "main": "src/index.js",
   "type": "module",

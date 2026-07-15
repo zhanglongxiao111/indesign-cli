@@ -175,9 +175,18 @@ class McpBackend:
             isinstance(parsed, dict) and (parsed.get("success") is False or parsed.get("ok") is False)
         ):
             details = {"tool": name}
+            first_error: dict[str, Any] | None = None
             if isinstance(parsed, dict):
                 details["operation"] = parsed.get("operation")
                 details["result"] = scrub_text_paths(str(parsed.get("result", "")))
+                errors = parsed.get("errors")
+                if isinstance(errors, list) and errors and isinstance(errors[0], dict):
+                    first_error = {
+                        key: scrub_text_paths(value) if isinstance(value, str) else value
+                        for key, value in errors[0].items()
+                        if key in {"code", "message", "pageId", "itemId", "field", "step", "line", "fileName"}
+                    }
+                    details["first_error"] = first_error
                 details.update(
                     {
                         key: value
@@ -197,8 +206,16 @@ class McpBackend:
                         }
                     }
                 )
-            code = str(parsed.get("code") or "MCP_TOOL_FAILED") if isinstance(parsed, dict) else "MCP_TOOL_FAILED"
-            message = str(parsed.get("message") or parsed.get("error") or "") if isinstance(parsed, dict) else ""
+            code = (
+                str(parsed.get("code") or (first_error or {}).get("code") or "MCP_TOOL_FAILED")
+                if isinstance(parsed, dict)
+                else "MCP_TOOL_FAILED"
+            )
+            message = (
+                str(parsed.get("message") or parsed.get("error") or (first_error or {}).get("message") or "")
+                if isinstance(parsed, dict)
+                else ""
+            )
             if not message:
                 # message 缺失时回退到工具返回文本，Agent 才能看到真实失败原因
                 result_text = scrub_text_paths(str(parsed.get("result") or "")).strip() if isinstance(parsed, dict) else ""

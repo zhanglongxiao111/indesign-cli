@@ -121,6 +121,29 @@ def run_child(cli_args: list[str], runtime_root: Path | None = None) -> dict[str
     }
 
 
+def child_error(child: dict[str, Any]) -> dict[str, Any]:
+    stdout_json = child.get("stdout_json")
+    underlying = stdout_json.get("error") if isinstance(stdout_json, dict) else None
+    if isinstance(underlying, dict):
+        error = dict(underlying)
+        error.setdefault("type", "CliError")
+        error.setdefault("code", "CHILD_COMMAND_FAILED")
+        error.setdefault("message", "indesign-cli command failed")
+        details = dict(error.get("details")) if isinstance(error.get("details"), dict) else {}
+        details["child_exit_code"] = child.get("exit_code")
+        error["details"] = details
+        error.setdefault("retryable", False)
+        return error
+    return {
+        "type": "CliError",
+        "code": "CHILD_COMMAND_FAILED",
+        "message": "indesign-cli command failed",
+        "details": {"child_exit_code": child.get("exit_code")},
+        "retryable": False,
+        "hint": "Inspect data.child.stdout_json for the underlying CLI error.",
+    }
+
+
 def builtin_html_status(runtime_root: Path | None) -> dict[str, Any]:
     if runtime_root is None:
         return {"available": False, "code": "RUNTIME_NOT_ACTIVE", "path": None}
@@ -180,14 +203,7 @@ def run(argv: list[str] | None = None) -> int:
         if child["exit_code"] != 0:
             payload["ok"] = False
             payload["exit_code"] = child["exit_code"]
-            payload["error"] = {
-                "type": "CliError",
-                "code": "CHILD_COMMAND_FAILED",
-                "message": "indesign-cli command failed",
-                "details": {"child_exit_code": child["exit_code"]},
-                "retryable": False,
-                "hint": "Inspect data.child.stdout_json for the underlying CLI error.",
-            }
+            payload["error"] = child_error(child)
         return emit(payload, pretty=pretty)
 
     parser = build_parser()

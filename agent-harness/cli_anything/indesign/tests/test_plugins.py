@@ -302,3 +302,154 @@ def test_plugin_doctor_reports_missing_builtin_html_explicitly(monkeypatch, tmp_
 
     assert exc.value.code == "BUILTIN_PLUGIN_MISSING"
     assert exc.value.details["expected"] == str(runtime / "plugins" / "html-indesign" / "manifest.json")
+
+
+def test_host_action_executor_stops_after_first_failed_action(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    calls = []
+
+    class Router:
+        def call(self, tool_id, args):
+            calls.append(tool_id)
+            if tool_id == "session.show":
+                raise CliError(
+                    "InDesign build failed",
+                    code="INDESIGN_BUILD_FAILED",
+                    details={"phase": "indesign-build"},
+                )
+            return {"signature_ok": True}
+
+    class Backend:
+        def __init__(self):
+            self.host_results = None
+
+        def resume_tool(self, tool_id, state, host_results):
+            self.host_results = host_results
+            return {"status": "complete", "data": {"ok": False}}
+
+    backend = Backend()
+    result = HostActionExecutor(Router(), tmp_path).complete(
+        backend,
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {"phase": "indesign-build"},
+            "actions": [
+                {"id": "build", "tool_id": "session.show", "args": {}},
+                {"id": "verify", "tool_id": "export.verify", "args": {"path": "unused.pdf"}},
+            ],
+        },
+    )
+
+    assert result["data"]["ok"] is False
+    assert calls == ["session.show"]
+    assert len(backend.host_results) == 1
+    assert backend.host_results[0]["error"]["code"] == "INDESIGN_BUILD_FAILED"
+
+
+def test_host_action_executor_treats_nested_ok_false_as_failure(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    calls = []
+
+    class Router:
+        def call(self, tool_id, args):
+            calls.append(tool_id)
+            if tool_id == "session.show":
+                return {
+                    "ok": False,
+                    "errors": [{"code": "OVERSET_TEXT", "message": "Page 2 text overflow"}],
+                }
+            return {"signature_ok": True}
+
+    class Backend:
+        def resume_tool(self, tool_id, state, host_results):
+            return {"status": "complete", "data": {"ok": False}, "host_results": host_results}
+
+    result = HostActionExecutor(Router(), tmp_path).complete(
+        Backend(),
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {"phase": "indesign-build"},
+            "actions": [
+                {"id": "build", "tool_id": "session.show", "args": {}},
+                {"id": "verify", "tool_id": "export.verify", "args": {"path": "unused.pdf"}},
+            ],
+        },
+    )
+
+    assert result["data"]["ok"] is False
+    assert calls == ["session.show"]
+    assert result["host_results"][0]["data"]["errors"][0]["code"] == "OVERSET_TEXT"
+
+
+def test_host_action_executor_returns_plugin_error_after_failed_host_action(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    class Router:
+        def call(self, tool_id, args):
+            return {
+                "ok": False,
+                "errors": [{"code": "FONT_NOT_FOUND", "message": "Missing font"}],
+            }
+
+    class Backend:
+        def resume_tool(self, tool_id, state, host_results):
+            return {
+                "status": "error",
+                "error": {
+                    "code": "INDESIGN_BUILD_FAILED",
+                    "message": "Missing font",
+                    "details": {"host_results": host_results},
+                },
+            }
+
+    result = HostActionExecutor(Router(), tmp_path).complete(
+        Backend(),
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {"stage": "build"},
+            "actions": [{"id": "build", "tool_id": "session.show", "args": {}}],
+        },
+    )
+
+    assert result["status"] == "error"
+    assert result["error"]["code"] == "INDESIGN_BUILD_FAILED"
+
+
+def test_host_action_executor_allows_four_dependent_action_rounds_by_default(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    class Router:
+        def call(self, tool_id, args):
+            return {"ok": True}
+
+    class Backend:
+        def __init__(self):
+            self.round = 0
+
+        def resume_tool(self, tool_id, state, host_results):
+            self.round += 1
+            if self.round == 4:
+                return {"status": "complete", "data": {"ok": True, "verified": True}}
+            return {
+                "status": "requires_host_actions",
+                "state": {"stage": self.round},
+                "actions": [{"id": f"stage-{self.round}", "tool_id": "session.show", "args": {}}],
+            }
+
+    result = HostActionExecutor(Router(), tmp_path).complete(
+        Backend(),
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {"stage": 0},
+            "actions": [{"id": "stage-0", "tool_id": "session.show", "args": {}}],
+        },
+    )
+
+    assert result["data"]["verified"] is True

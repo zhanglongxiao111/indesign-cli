@@ -799,8 +799,37 @@ def test_cleanup_failure_keeps_new_current_and_returns_structured_warning_for_re
     assert json.loads(state.read_text(encoding="utf-8"))["root"] == current["root"]
 
 
-def test_ensure_runtime_ready_retries_cleanup_for_equal_current_version(tmp_path, monkeypatch):
+def test_ensure_runtime_ready_equal_version_uses_shallow_validation_without_install(tmp_path, monkeypatch):
     from cli_anything.indesign.core import runtime_install
+
+    root = tmp_path / "install"
+    current = root / "runtime" / "0.5.0"
+    archive = tmp_path / "current.zip"
+    _write_runtime_zip(archive)
+    with zipfile.ZipFile(archive) as payload:
+        payload.extractall(current)
+    state = root / "state" / "current-runtime.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps(_runtime_state(root, "0.5.0")), encoding="utf-8")
+    manifest_file = tmp_path / "runtime-latest.json"
+    manifest_file.write_text(json.dumps(_manifest_payload(tmp_path / "runtime.zip", "a" * 64)), encoding="utf-8")
+    monkeypatch.setattr(
+        runtime_install,
+        "install_runtime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("equal version must not run deep install validation")),
+    )
+
+    result = runtime_install.ensure_runtime_ready(root=root, sources=[str(manifest_file)])
+
+    assert result["updated"] is False
+    assert result["version"] == "0.5.0"
+    assert result["runtime_root"] == str(current.resolve())
+    assert result["warnings"] == []
+
+
+def test_ensure_runtime_ready_equal_version_rejects_missing_critical_entry(tmp_path, monkeypatch):
+    from cli_anything.indesign.core import runtime_install
+    from cli_anything.indesign.core.errors import CliError
 
     root = tmp_path / "install"
     current = root / "runtime" / "0.5.0"
@@ -810,23 +839,17 @@ def test_ensure_runtime_ready_retries_cleanup_for_equal_current_version(tmp_path
     state.write_text(json.dumps(_runtime_state(root, "0.5.0")), encoding="utf-8")
     manifest_file = tmp_path / "runtime-latest.json"
     manifest_file.write_text(json.dumps(_manifest_payload(tmp_path / "runtime.zip", "a" * 64)), encoding="utf-8")
-    calls = []
+    monkeypatch.setattr(
+        runtime_install,
+        "install_runtime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("equal version must not run deep install validation")),
+    )
 
-    def idempotent_install(manifest, *, root):
-        calls.append((manifest.version, root))
-        return runtime_install.RuntimeInstallResult(
-            runtime_root=current,
-            installed=False,
-            warnings=({"code": "RUNTIME_CLEANUP_FAILED", "path": str(root / "runtime" / "old"), "message": "locked"},),
-        )
+    with pytest.raises(CliError) as exc:
+        runtime_install.ensure_runtime_ready(root=root, sources=[str(manifest_file)])
 
-    monkeypatch.setattr(runtime_install, "install_runtime", idempotent_install)
-
-    result = runtime_install.ensure_runtime_ready(root=root, sources=[str(manifest_file)])
-
-    assert calls == [("0.5.0", root)]
-    assert result["updated"] is False
-    assert result["warnings"][0]["code"] == "RUNTIME_CLEANUP_FAILED"
+    assert exc.value.code == "RUNTIME_VALIDATION_FAILED"
+    assert "cli/indesign-cli.exe" in exc.value.details["missing"]
 
 
 def test_install_runtime_rereads_current_after_acquiring_lock_and_noops_stale_view(tmp_path, monkeypatch):
