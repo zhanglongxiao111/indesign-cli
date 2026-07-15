@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,7 @@ from typing import Any, Callable
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENT_HARNESS = REPO_ROOT / "agent-harness"
 RUNTIME_NAME = "indesign-cli-runtime"
+SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def copytree_clean(source: Path, target: Path) -> None:
@@ -153,6 +155,29 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _html_plugin_version(package_json_path: Path, manifest_path: Path) -> str:
+    package_json = _read_json(package_json_path)
+    manifest = _read_json(manifest_path)
+    package_version = str(package_json.get("version") or "").strip()
+    manifest_version = str(manifest.get("version") or "").strip()
+    if package_json.get("name") != "@sa/html-indesign":
+        raise SystemExit("HTML plugin package identity is invalid")
+    if manifest.get("id") != "html-indesign":
+        raise SystemExit("HTML plugin manifest identity is invalid")
+    if not SEMVER.fullmatch(package_version) or package_version != manifest_version:
+        raise SystemExit(
+            "HTML plugin package and manifest versions must match and use semantic versioning"
+        )
+    return package_version
+
+
+def _repository_version() -> str:
+    version = str(_read_json(REPO_ROOT / "package.json").get("version") or "").strip()
+    if not SEMVER.fullmatch(version):
+        raise SystemExit("Repository package version is invalid")
+    return version
+
+
 def _run_checked(runner: Callable[..., Any], args: list[str], *, cwd: Path) -> None:
     result = runner(
         args,
@@ -210,15 +235,12 @@ def assemble_runtime(
         _safe_extract_tgz(html_plugin_tgz, extract_root)
         package_root = extract_root / "package"
         package_json = _read_json(package_root / "package.json")
-        if package_json.get("name") != "@sa/html-indesign" or package_json.get("version") != "0.2.0":
-            raise SystemExit("HTML plugin tgz must be @sa/html-indesign 0.2.0")
+        source_manifest = package_root / "src" / "indesign-cli-plugin" / "manifest.json"
+        _html_plugin_version(package_root / "package.json", source_manifest)
         plugin = target / "plugins" / "html-indesign"
         copytree_clean(package_root, plugin)
-        source_manifest = plugin / "src" / "indesign-cli-plugin" / "manifest.json"
-        manifest = _read_json(source_manifest)
-        if manifest.get("id") != "html-indesign" or manifest.get("version") != "0.2.0":
-            raise SystemExit("HTML plugin manifest identity/version is invalid")
-        shutil.copy2(source_manifest, plugin / "manifest.json")
+        installed_manifest = plugin / "src" / "indesign-cli-plugin" / "manifest.json"
+        shutil.copy2(installed_manifest, plugin / "manifest.json")
         _run_checked(
             runner,
             [npm_bin, "install", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"],
@@ -307,7 +329,14 @@ def _run_pyinstaller(args: list[str]) -> None:
         raise SystemExit(result.returncode)
 
 
-def _component_versions(node_root: Path, node_modules: Path, *, runner: Callable[..., Any] = subprocess.run) -> dict[str, str]:
+def _component_versions(
+    node_root: Path,
+    node_modules: Path,
+    *,
+    runtime_root: Path,
+    runtime_version: str,
+    runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, str]:
     node_result = runner(
         [str(node_root / "node.exe"), "--version"],
         text=True,
@@ -320,9 +349,17 @@ def _component_versions(node_root: Path, node_modules: Path, *, runner: Callable
         raise SystemExit("Cannot determine portable Node version")
     node_version = str(node_result.stdout).strip().removeprefix("v")
     winax = str(_read_json(node_modules / "winax" / "package.json").get("version") or "")
+    plugin = runtime_root / "plugins" / "html-indesign"
+    html_indesign = _html_plugin_version(plugin / "package.json", plugin / "manifest.json")
     if not node_version or not winax:
         raise SystemExit("Node/winax component version is missing")
-    return {"indesign_cli": "0.5.0", "html_indesign": "0.2.0", "node": node_version, "winax": winax, "browser": "msedge"}
+    return {
+        "indesign_cli": runtime_version,
+        "html_indesign": html_indesign,
+        "node": node_version,
+        "winax": winax,
+        "browser": "msedge",
+    }
 
 
 def build_release(
@@ -338,8 +375,11 @@ def build_release(
     npm_bin: str = "npm",
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    if version != "0.5.0":
-        raise SystemExit("This release builder only accepts indesign-cli 0.5.0")
+    repository_version = _repository_version()
+    if version != repository_version:
+        raise SystemExit(
+            f"Runtime version {version} must match repository version {repository_version}"
+        )
     for path in (node_root / "node.exe", node_modules / "winax" / "package.json", html_plugin_tgz):
         if not path.exists():
             raise SystemExit(f"Required build input is missing: {path}")
@@ -361,7 +401,12 @@ def build_release(
         target=runtime,
         npm_bin=resolve_npm_bin(node_root, npm_bin),
     )
-    components = _component_versions(node_root, node_modules)
+    components = _component_versions(
+        node_root,
+        node_modules,
+        runtime_root=runtime,
+        runtime_version=version,
+    )
     release = write_runtime_release(
         runtime,
         output_dir=output_dir,
@@ -391,9 +436,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the persistent indesign-cli runtime and complete offline Setup EXE.")
     parser.add_argument("--node-root", required=True, help="Portable Node root containing node.exe")
     parser.add_argument("--node-modules", required=True, help="Server production node_modules containing winax")
-    parser.add_argument("--html-plugin-tgz", required=True, help="Packed @sa/html-indesign 0.2.0 tgz")
+    parser.add_argument("--html-plugin-tgz", required=True, help="Packed @sa/html-indesign tgz")
     parser.add_argument("--npm-bin", default="npm", help="npm executable used to install plugin production dependencies")
-    parser.add_argument("--version", required=True, help="Runtime version (0.5.0)")
+    parser.add_argument("--version", required=True, help="Runtime version; must match package.json")
     parser.add_argument("--nas-url", required=True, help="NAS URL/path for the runtime ZIP")
     parser.add_argument("--github-url", required=True, help="GitHub fallback URL for the runtime ZIP")
     parser.add_argument("--output-dir", default="dist-agent", help="Release artifact directory")

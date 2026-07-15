@@ -48,7 +48,7 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 
 日常更新读取 NAS 优先、GitHub 兜底的 `runtime-latest.json`（schema v2），下载并校验 runtime ZIP，在 staging 中检查 CLI、Node、`winax`、builtin HTML 插件和系统 Edge 后原子切换。成功后只保留当前 runtime；失败时删除新 staging 并继续使用旧 runtime。日常更新不替换 `bin\indesign-cli-agent.exe`；启动器自身需要升级时重新运行新版 Setup。
 
-从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行一次 `0.5.0` Setup。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
+从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行最新版 Setup。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
 
 ### 发行构建（维护者）
 
@@ -58,13 +58,22 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 python scripts\build_agent_bootstrapper.py `
   --node-root "C:\Program Files\nodejs" `
   --node-modules .\node_modules `
-  --html-plugin-tgz <sa-html-indesign-0.2.0.tgz> `
-  --version 0.5.0 `
-  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.0.zip" `
-  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.0/runtime-windows-x64-0.5.0.zip"
+  --html-plugin-tgz <sa-html-indesign-0.2.1.tgz> `
+  --version 0.5.1 `
+  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.1.zip" `
+  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.1/runtime-windows-x64-0.5.1.zip"
 ```
 
 先加 `--dry-run` 可只校验输入并查看三段 PyInstaller 命令。外部 `runtime-latest.json` 是 ZIP 完整性事实源，写入真实 SHA-256。ZIP 和 Setup 内的 `runtime-metadata.json` 只用于离线身份/组件校验，其 SHA 字段固定为 64 个 `0`：归档无法在自身内部保存自己的最终摘要，否则写入摘要本身会再次改变摘要。
+
+构建完成后，使用固定内网发布脚本先空跑再正式切换：
+
+```powershell
+python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run
+python scripts\publish_agent_runtime.py --release-dir .\dist-agent
+```
+
+脚本会校验版本和 SHA-256，归档到 NAS `releases/<version>/`，并把 `runtime-latest.json` 作为最后一步原子切换。不要手工覆盖 NAS 当前清单。
 
 下面的 PyPI 安装方式保留给开发者和开源用户。
 

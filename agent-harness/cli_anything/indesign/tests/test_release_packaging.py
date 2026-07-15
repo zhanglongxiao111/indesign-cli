@@ -26,12 +26,18 @@ def _write_file(path: Path, data: bytes = b"payload") -> None:
     path.write_bytes(data)
 
 
-def _write_html_plugin_tgz(path: Path) -> None:
+def _write_html_plugin_tgz(
+    path: Path,
+    *,
+    package_version: str = "0.2.1",
+    manifest_version: str | None = None,
+) -> None:
+    manifest_version = manifest_version or package_version
     package = {
         "package/package.json": json.dumps(
             {
                 "name": "@sa/html-indesign",
-                "version": "0.2.0",
+                "version": package_version,
                 "dependencies": {"cheerio": "1.1.2", "playwright": "1.61.0", "reveal.js": "6.0.1"},
             }
         ).encode(),
@@ -41,7 +47,7 @@ def _write_html_plugin_tgz(path: Path) -> None:
                 "protocol": "indesign-cli-plugin.v1",
                 "id": "html-indesign",
                 "name": "html-indesign",
-                "version": "0.2.0",
+                "version": manifest_version,
                 "kind": "node-plugin",
                 "domain": "html",
                 "entry": "src/indesign-cli-plugin/index.js",
@@ -69,7 +75,7 @@ def _fixture_inputs(tmp_path: Path):
     node_modules = tmp_path / "server-node_modules"
     _write_file(node_modules / "winax" / "package.json", b'{"version":"3.6.2"}')
     _write_file(node_modules / "winax" / "build" / "Release" / "node_activex.node")
-    tgz = tmp_path / "sa-html-indesign-0.2.0.tgz"
+    tgz = tmp_path / "sa-html-indesign-0.2.1.tgz"
     _write_html_plugin_tgz(tgz)
     return cli, node, node_modules, tgz
 
@@ -125,7 +131,7 @@ def test_assemble_runtime_contains_cli_node_server_plugin_dependencies_and_jsx(t
     assert (runtime / "server" / "src" / "index.js").is_file()
     assert (runtime / "server" / "node_modules" / "winax" / "build" / "Release" / "node_activex.node").is_file()
     plugin = runtime / "plugins" / "html-indesign"
-    assert json.loads((plugin / "manifest.json").read_text())["version"] == "0.2.0"
+    assert json.loads((plugin / "manifest.json").read_text())["version"] == "0.2.1"
     assert (plugin / "src" / "indesign-cli-plugin" / "index.js").is_file()
     assert (plugin / "_indesign_scripts" / "build_from_instructions.jsx").is_file()
     assert (plugin / "_indesign_scripts" / "lib" / "shared.jsx").is_file()
@@ -133,6 +139,56 @@ def test_assemble_runtime_contains_cli_node_server_plugin_dependencies_and_jsx(t
     for dependency in ("cheerio", "playwright", "reveal.js"):
         assert (plugin / "node_modules" / dependency / "package.json").is_file()
     assert commands and "--omit=dev" in commands[0]
+
+
+def test_assemble_runtime_rejects_plugin_package_manifest_version_mismatch(tmp_path):
+    builder = _load_builder()
+    cli, node, node_modules, _tgz = _fixture_inputs(tmp_path)
+    tgz = tmp_path / "mismatched-plugin.tgz"
+    _write_html_plugin_tgz(tgz, package_version="0.2.1", manifest_version="0.2.0")
+
+    try:
+        builder.assemble_runtime(
+            cli_onedir=cli,
+            node_root=node,
+            node_modules=node_modules,
+            html_plugin_tgz=tgz,
+            target=tmp_path / "runtime",
+            npm_bin="npm.cmd",
+            runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+        )
+    except SystemExit as exc:
+        assert "version" in str(exc).lower()
+    else:
+        raise AssertionError("mismatched HTML plugin versions were accepted")
+
+
+def test_component_versions_use_release_version_and_embedded_plugin_version(tmp_path):
+    builder = _load_builder()
+    runtime = tmp_path / "runtime"
+    plugin = runtime / "plugins" / "html-indesign"
+    _write_file(plugin / "package.json", b'{"name":"@sa/html-indesign","version":"0.2.1"}')
+    _write_file(plugin / "manifest.json", b'{"id":"html-indesign","version":"0.2.1"}')
+    node = tmp_path / "portable-node"
+    _write_file(node / "node.exe", b"MZnode")
+    node_modules = tmp_path / "server-node_modules"
+    _write_file(node_modules / "winax" / "package.json", b'{"version":"3.6.2"}')
+
+    components = builder._component_versions(
+        node,
+        node_modules,
+        runtime_root=runtime,
+        runtime_version="0.5.1",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout="v22.15.0\n", stderr=""),
+    )
+
+    assert components == {
+        "indesign_cli": "0.5.1",
+        "html_indesign": "0.2.1",
+        "node": "22.15.0",
+        "winax": "3.6.2",
+        "browser": "msedge",
+    }
 
 
 def test_release_artifacts_use_schema_v2_and_setup_embeds_runtime(tmp_path):
@@ -157,12 +213,12 @@ def test_release_artifacts_use_schema_v2_and_setup_embeds_runtime(tmp_path):
     artifacts = builder.write_runtime_release(
         runtime,
         output_dir=tmp_path / "out",
-        version="0.5.0",
-        nas_url=r"\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.0.zip",
-        github_url="https://github.com/example/releases/download/v0.5.0/runtime-windows-x64-0.5.0.zip",
+        version="0.5.1",
+        nas_url=r"\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.1.zip",
+        github_url="https://github.com/example/releases/download/v0.5.1/runtime-windows-x64-0.5.1.zip",
         components={
-            "indesign_cli": "0.5.0",
-            "html_indesign": "0.2.0",
+            "indesign_cli": "0.5.1",
+            "html_indesign": "0.2.1",
             "node": "22.15.0",
             "winax": "3.6.2",
             "browser": "msedge",
@@ -172,8 +228,8 @@ def test_release_artifacts_use_schema_v2_and_setup_embeds_runtime(tmp_path):
     manifest = json.loads(artifacts["manifest"].read_text())
     assert manifest["schema_version"] == 2
     assert manifest["name"] == "indesign-cli-runtime"
-    assert manifest["version"] == manifest["components"]["indesign_cli"] == "0.5.0"
-    assert manifest["components"]["html_indesign"] == "0.2.0"
+    assert manifest["version"] == manifest["components"]["indesign_cli"] == "0.5.1"
+    assert manifest["components"]["html_indesign"] == "0.2.1"
     assert manifest["artifact"]["file"] == artifacts["archive"].name
     assert manifest["artifact"]["sha256"] == builder.sha256_file(artifacts["archive"])
     embedded_metadata = json.loads((runtime / "runtime-metadata.json").read_text())

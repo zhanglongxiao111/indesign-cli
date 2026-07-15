@@ -27,7 +27,7 @@ def test_pyproject_exposes_remote_installable_package_and_console_aliases():
 
     harness_setup = (REPO_ROOT / "agent-harness" / "setup.py").read_text(encoding="utf-8")
     assert f'version="{__version__}"' in harness_setup
-    assert __version__ == "0.5.0"
+    assert __version__ == "0.5.1"
 
 
 def test_pypi_source_distribution_includes_program_assets_but_excludes_skill():

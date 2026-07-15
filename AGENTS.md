@@ -108,6 +108,20 @@
 - `0.4.2` 用户不做旧更新协议兼容，由公司 Agent 从 NAS 重新运行一次新版 Setup 完成迁移。
 - `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
+#### 2.5.1 统一 Skill 内网发布
+
+- 发布源固定为本仓库 `skills/indesign-cli/`；内网当前池固定为 `\\Daga-nas5\sa-ai-app\shared\agent-runtime-skills\assistant\gallery\indesign-cli`，不得手工维护第二份发布副本。
+- 发布规程以 `%USERPROFILE%\.codex\skills\sa-aiapp-publish-skill\SKILL.md` 和 `D:\AI\SA-AIAPP\.codex\skills\sa-aiapp-skill-release\SKILL.md` 为准；每次发布前重新读取，不把本文件中的路径说明当成完整发布规则。
+- 管理员发布固定先运行 `python "%USERPROFILE%\.codex\skills\sa-aiapp-publish-skill\scripts\publish_gallery_skill.py" --source "<repo>\skills\indesign-cli" --dry-run`，确认计划后去掉 `--dry-run` 正式发布；禁止手工复制当前池或直接修改数据库。
+- 正式成功标准是输出 `ok: true`、`verify.published_rows: 1`、`verify.skill_md_match: true`。脚本负责旧版归档、NAS 原子换版、数据库升版、失败回滚和发布后核验。
+
+#### 2.5.2 运行环境内网发布
+
+- 运行环境发布源固定为 `scripts/build_agent_bootstrapper.py` 的成品目录；内网当前池固定为 `\\daga-nas5\sa-ai-app\tools\indesign-cli`，版本归档固定进入其 `releases/<version>/`。
+- `@sa/html-indesign` 修复进入公司工位前必须先升插件版本并打包，再升本仓库 runtime 版本构建联合运行环境；只发布 Skill 文档不会更新 `html.authoring_lint` 等运行工具。
+- 管理员固定先运行 `python scripts\publish_agent_runtime.py --release-dir <release-dir> --dry-run`，确认版本、组件和 SHA-256 后去掉 `--dry-run` 正式发布；禁止手工覆盖 `runtime-latest.json`。
+- 发布脚本先校验并归档完整成品，再复制 ZIP、校验文件和 Setup，最后原子切换 `runtime-latest.json`；正式成功标准是 `ok: true`、`verify.sha256_match: true`、`verify.archive_exists: true`。
+
 ### 2.6 HTML 插件接入边界
 
 固定语义 HTML 转 InDesign 已在 `D:\AI\html-indesign` 作为独立项目开发。本仓库不实现语义 HTML 解析、模板生成、CSS 映射或 HTML 到 InDesign 的业务转换。
@@ -176,6 +190,7 @@
 | CLI 单元测试 | `python -m pytest agent-harness\cli_anything\indesign\tests -q` |
 | 真实 E2E 全量 | `node tests\real-e2e\run-architecture-presentation.mjs --full --offline` |
 | E2E 覆盖校验 | `node tests\real-e2e\validators\validate-coverage.mjs <coverage-report.json>` |
+| 运行环境内网发布 | `python scripts\publish_agent_runtime.py --release-dir <release-dir> --dry-run`，确认后去掉 `--dry-run` |
 | 测试帮助 | `node tests/index.js --help` |
 
 环境要求：

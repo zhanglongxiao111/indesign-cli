@@ -48,13 +48,15 @@ Setup installs a lightweight launcher and a complete runtime under `%LOCALAPPDAT
 
 Routine updates read the schema-v2 `runtime-latest.json` from NAS first and GitHub second. The runtime ZIP is checksum-verified, extracted to staging, validated for CLI, Node, `winax`, builtin HTML plugin, and system Edge, then switched atomically. Success leaves only the current runtime; failure removes staging and keeps the previous runtime. Routine updates never replace the launcher EXE; rerun a newer Setup only when the launcher itself changes.
 
-Existing `0.4.2` workstations migrate by having the company Agent run the `0.5.0` Setup once from NAS. Skill distribution remains manual through the existing company channel; the CLI does not auto-install Skills.
+Existing `0.4.2` workstations migrate by having the company Agent run the latest Setup once from NAS. Skill distribution remains independent through the existing company channel; the CLI does not auto-install Skills.
 
 ### Release build (maintainers)
 
-`scripts/build_agent_bootstrapper.py` builds the persistent PyInstaller `onedir` CLI, lightweight launcher, runtime ZIP with Node/`winax` and the HTML plugin's production dependencies, and the single complete offline Setup. Pass `--node-root`, `--node-modules`, `--html-plugin-tgz`, the `0.5.0` version, and the NAS/GitHub runtime ZIP URLs; use `--dry-run` to validate inputs and print the three PyInstaller commands without building.
+`scripts/build_agent_bootstrapper.py` builds the persistent PyInstaller `onedir` CLI, lightweight launcher, runtime ZIP with Node/`winax` and the HTML plugin's production dependencies, and the single complete offline Setup. Pass `--node-root`, `--node-modules`, `--html-plugin-tgz`, the version from `package.json`, and the NAS/GitHub runtime ZIP URLs; use `--dry-run` to validate inputs and print the three PyInstaller commands without building.
 
 The external `runtime-latest.json` is the integrity source and contains the runtime ZIP's real SHA-256. `runtime-metadata.json` inside the ZIP/Setup is identity and component metadata only, with a 64-zero SHA placeholder: an archive cannot contain its own final digest because writing that digest changes the archive again.
+
+After building, run `python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run`, inspect the plan, then rerun without `--dry-run`. The publisher verifies the release, archives it under NAS `releases/<version>/`, and atomically replaces `runtime-latest.json` last. Do not overwrite the NAS manifest manually.
 
 The PyPI flow below remains available for developers and open-source users.
 
