@@ -58,10 +58,10 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 python scripts\build_agent_bootstrapper.py `
   --node-root "C:\Program Files\nodejs" `
   --node-modules .\node_modules `
-  --html-plugin-tgz <sa-html-indesign-0.2.2.tgz> `
-  --version 0.5.2 `
-  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.2.zip" `
-  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.2/runtime-windows-x64-0.5.2.zip"
+  --html-plugin-tgz <sa-html-indesign-0.2.3.tgz> `
+  --version 0.5.3 `
+  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.3.zip" `
+  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.3/runtime-windows-x64-0.5.3.zip"
 ```
 
 先加 `--dry-run` 可只校验输入并查看三段 PyInstaller 命令。外部 `runtime-latest.json` 是 ZIP 完整性事实源，写入真实 SHA-256。ZIP 和 Setup 内的 `runtime-metadata.json` 只用于离线身份/组件校验，其 SHA 字段固定为 64 个 `0`：归档无法在自身内部保存自己的最终摘要，否则写入摘要本身会再次改变摘要。

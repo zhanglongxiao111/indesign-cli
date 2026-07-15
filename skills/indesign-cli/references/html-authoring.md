@@ -59,7 +59,7 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - 交付内容必须静态可见；不得依赖可执行脚本、远程运行时、远程样式、动画或异步数据。
 - Canvas 图表转成 SVG；图片、PDF、PSD、AI 和 SVG 保留真实资源引用。
 - 图形协议字段写在实际资源元素上：图片用带 `src` 的 `img`，PDF/AI 等用带 `data` 的 `object`，不要只标记外层容器。
-- 含独立文字子对象的布局容器使用 `data-id-role="container"`，不要写 `text`；文字角色和段落样式只写在实际文字元素上。
+- 外层卡片、栏、图例只要包含带 `data-id-paragraph-style` 的 `p`、标题或 `span`，外层就写 `data-id-role="container"`，不要写 `text`；HTML/CSS 结构不用改，文字样式留在子元素上。
 - 复杂图表使用外部 SVG；内联 SVG 路径只用 `M/L/C/Z`，其他路径命令改成外部 SVG 资源。
 - 语义和样式 token 使用项目已登记值；检查报未知 token 时先改正，不自行发明近义字段。
 
