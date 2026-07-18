@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "input": {
     "files": 4,
     "events": 8,
@@ -18,9 +18,10 @@
   "by_cli_version": {
     "0.4.0": {
       "sessions": 4,
+      "events": 8,
       "tool_calls": 6,
-      "escape_hatch_sessions": 1,
-      "escape_hatch_rate": 0.25,
+      "script_run_sessions": 1,
+      "script_run_session_rate": 0.25,
       "first_success_rate": 0.25,
       "session_tail_success_rate": 0.75,
       "calls_per_session": {
@@ -68,13 +69,18 @@
         "retry_rate": 0.0
       }
     ],
-    "escape_hatch_precursors": [
-      {
-        "tool_id": "document.create_document",
-        "error_code": "NO_ACTIVE_DOCUMENT",
-        "count": 1
-      }
-    ],
+    "script_run_analysis": {
+      "calls": 1,
+      "sessions": 1,
+      "causal_status": "not_available",
+      "causal_precursors": []
+    },
+    "health_checks": {
+      "command_calls": 0,
+      "command_successes": 0,
+      "command_failures": 0,
+      "component_health_status": "not_recorded"
+    },
     "feedback_by_code": [
       {
         "code": "SCHEMA_CONFUSING",

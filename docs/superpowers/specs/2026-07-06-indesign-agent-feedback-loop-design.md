@@ -10,7 +10,7 @@
 
 1. **Agent 的完整"想法"写在行为轨迹里。** 人类产品需要问卷，因为看不见用户脑内过程；Agent 的每次工具调用、报错、重试、绕路，CLI 全部可见。最高质量的反馈不是"要求 Agent 说感受"，而是让工具观察自己被怎么用。
 2. **会话末尾问卷是污染信号。** LLM 天然倾向礼貌好评，且末尾总结受近因偏差影响。主动反馈必须移到摩擦发生的瞬间，且必须结构化（枚举 code），否则无法自动聚合。
-3. **逃生舱是最好的传感器。** Agent 放弃结构化工具、退回 `script.run` 裸写 JSX 的每一次，都是"产品有缺口"的铁证，比任何主观反馈都硬。
+3. **`script.run` 使用量是调查信号，不是因果证据。** 项目本来就允许较长编辑优先使用脚本；只有存在真实 call/run 关联时，才能判断某次 `script.run` 是否由结构化工具失败触发。
 4. **循环速度 = 采集 + 分诊 + 修复 + 验证 + 分发的串行延迟。** 人肉环节是瓶颈；压缩方式是采集全自动（遥测）、分诊自动聚类、修复分级放行、验证由 eval 承接。人只出现在两个位置：review 快通道 PR、决策中慢通道优先级。
 5. **修复必须有 eval 承接，否则循环不闭合。** 每个摩擦簇解决时固化为回归测试；eval 套件随反馈复利增长，逐渐成为"agent 体验"的可执行规格。
 
@@ -158,7 +158,8 @@ indesign-cli feedback report --code TOOL_GAP --note "无法批量替换段落样
 
 - error_code × tool_id 频次 Top N。
 - 重试率排行（`retry_of` 链）。
-- **escape hatch 关联分析**：每次 `script.run` 调用的前序失败工具是什么——"想用 X 没成功、退回裸脚本"是最高信号的产品缺口证据。
+- **`script.run` 使用分析**：统计调用数和涉及 session 数。当前事件没有真实 call/run 关联时，必须输出 `causal_status: not_available`，不得把历史失败累计成前因。
+- `server.health` 分开统计命令成功/失败；当前事件没有组件健康摘要时，明确输出 `component_health_status: not_recorded`。
 - feedback 按 code 分组，关联 tool。
 - 北极星指标按 `cli_version` 切片。
 
@@ -166,7 +167,7 @@ indesign-cli feedback report --code TOOL_GAP --note "无法批量替换段落样
 
 | 指标 | 定义 | 方向 |
 | ---- | ---- | ---- |
-| escape hatch 率 | `script.run` 调用数 ÷ 全部业务工具调用数 | ↓ |
+| `script.run` 使用率 | `script.run` 调用数 ÷ 全部业务工具调用数；只作调查信号 | 观察 |
 | 首次成功率 | 无 `retry_of` 且 `ok` 的调用占比 | ↑ |
 | 会话收尾质量 | 以成功调用结尾的会话占比（任务完成的代理指标，非精确） | ↑ |
 | 每任务调用数 | session 内 tool_call 数分布 | ↓ |
@@ -229,6 +230,6 @@ indesign-cli feedback report --code TOOL_GAP --note "无法批量替换段落样
 
 - 配置 `INDESIGN_CLI_TELEMETRY_DIR` 后，任意一次 CLI 调用会向 NAS session JSONL 追加白名单事件，无内容泄露。
 - `feedback report` 可用，SKILL.md 四条规则生效。
-- 聚合脚本对收集目录可产出全部北极星指标和 escape hatch 关联分析。
+- 聚合脚本按事件自身版本产出北极星指标、`script.run` 使用分析和健康检查命令统计，不生成缺乏关联证据的因果结论。
 - 分析 agent 产出至少一期周报和带簇 ID 的 issue 草稿。
 - 至少一个摩擦簇走完"上报 → 聚类 → 修复 → 承接测试 → 指标下降"完整闭环，作为流程验收样本。

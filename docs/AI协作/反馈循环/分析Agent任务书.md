@@ -28,11 +28,12 @@ python scripts\feedback\aggregate.py --input $TelemetryRoot --output $Aggregate
 
 ## 周报必须包含
 
-- 北极星指标：escape hatch 率、首次成功率、会话收尾质量、每任务调用数分布。
+- 北极星指标：`script.run` 使用率、首次成功率、会话收尾质量、每任务调用数分布。
 - 明确标注：会话收尾质量只是代理指标；被放弃的真实任务不一定能被完全观测。
+- 明确标注：`server.health` 的命令成功只表示报告成功返回；当前遥测没有记录各组件是否健康。
 - `error_code × tool_id` Top N。
 - 重试率排行。
-- `script.run` escape hatch 的前序失败工具统计。
+- `script.run_analysis` 的调用数和 session 数；`causal_status` 为 `not_available` 时不得推断它由哪个失败触发。
 - feedback 按 code 分组，并关联工具。
 - `origin_key` / `cwd_hash` 分布，用于判断样本是否被少数来源偏置；不得还原身份或路径。
 
@@ -42,7 +43,7 @@ python scripts\feedback\aggregate.py --input $TelemetryRoot --output $Aggregate
 
 - 同一 `error_code × tool_id` 影响 3 个及以上 session。
 - 某工具失败数不少于 5，且重试率不低于 30%。
-- 某工具在 `escape_hatch_precursors` 中出现 2 次及以上。
+- `script.run` 使用率明显上升时，只建“需调查”簇；没有真实 call/run 关联时不得归因到某个前序失败工具。
 - 同一工具同一 feedback code 出现 2 次及以上。
 
 ## issue 草稿格式

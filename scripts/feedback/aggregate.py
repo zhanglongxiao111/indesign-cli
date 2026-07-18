@@ -99,18 +99,21 @@ def call_distribution(values: list[int]) -> dict[str, Any]:
     }
 
 
-def version_for_session(events: list[dict[str, Any]]) -> str:
-    for event in events:
-        version = event.get("cli_version")
-        if isinstance(version, str) and version:
-            return version
+def event_version(event: dict[str, Any]) -> str:
+    version = event.get("cli_version")
+    if isinstance(version, str) and version:
+        return version
     return "unknown"
 
 
 def by_cli_version(sessions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     version_sessions: dict[str, list[list[dict[str, Any]]]] = defaultdict(list)
     for events in sessions.values():
-        version_sessions[version_for_session(events)].append(events)
+        events_by_version: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for event in events:
+            events_by_version[event_version(event)].append(event)
+        for version, version_events in events_by_version.items():
+            version_sessions[version].append(version_events)
 
     result: dict[str, Any] = {}
     for version, items in sorted(version_sessions.items()):
@@ -118,13 +121,14 @@ def by_cli_version(sessions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         denominator = len(sessions_with_calls)
         first_success = sum(1 for calls in sessions_with_calls if calls[0].get("ok") is True)
         tail_success = sum(1 for calls in sessions_with_calls if calls[-1].get("ok") is True)
-        escape_sessions = sum(1 for calls in sessions_with_calls if any(call.get("tool_id") == "script.run" for call in calls))
+        script_run_sessions = sum(1 for calls in sessions_with_calls if any(call.get("tool_id") == "script.run" for call in calls))
         call_counts = [len(calls) for calls in sessions_with_calls]
         result[version] = {
             "sessions": len(items),
+            "events": sum(len(events) for events in items),
             "tool_calls": sum(call_counts),
-            "escape_hatch_sessions": escape_sessions,
-            "escape_hatch_rate": rate(escape_sessions, denominator),
+            "script_run_sessions": script_run_sessions,
+            "script_run_session_rate": rate(script_run_sessions, denominator),
             "first_success_rate": rate(first_success, denominator),
             "session_tail_success_rate": rate(tail_success, denominator),
             "calls_per_session": call_distribution(call_counts),
@@ -170,22 +174,26 @@ def retry_rate_by_tool(sessions: dict[str, list[dict[str, Any]]]) -> list[dict[s
     return sorted(rows, key=lambda row: (-row["retry_rate"], row["tool_id"]))
 
 
-def escape_hatch_precursors(sessions: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    counter: Counter[tuple[str, str]] = Counter()
-    for events in sessions.values():
-        calls = tool_calls(events)
-        for index, call in enumerate(calls):
-            if call.get("tool_id") != "script.run":
-                continue
-            for previous in calls[:index]:
-                if previous.get("ok") is False and previous.get("tool_id") != "script.run":
-                    tool_id = str(previous.get("tool_id") or "unknown")
-                    error_code = str(previous.get("error_code") or "UNSTRUCTURED")
-                    counter[(tool_id, error_code)] += 1
-    return [
-        {"tool_id": tool_id, "error_code": error_code, "count": count}
-        for (tool_id, error_code), count in sorted(counter.items(), key=lambda item: (-item[1], item[0][0], item[0][1]))
-    ]
+def script_run_analysis(sessions: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    calls_by_session = [tool_calls(events) for events in sessions.values()]
+    return {
+        "calls": sum(1 for calls in calls_by_session for call in calls if call.get("tool_id") == "script.run"),
+        "sessions": sum(1 for calls in calls_by_session if any(call.get("tool_id") == "script.run" for call in calls)),
+        # 现有事件没有 call_id/retry_of，不能仅凭先后顺序声称 script.run 是某次失败的替代路线。
+        "causal_status": "not_available",
+        "causal_precursors": [],
+    }
+
+
+def health_check_summary(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    health_calls = [call for call in calls if call.get("tool_id") == "server.health"]
+    return {
+        "command_calls": len(health_calls),
+        "command_successes": sum(1 for call in health_calls if call.get("ok") is True),
+        "command_failures": sum(1 for call in health_calls if call.get("ok") is False),
+        # 当前遥测只记录命令是否执行成功，没有记录各环境组件的健康结果。
+        "component_health_status": "not_recorded",
+    }
 
 
 def feedback_by_code(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -224,7 +232,7 @@ def aggregate(input_path: Path) -> dict[str, Any]:
     sessions = grouped_sessions(events)
     calls = tool_calls(events)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "input": input_stats,
         "totals": {
             "sessions": len(sessions),
@@ -237,7 +245,8 @@ def aggregate(input_path: Path) -> dict[str, Any]:
         "friction": {
             "error_code_by_tool": error_code_by_tool(calls),
             "retry_rate_by_tool": retry_rate_by_tool(sessions),
-            "escape_hatch_precursors": escape_hatch_precursors(sessions),
+            "script_run_analysis": script_run_analysis(sessions),
+            "health_checks": health_check_summary(calls),
             "feedback_by_code": feedback_by_code(events),
         },
         "origin_distribution": distribution(events, sessions, "origin_key"),
