@@ -14,6 +14,7 @@ HARNESS_ROOT = REPO_ROOT / "agent-harness"
 def run_cli(*args: str, input_data: str | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(HARNESS_ROOT)
+    env["INDESIGN_CLI_EXECUTION_MODE"] = "e2e"
     return subprocess.run(
         [sys.executable, "-m", "cli_anything.indesign", *args],
         cwd=REPO_ROOT,

@@ -384,3 +384,20 @@ def test_host_action_executor_counts_actions_and_resumes(tmp_path):
     )
 
     assert stats == {"host_action_count": 3, "resume_count": 2}
+
+
+def test_execution_mode_recorded_from_environment(tmp_path, monkeypatch):
+    from cli_anything.indesign.core.telemetry import record_tool_call
+
+    root = tmp_path / "telemetry"
+    cwd = tmp_path / "workspace"
+    cwd.mkdir()
+    monkeypatch.setenv("INDESIGN_CLI_TELEMETRY_DIR", str(root))
+    monkeypatch.setenv("INDESIGN_CLI_EXECUTION_MODE", "E2E")
+
+    event = record_tool_call(tool_id="server.health", source="cli", ok=True, duration_ms=2, cwd=cwd)
+    assert event["execution_mode"] == "e2e"
+
+    monkeypatch.delenv("INDESIGN_CLI_EXECUTION_MODE")
+    event = record_tool_call(tool_id="server.health", source="cli", ok=True, duration_ms=2, cwd=cwd)
+    assert "execution_mode" not in event

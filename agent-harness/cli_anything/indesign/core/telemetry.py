@@ -43,6 +43,7 @@ ALLOWED_FIELDS = {
     "host_action_count",
     "resume_count",
     "plugin_metrics",
+    "execution_mode",
 }
 
 # result_class 分类：区分门禁正常拒绝、输入问题、环境问题、程序缺陷和超时。
@@ -242,6 +243,9 @@ def telemetry_context(*, cwd: Path | None = None, now: datetime | None = None) -
         context["agent_thread_id"] = agent_thread_id
     if agent_run_id:
         context["agent_run_id"] = agent_run_id
+    execution_mode = os.environ.get("INDESIGN_CLI_EXECUTION_MODE")
+    if execution_mode and execution_mode.strip():
+        context["execution_mode"] = _safe_token(execution_mode.strip().lower(), fallback_prefix="mode", max_length=24)
     return context
 
 
@@ -262,6 +266,8 @@ def _sanitize_event(event: dict[str, Any], context: dict[str, Any]) -> dict[str,
         payload["agent_thread_id"] = context["agent_thread_id"]
     if "agent_run_id" in context:
         payload["agent_run_id"] = context["agent_run_id"]
+    if "execution_mode" in context:
+        payload["execution_mode"] = context["execution_mode"]
     if "event" not in payload:
         payload["event"] = "tool_call"
     return {key: payload[key] for key in payload if key in ALLOWED_FIELDS}
