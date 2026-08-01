@@ -21,6 +21,19 @@ BACKENDS = {
 }
 
 
+def _extract_plugin_metrics(result: dict[str, Any]) -> dict[str, Any] | None:
+    """插件可在结果的 metrics（或 data.metrics）里自报分阶段耗时和任务规模。"""
+    if not isinstance(result, dict):
+        return None
+    metrics = result.get("metrics")
+    if isinstance(metrics, dict):
+        return metrics
+    data = result.get("data")
+    if isinstance(data, dict) and isinstance(data.get("metrics"), dict):
+        return data["metrics"]
+    return None
+
+
 PRIMITIVE_SCHEMAS = {
     "export.verify": {
         "type": "object",
@@ -89,6 +102,9 @@ class Router:
         self.catalog = catalog
         self.repo_root = repo_root
         self.backend_timeout_seconds = backend_timeout_seconds
+        # 最近一次插件工具调用的遥测元数据（插件版本、host action/resume 计数、插件自报指标）。
+        # 只在插件分支写入；host action 递归回 call() 时走的是 script/cli 分支，不会覆盖它。
+        self.last_plugin_call_meta: dict[str, Any] | None = None
 
     def _find(self, tool_id: str) -> dict[str, Any]:
         matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
@@ -157,13 +173,27 @@ class Router:
             ).call_tool(tool, args)
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
-            result = backend.call_tool(tool_id, args, self._plugin_context())
-            executor = HostActionExecutor(
-                self,
-                Path.cwd(),
-                total_deadline_seconds=self._plugin_total_deadline_seconds(),
-            )
-            return executor.complete(backend, tool_id, result)
+            stats = {"host_action_count": 0, "resume_count": 0}
+            meta: dict[str, Any] = {
+                "plugin_version": str(backend.record.manifest.get("version") or "") or None,
+                "host_action_count": 0,
+                "resume_count": 0,
+            }
+            self.last_plugin_call_meta = meta
+            try:
+                result = backend.call_tool(tool_id, args, self._plugin_context())
+                executor = HostActionExecutor(
+                    self,
+                    Path.cwd(),
+                    total_deadline_seconds=self._plugin_total_deadline_seconds(),
+                    stats=stats,
+                )
+                final = executor.complete(backend, tool_id, result)
+                meta["plugin_metrics"] = _extract_plugin_metrics(final)
+                return final
+            finally:
+                meta["host_action_count"] = stats["host_action_count"]
+                meta["resume_count"] = stats["resume_count"]
         if tool["source"] not in BACKENDS:
             raise CliError(f"Tool is handled by a CLI command: {tool_id}", code="CLI_PRIMITIVE_ROUTE")
         backend = self._backend(tool["source"])

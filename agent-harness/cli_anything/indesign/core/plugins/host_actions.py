@@ -38,12 +38,14 @@ class HostActionExecutor:
         max_resume_rounds: int = 4,
         total_deadline_seconds: int = DEFAULT_TOTAL_DEADLINE_SECONDS,
         clock: Callable[[], float] = time.monotonic,
+        stats: dict[str, int] | None = None,
     ) -> None:
         self.router = router
         self.cwd = cwd
         self.max_resume_rounds = max_resume_rounds
         self.total_deadline_seconds = total_deadline_seconds
         self._clock = clock
+        self.stats = stats if stats is not None else {"host_action_count": 0, "resume_count": 0}
 
     def complete(self, backend: Any, tool_id: str, initial: dict[str, Any]) -> dict[str, Any]:
         started = self._clock()
@@ -71,6 +73,7 @@ class HostActionExecutor:
                 for action in actions:
                     if not isinstance(action, dict):
                         continue
+                    self.stats["host_action_count"] = self.stats.get("host_action_count", 0) + 1
                     result = self._execute_action(action, self._remaining_seconds(started, tool_id))
                     host_results.append(result)
                     if _host_result_failed(result):
@@ -79,6 +82,7 @@ class HostActionExecutor:
                 remaining = self._remaining_seconds(started, tool_id)
                 if isinstance(base_backend_timeout, int):
                     backend.timeout = max(1, min(base_backend_timeout, int(remaining)))
+                self.stats["resume_count"] = self.stats.get("resume_count", 0) + 1
                 current = backend.resume_tool(tool_id, current.get("state") if isinstance(current.get("state"), dict) else {}, host_results)
         finally:
             if isinstance(base_backend_timeout, int):

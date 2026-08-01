@@ -130,6 +130,27 @@ def validate_call_args(call_args: dict[str, Any], schema: dict[str, Any]) -> Non
         )
 
 
+def failure_stage_from(details: Any) -> str | None:
+    if isinstance(details, dict):
+        for key in ("failed_stage", "failure_stage", "stage", "phase"):
+            value = details.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+    return None
+
+
+def plugin_meta_kwargs(router: Any, tool: dict[str, Any]) -> dict[str, Any]:
+    meta = getattr(router, "last_plugin_call_meta", None)
+    if tool.get("source") != "plugin" or not isinstance(meta, dict):
+        return {}
+    return {
+        "plugin_version": meta.get("plugin_version"),
+        "host_action_count": meta.get("host_action_count"),
+        "resume_count": meta.get("resume_count"),
+        "plugin_metrics": meta.get("plugin_metrics"),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = AgentArgumentParser(
         prog="indesign-cli",
@@ -392,9 +413,22 @@ def run(argv: list[str] | None = None) -> int:
             )
             return emit(success(command="tool batch", data=data, duration_ms=duration_ms, tool_id=tool_id, domain=tool["domain"], source=tool["source"], warnings=warnings))
         if args.tool_command == "call":
-            tool = router._find(args.tool_id)
-            schema = router.schema(args.tool_id)["inputSchema"]
-            call_args = load_call_args(args, schema)
+            try:
+                tool = router._find(args.tool_id)
+                schema = router.schema(args.tool_id)["inputSchema"]
+                call_args = load_call_args(args, schema)
+            except CliError as exc:
+                # 调用前失败（工具不存在、参数解析/校验失败）也要有遥测记录。
+                if args.tool_id != "feedback.report":
+                    record_tool_call(
+                        tool_id=args.tool_id,
+                        source=None,
+                        ok=False,
+                        duration_ms=elapsed(start),
+                        error_code=exc.code,
+                        error_message=exc.message,
+                    )
+                raise
             store = SessionStore(Path.cwd())
             try:
                 data = router.call(args.tool_id, call_args)
@@ -415,14 +449,20 @@ def run(argv: list[str] | None = None) -> int:
                     next_action=exc.next_action,
                 )
                 if args.tool_id != "feedback.report":
+                    failure_meta = plugin_meta_kwargs(router, tool)
+                    if not failure_meta.get("plugin_metrics") and isinstance(exc.details, dict) and isinstance(exc.details.get("metrics"), dict):
+                        failure_meta["plugin_metrics"] = exc.details["metrics"]
                     record_tool_call(
                         tool_id=args.tool_id,
                         source=tool["source"],
                         ok=False,
                         duration_ms=duration_ms,
                         error_code=exc.code,
+                        error_message=exc.message,
+                        failure_stage=failure_stage_from(exc.details),
                         arg_keys=list(call_args),
                         arg_paths=extract_path_args(call_args),
+                        **failure_meta,
                     )
                 raise
             duration_ms = elapsed(start)
@@ -443,6 +483,7 @@ def run(argv: list[str] | None = None) -> int:
                     duration_ms=duration_ms,
                     arg_keys=list(call_args),
                     arg_paths=extract_path_args(call_args),
+                    **plugin_meta_kwargs(router, tool),
                 )
             return emit(
                 success(

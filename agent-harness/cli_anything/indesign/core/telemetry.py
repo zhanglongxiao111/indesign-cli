@@ -35,7 +35,64 @@ ALLOWED_FIELDS = {
     "code",
     "note",
     "recent_calls",
+    "call_id",
+    "plugin_version",
+    "result_class",
+    "failure_stage",
+    "error_message",
+    "host_action_count",
+    "resume_count",
+    "plugin_metrics",
 }
+
+# result_class 分类：区分门禁正常拒绝、输入问题、环境问题、程序缺陷和超时。
+# 未列出的错误码默认归为 runtime_error，宁可保守也不把真缺陷误标成门禁。
+_GATE_REJECTION_CODES = {
+    "AUTHORING_LINT_FAILED",
+    "FIDELITY_GATE_FAILED",
+    "REVERSE_AUTHOR_AUDIT_FAILED",
+    "OUTPUT_OUTSIDE_PROJECT",
+    "PLUGIN_HOST_ACTION_DENIED",
+}
+_INPUT_ERROR_CODES = {
+    "TOOL_NOT_FOUND",
+    "MISSING_ARGUMENT",
+    "ARGS_REQUIRED",
+    "ARGS_UNKNOWN_KEY",
+    "ARGS_JSON_INVALID",
+    "ARGS_FILE_NOT_FOUND",
+    "ARGS_NOT_OBJECT",
+    "BAD_TIMEOUT",
+    "BAD_TIMESTAMP",
+    "SCRIPT_INPUT_REQUIRED",
+    "FEEDBACK_CODE_INVALID",
+    "FEEDBACK_NOTE_REQUIRED",
+    "FEEDBACK_NOTE_TOO_LONG",
+    "FEEDBACK_TOOL_INVALID",
+    "CLI_PRIMITIVE_ROUTE",
+}
+_ENVIRONMENT_ERROR_CODES = {
+    "INTERNAL_TOOL_START_FAILED",
+    "UPDATE_CHECK_FAILED",
+    "PLUGIN_RECORD_NOT_FOUND",
+    "BACKEND_NOT_SUPPORTED",
+    "NODE_SETUP_FAILED",
+}
+
+
+def classify_result(ok: bool, error_code: str | None) -> str:
+    if ok:
+        return "success"
+    code = str(error_code or "")
+    if code == "TIMEOUT":
+        return "timeout"
+    if code in _GATE_REJECTION_CODES:
+        return "gate_rejection"
+    if code in _INPUT_ERROR_CODES:
+        return "input_error"
+    if code in _ENVIRONMENT_ERROR_CODES:
+        return "environment_error"
+    return "runtime_error"
 
 FEEDBACK_CODES = [
     "TOOL_GAP",
@@ -257,6 +314,24 @@ def extract_path_args(args: dict[str, Any] | None) -> list[str]:
     return values
 
 
+_ERROR_MESSAGE_MAX_LENGTH = 300
+_PLUGIN_METRIC_MAX_KEYS = 40
+
+
+def _sanitize_plugin_metrics(metrics: Any) -> dict[str, Any] | None:
+    """只保留标量指标（数量、耗时、阶段名），永远不透传内容类数据。"""
+    if not isinstance(metrics, dict):
+        return None
+    sanitized: dict[str, Any] = {}
+    for key in sorted(metrics)[:_PLUGIN_METRIC_MAX_KEYS]:
+        value = metrics[key]
+        if isinstance(value, bool) or isinstance(value, (int, float)):
+            sanitized[str(key)[:64]] = value
+        elif isinstance(value, str) and len(value) <= 64:
+            sanitized[str(key)[:64]] = value
+    return sanitized or None
+
+
 def record_tool_call(
     *,
     tool_id: str,
@@ -264,17 +339,25 @@ def record_tool_call(
     ok: bool,
     duration_ms: int,
     error_code: str | None = None,
+    error_message: str | None = None,
+    failure_stage: str | None = None,
     arg_keys: list[str] | None = None,
     arg_paths: list[str] | None = None,
     via_batch: bool = False,
+    plugin_version: str | None = None,
+    host_action_count: int | None = None,
+    resume_count: int | None = None,
+    plugin_metrics: dict[str, Any] | None = None,
     cwd: Path | None = None,
 ) -> dict[str, Any] | None:
     event: dict[str, Any] = {
         "event": "tool_call",
+        "call_id": uuid.uuid4().hex[:16],
         "tool_id": tool_id,
         "source": source,
         "ok": ok,
         "duration_ms": duration_ms,
+        "result_class": classify_result(ok, error_code),
     }
     if arg_keys is not None:
         event["arg_keys"] = sorted(str(key) for key in arg_keys)
@@ -282,8 +365,21 @@ def record_tool_call(
         event["arg_paths"] = [str(path) for path in arg_paths if str(path).strip()]
     if not ok:
         event["error_code"] = error_code or "UNSTRUCTURED"
+        if error_message and str(error_message).strip():
+            event["error_message"] = str(error_message).strip()[:_ERROR_MESSAGE_MAX_LENGTH]
+        if failure_stage and str(failure_stage).strip():
+            event["failure_stage"] = str(failure_stage).strip()[:64]
     if via_batch:
         event["via_batch"] = True
+    if plugin_version:
+        event["plugin_version"] = str(plugin_version)[:32]
+    if isinstance(host_action_count, int) and host_action_count >= 0:
+        event["host_action_count"] = host_action_count
+    if isinstance(resume_count, int) and resume_count >= 0:
+        event["resume_count"] = resume_count
+    sanitized_metrics = _sanitize_plugin_metrics(plugin_metrics)
+    if sanitized_metrics:
+        event["plugin_metrics"] = sanitized_metrics
     return record_event(event, cwd=cwd)
 
 

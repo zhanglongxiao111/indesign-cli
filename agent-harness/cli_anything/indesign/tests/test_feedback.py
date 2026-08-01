@@ -259,3 +259,128 @@ def test_feedback_report_rejects_invalid_code_and_long_note(tmp_path):
     too_long = run_module("feedback", "report", "--code", "TOOL_GAP", "--note", "x" * 501, cwd=tmp_path)
     assert too_long.returncode == 1
     assert json.loads(too_long.stdout)["error"]["code"] == "FEEDBACK_NOTE_TOO_LONG"
+
+
+def test_classify_result_buckets():
+    from cli_anything.indesign.core.telemetry import classify_result
+
+    assert classify_result(True, None) == "success"
+    assert classify_result(False, "TIMEOUT") == "timeout"
+    assert classify_result(False, "FIDELITY_GATE_FAILED") == "gate_rejection"
+    assert classify_result(False, "AUTHORING_LINT_FAILED") == "gate_rejection"
+    assert classify_result(False, "TOOL_NOT_FOUND") == "input_error"
+    assert classify_result(False, "ARGS_UNKNOWN_KEY") == "input_error"
+    assert classify_result(False, "INTERNAL_TOOL_START_FAILED") == "environment_error"
+    assert classify_result(False, "HOST_ACTION_FAILED") == "runtime_error"
+    assert classify_result(False, None) == "runtime_error"
+
+
+def test_record_tool_call_emits_p1_fields(tmp_path, monkeypatch):
+    from cli_anything.indesign.core.telemetry import record_tool_call
+
+    root = tmp_path / "telemetry"
+    cwd = tmp_path / "workspace"
+    cwd.mkdir()
+    monkeypatch.setenv("INDESIGN_CLI_TELEMETRY_DIR", str(root))
+
+    event = record_tool_call(
+        tool_id="html.build_indesign",
+        source="plugin",
+        ok=False,
+        duration_ms=1200,
+        error_code="INDESIGN_BUILD_FAILED",
+        error_message="x" * 500,
+        failure_stage="indesign-build",
+        plugin_version="0.2.3",
+        host_action_count=3,
+        resume_count=2,
+        plugin_metrics={
+            "pages": 4,
+            "compile_ms": 812,
+            "stage": "indesign-build",
+            "huge_text": "y" * 500,
+            "nested": {"drop": True},
+        },
+        cwd=cwd,
+    )
+
+    assert event is not None
+    assert len(event["call_id"]) == 16
+    assert event["result_class"] == "runtime_error"
+    assert event["error_message"] == "x" * 300
+    assert event["failure_stage"] == "indesign-build"
+    assert event["plugin_version"] == "0.2.3"
+    assert event["host_action_count"] == 3
+    assert event["resume_count"] == 2
+    assert event["plugin_metrics"] == {"pages": 4, "compile_ms": 812, "stage": "indesign-build"}
+
+    ok_event = record_tool_call(
+        tool_id="export.verify",
+        source="cli",
+        ok=True,
+        duration_ms=5,
+        cwd=cwd,
+    )
+    assert ok_event["result_class"] == "success"
+    assert "error_message" not in ok_event
+    assert ok_event["call_id"] != event["call_id"]
+
+
+def test_tool_call_records_precall_failure(tmp_path):
+    root = tmp_path / "telemetry"
+    result = run_module(
+        "tool",
+        "call",
+        "no.such_tool",
+        env_overrides=telemetry_env(root),
+    )
+
+    assert result.returncode != 0
+    events = read_events(root)
+    assert len(events) == 1
+    assert events[0]["tool_id"] == "no.such_tool"
+    assert events[0]["ok"] is False
+    assert events[0]["error_code"] == "TOOL_NOT_FOUND"
+    assert events[0]["result_class"] == "input_error"
+    assert events[0]["error_message"].startswith("Tool not found")
+    assert "call_id" in events[0]
+
+
+def test_host_action_executor_counts_actions_and_resumes(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    class Router:
+        def call(self, tool_id, args):
+            return {"ok": True}
+
+    class Backend:
+        timeout = 30
+
+        def __init__(self):
+            self.round = 0
+
+        def resume_tool(self, tool_id, state, host_results):
+            self.round += 1
+            if self.round == 2:
+                return {"status": "complete", "data": {"ok": True}}
+            return {
+                "status": "requires_host_actions",
+                "state": {},
+                "actions": [
+                    {"id": "a", "tool_id": "session.show", "args": {}},
+                    {"id": "b", "tool_id": "export.verify", "args": {"path": "x.pdf"}},
+                ],
+            }
+
+    stats = {"host_action_count": 0, "resume_count": 0}
+    HostActionExecutor(Router(), tmp_path, stats=stats).complete(
+        Backend(),
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {},
+            "actions": [{"id": "first", "tool_id": "session.show", "args": {}}],
+        },
+    )
+
+    assert stats == {"host_action_count": 3, "resume_count": 2}

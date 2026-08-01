@@ -68,12 +68,21 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
             data = router.call(tool_id, args)
         except CliError as exc:
             duration_ms = max(1, now_ms() - started)
+            failure_stage = None
+            if isinstance(exc.details, dict):
+                for key in ("failed_stage", "failure_stage", "stage", "phase"):
+                    value = exc.details.get(key)
+                    if isinstance(value, str) and value.strip():
+                        failure_stage = value
+                        break
             record_tool_call(
                 tool_id=tool_id,
                 source=str(tool_meta.get("source")) if tool_meta else None,
                 ok=False,
                 duration_ms=duration_ms,
                 error_code=exc.code,
+                error_message=exc.message,
+                failure_stage=failure_stage,
                 arg_keys=list(args),
                 via_batch=True,
             )
