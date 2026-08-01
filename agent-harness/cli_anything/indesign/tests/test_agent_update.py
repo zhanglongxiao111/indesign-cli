@@ -144,3 +144,77 @@ def test_legacy_update_state_compatibility_api_is_removed():
     from cli_anything.indesign.core import agent_update
 
     assert not hasattr(agent_update, "read_update_state")
+
+
+def test_read_runtime_manifest_times_out_on_hanging_source(monkeypatch, tmp_path):
+    import time
+
+    import pytest
+
+    from cli_anything.indesign.core import runtime_manifest
+    from cli_anything.indesign.core.errors import CliError
+
+    class HangingPath:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def read_text(self, *args, **kwargs):
+            time.sleep(5)
+            return "{}"
+
+    monkeypatch.setattr(runtime_manifest, "Path", HangingPath)
+    monkeypatch.setattr(runtime_manifest, "_MANIFEST_READ_TIMEOUT_SECONDS", 0.2)
+
+    with pytest.raises(CliError) as exc_info:
+        runtime_manifest.read_runtime_manifest(r"\unreachable-nas\share\runtime-latest.json")
+
+    assert exc_info.value.code == "UPDATE_CHECK_FAILED"
+
+
+def test_load_first_runtime_manifest_falls_through_after_source_timeout(monkeypatch, tmp_path):
+    import json as json_module
+
+    from cli_anything.indesign.core import runtime_manifest
+    from cli_anything.indesign.core.errors import CliError
+
+    good = tmp_path / "runtime-latest.json"
+    good.write_text(
+        json_module.dumps(
+            {
+                "schema_version": 2,
+                "name": "indesign-cli-runtime",
+                "platform": "windows-x64",
+                "version": "0.5.3",
+                "components": {
+                    "indesign_cli": "0.5.3",
+                    "html_indesign": "0.2.3",
+                    "node": "20.0.0",
+                    "winax": "3.4.0",
+                    "browser": "msedge",
+                },
+                "artifact": {
+                    "url": "https://example.com/runtime.zip",
+                    "github_url": "https://example.com/runtime.zip",
+                    "sha256": "a" * 64,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    original_read = runtime_manifest.read_runtime_manifest
+
+    def fake_read(source):
+        if str(source).startswith("\\unreachable"):
+            raise CliError("Cannot read runtime manifest", code="UPDATE_CHECK_FAILED", details={"source": str(source)})
+        return original_read(source)
+
+    monkeypatch.setattr(runtime_manifest, "read_runtime_manifest", fake_read)
+
+    manifest, warnings = runtime_manifest.load_first_runtime_manifest(
+        [r"\unreachable-nas\share\runtime-latest.json", str(good)]
+    )
+
+    assert manifest is not None
+    assert manifest.version == "0.5.3"
+    assert warnings and warnings[0]["code"] == "UPDATE_CHECK_FAILED"

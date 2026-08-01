@@ -453,3 +453,123 @@ def test_host_action_executor_allows_four_dependent_action_rounds_by_default(tmp
     )
 
     assert result["data"]["verified"] is True
+
+
+def test_host_action_executor_enforces_total_deadline(tmp_path):
+    import pytest
+
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    clock = {"now": 0.0}
+
+    class Router:
+        def call(self, tool_id, args):
+            clock["now"] += 650.0
+            return {"ok": True}
+
+    class Backend:
+        timeout = 30
+
+        def resume_tool(self, tool_id, state, host_results):
+            return {
+                "status": "requires_host_actions",
+                "state": {},
+                "actions": [{"id": "again", "tool_id": "script.run", "args": {"stdin": True}}],
+            }
+
+    executor = HostActionExecutor(
+        Router(),
+        tmp_path,
+        total_deadline_seconds=600,
+        clock=lambda: clock["now"],
+    )
+    with pytest.raises(CliError) as exc_info:
+        executor.complete(
+            Backend(),
+            "html.build_indesign",
+            {
+                "status": "requires_host_actions",
+                "state": {},
+                "actions": [{"id": "build", "tool_id": "script.run", "args": {"stdin": True}}],
+            },
+        )
+
+    assert exc_info.value.code == "TIMEOUT"
+    assert exc_info.value.details["reason"] == "total_deadline_exceeded"
+    assert exc_info.value.details["total_deadline_seconds"] == 600
+
+
+def test_host_action_executor_clamps_script_run_timeout_to_remaining_budget(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    seen_args = []
+    clock = {"now": 0.0}
+
+    class Router:
+        def call(self, tool_id, args):
+            seen_args.append(args)
+            return {"ok": True}
+
+    class Backend:
+        timeout = 30
+
+        def resume_tool(self, tool_id, state, host_results):
+            return {"status": "complete", "data": {"ok": True}}
+
+    HostActionExecutor(
+        Router(),
+        tmp_path,
+        total_deadline_seconds=100,
+        clock=lambda: clock["now"],
+    ).complete(
+        Backend(),
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {},
+            "actions": [{"id": "build", "tool_id": "script.run", "args": {"stdin": True, "timeout": 300}}],
+        },
+    )
+
+    assert seen_args[0]["timeout"] == 100
+    assert "timeout_ms" not in seen_args[0]
+
+
+def test_host_action_executor_clamps_resume_timeout_and_restores_it(tmp_path):
+    from cli_anything.indesign.core.plugins.host_actions import HostActionExecutor
+
+    clock = {"now": 0.0}
+
+    class Router:
+        def call(self, tool_id, args):
+            clock["now"] += 90.0
+            return {"ok": True}
+
+    class Backend:
+        def __init__(self):
+            self.timeout = 30
+            self.resume_timeouts = []
+
+        def resume_tool(self, tool_id, state, host_results):
+            self.resume_timeouts.append(self.timeout)
+            return {"status": "complete", "data": {"ok": True}}
+
+    backend = Backend()
+    HostActionExecutor(
+        Router(),
+        tmp_path,
+        total_deadline_seconds=100,
+        clock=lambda: clock["now"],
+    ).complete(
+        backend,
+        "html.build_indesign",
+        {
+            "status": "requires_host_actions",
+            "state": {},
+            "actions": [{"id": "build", "tool_id": "script.run", "args": {"stdin": True}}],
+        },
+    )
+
+    assert backend.resume_timeouts == [10]
+    assert backend.timeout == 30

@@ -11,7 +11,7 @@ from .errors import CliError
 from .internal_backend import InternalToolBackend
 from .mcp_backend import McpBackend
 from .plugins.backend import PluginBackend
-from .plugins.host_actions import ALLOWED_HOST_ACTIONS, HostActionExecutor
+from .plugins.host_actions import ALLOWED_HOST_ACTIONS, DEFAULT_TOTAL_DEADLINE_SECONDS, HostActionExecutor
 from .telemetry import FEEDBACK_CODES, recent_call_summaries, record_event, validate_feedback_payload
 
 
@@ -158,7 +158,12 @@ class Router:
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
             result = backend.call_tool(tool_id, args, self._plugin_context())
-            return HostActionExecutor(self, Path.cwd()).complete(backend, tool_id, result)
+            executor = HostActionExecutor(
+                self,
+                Path.cwd(),
+                total_deadline_seconds=self._plugin_total_deadline_seconds(),
+            )
+            return executor.complete(backend, tool_id, result)
         if tool["source"] not in BACKENDS:
             raise CliError(f"Tool is handled by a CLI command: {tool_id}", code="CLI_PRIMITIVE_ROUTE")
         backend = self._backend(tool["source"])
@@ -180,6 +185,12 @@ class Router:
         if timeout is None:
             timeout = self._parse_timeout_ms(record.manifest.get("timeout_default_ms", 30_000))
         return PluginBackend(record, timeout=timeout)
+
+    def _plugin_total_deadline_seconds(self) -> int:
+        # 显式 --timeout 大于默认预算时，尊重调用方给整个调用留出的时间；否则用默认总预算兜底。
+        if self.backend_timeout_seconds is not None:
+            return max(self.backend_timeout_seconds, DEFAULT_TOTAL_DEADLINE_SECONDS)
+        return DEFAULT_TOTAL_DEADLINE_SECONDS
 
     @staticmethod
     def _plugin_context() -> dict[str, Any]:

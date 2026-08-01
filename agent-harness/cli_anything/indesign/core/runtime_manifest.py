@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -91,6 +92,31 @@ def parse_runtime_manifest(payload: dict[str, Any], *, source: str) -> RuntimeMa
     )
 
 
+_MANIFEST_READ_TIMEOUT_SECONDS = 10.0
+
+
+def _read_manifest_text(path: str, *, timeout_seconds: float | None = None) -> str:
+    # NAS 不可达时 SMB 读取会在系统层长时间阻塞，用守护线程限定等待，超时后交给下一个 manifest 来源。
+    if timeout_seconds is None:
+        timeout_seconds = _MANIFEST_READ_TIMEOUT_SECONDS
+    outcome: dict[str, Any] = {}
+
+    def worker() -> None:
+        try:
+            outcome["text"] = Path(path).read_text(encoding="utf-8-sig")
+        except Exception as exc:  # noqa: BLE001
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    thread.join(timeout_seconds)
+    if thread.is_alive():
+        raise TimeoutError(f"Reading runtime manifest timed out after {timeout_seconds}s: {path}")
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome["text"]
+
+
 def read_runtime_manifest(source: str | Path) -> RuntimeManifest:
     source_text = str(source)
     try:
@@ -98,7 +124,7 @@ def read_runtime_manifest(source: str | Path) -> RuntimeManifest:
             with urlopen(source_text, timeout=30) as response:
                 payload = json.loads(response.read().decode("utf-8-sig"))
         else:
-            payload = json.loads(Path(source_text).read_text(encoding="utf-8-sig"))
+            payload = json.loads(_read_manifest_text(source_text))
     except json.JSONDecodeError as exc:
         raise CliError("Runtime manifest is not valid JSON", code="UPDATE_MANIFEST_INVALID", details={"source": source_text}) from exc
     except Exception as exc:
