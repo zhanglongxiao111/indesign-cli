@@ -49,6 +49,10 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 
 `mode: "draft"` 会跳过真实文档核对，结果始终是未验证草稿，不能作为正式成品。只需要 HTML 时，在严格检查通过后交付 `deck.html` 和完整作者包，不执行第 4 步。
 
+## 协议规范原文
+
+本页只是速查摘要。完整协议规范随 runtime 分发在每台机器上：`<runtime_root>\plugins\html-indesign\docs\规范\`（`runtime_root` 取 `indesign-cli-agent --json health` 返回的 `data.update.runtime_root`），含作者指南、语义协议、标签协议、字体策略、反向导出、库规格六份文档。遇到本页未覆盖的字段语义，查原文，不要猜。
+
 ## 作者规则
 
 硬要求：
