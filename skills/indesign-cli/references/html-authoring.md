@@ -59,12 +59,35 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - `object` 内只有一个普通 `img` 时，它是标准浏览器 fallback，转换层不会把它编译成第二份资源。
 - 普通 `div/figure` 只包含一个真实 `img/object/svg` 时，可以继续作为视觉图框；边框、背景、padding 和图框样式留在 wrapper。
 - 纯文字 `div` 可以直接写，转换层会把它识别为文字对象。
+- 简单内联 SVG 可以直接写 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline` 和 `polygon`，转换层会生成可编辑的 InDesign 原生矢量；不需要先改写为协议专用 `div`。
+- 空 `div` 使用 `background`、`border` 和 `border-radius: 50%` 画圆或椭圆也可直接使用；方形大圆角圆点会生成 Oval，非方形胶囊保留圆角矩形。
+
+常见位置圆点直接这样写；`viewBox` 可写可不写：
+
+```html
+<svg id="site-marker" viewBox="0 0 100 100" role="img" aria-label="建筑位置标记">
+  <circle cx="50" cy="50" r="23" fill="#c00000" stroke="#ffffff" stroke-width="8"></circle>
+</svg>
+```
 
 每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。读取返回的 `compatibility.summary` 和全部 `compatibility.messages`：
 
 - `action: "normalized"` 表示写法含义唯一，CLI 已在本次转换中安全理解；可以继续 compile/build。
 - `suggestedFix` 表示推荐的显式写法。需要长期维护或承诺作者源码回环零漂移时，把建议写回 `pages/*.html` 或 CSS，重新组装并 lint。
 - `blocked > 0` 或 lint error 表示系统不能可靠判断。按消息中的页面、对象、`suggestedFix` 和 `ruleRef` 修改；不得原样重试。
+
+常见视觉阻断消息：
+
+| code | 修改作者源码 |
+| ---- | ------------ |
+| `HTML_INLINE_SVG_UNSUPPORTED` | 把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源 |
+| `HTML_PSEUDO_ELEMENT_UNSUPPORTED` | 把 `::before` / `::after` 的可见内容改成真实 HTML 元素；装饰几何可改成基础 SVG |
+| `HTML_CLIP_PATH_UNSUPPORTED` | 改用 SVG `polygon/path`，或外部 SVG |
+| `HTML_GRADIENT_UNSUPPORTED` | 单色透明度渐变可保留；多色渐变改成外部资源 |
+| `HTML_CSS_BORDER_SHAPE_UNSUPPORTED` | 把透明边框拼出的三角形等轮廓改成 SVG `polygon/path` |
+| `HTML_CSS_EFFECT_UNSUPPORTED` | 去掉未支持的 shadow/filter/mask，或把完整视觉保存为外部资源 |
+
+如果直接调用 `html.compile_instructions`，`blocked > 0` 会返回 `HTML_COMPATIBILITY_BLOCKED`，不会写出已经丢图的 instructions。`html.build_indesign` 在构建前执行同一组严格检查。
 
 多资源 wrapper、缺少稳定 ID、manual 裁切几何不完整、不可归属文字、画板/页码冲突和跨层遮挡不能自动猜。比如一个 `figure` 中有两个候选 `img`，必须明确哪个是正式资源；只有确定是预览的额外图片才使用 `data-id-ignore`。
 
@@ -82,7 +105,7 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - AI 画板在实际 `object` 上写 `data-id-asset-kind="ai"` 和 `data-id-artboard`；`object` 内唯一的普通 `img` 可直接作为标准 fallback。只有预览图位于 object 外部、存在多个候选图片或不是标准 fallback 结构时，才用 `data-id-ignore` 明确排除；原始 AI 的 `data` 仍是置入事实。
 - 带填充的祖先容器不得位于嵌套资源元素之上的 InDesign 图层，例如 `content` 层白色面板嵌套 `image` 层总图；这会触发 `NESTED_LAYER_PAINT_ORDER_UNSUPPORTED`。把背景改成同层或更低层的独立兄弟对象，或降低祖先图层。
 - 外层卡片、栏、图例只要包含带 `data-id-paragraph-style` 的 `p`、标题或 `span`，外层就写 `data-id-role="container"`，不要写 `text`；HTML/CSS 结构不用改，文字样式留在子元素上。
-- 复杂图表使用外部 SVG；内联 SVG 路径只用 `M/L/C/Z`，其他路径命令改成外部 SVG 资源。
+- 简单内联 SVG 使用 `path/circle/ellipse/rect/line/polyline/polygon`；其中 path 只用 `M/L/C/Z`（可用相对命令）。复杂 SVG 使用外部 SVG 资源；不要用伪元素、`clip-path` 或透明边框技巧替代基础 SVG 图元。
 - 语义和样式 token 使用项目已登记值；检查报未知 token 时先改正，不自行发明近义字段。
 
 建议：
