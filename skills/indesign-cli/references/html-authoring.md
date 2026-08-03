@@ -49,6 +49,25 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 
 `mode: "draft"` 会跳过真实文档核对，结果始终是未验证草稿，不能作为正式成品。只需要 HTML 时，在严格检查通过后交付 `deck.html` 和完整作者包，不执行第 4 步。
 
+## 先写正常 HTML，再看兼容反馈
+
+优先按浏览器和 HTML 的正常习惯创作，不要给每个元素机械补一遍 `data-id-*`：
+
+- 标题、`p`、列表、`figure + img + figcaption`、原生 `table` 直接使用。
+- CSS Grid、Flex、padding、普通流式布局和 `object-fit` 直接使用；转换层读取浏览器最终几何。
+- `img[src]` 是图片资源，`object[data]` 是 PDF/AI 等资源；资源后缀已经明确时不必重复写类型。
+- `object` 内只有一个普通 `img` 时，它是标准浏览器 fallback，转换层不会把它编译成第二份资源。
+- 普通 `div/figure` 只包含一个真实 `img/object/svg` 时，可以继续作为视觉图框；边框、背景、padding 和图框样式留在 wrapper。
+- 纯文字 `div` 可以直接写，转换层会把它识别为文字对象。
+
+每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。读取返回的 `compatibility.summary` 和全部 `compatibility.messages`：
+
+- `action: "normalized"` 表示写法含义唯一，CLI 已在本次转换中安全理解；可以继续 compile/build。
+- `suggestedFix` 表示推荐的显式写法。需要长期维护或承诺作者源码回环零漂移时，把建议写回 `pages/*.html` 或 CSS，重新组装并 lint。
+- `blocked > 0` 或 lint error 表示系统不能可靠判断。按消息中的页面、对象、`suggestedFix` 和 `ruleRef` 修改；不得原样重试。
+
+多资源 wrapper、缺少稳定 ID、manual 裁切几何不完整、不可归属文字、画板/页码冲突和跨层遮挡不能自动猜。比如一个 `figure` 中有两个候选 `img`，必须明确哪个是正式资源；只有确定是预览的额外图片才使用 `data-id-ignore`。
+
 ## 作者规则
 
 硬要求：
@@ -58,9 +77,9 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - `.grid-item` 声明 `--grid-col`、`--grid-span`、`--grid-row` 和 `--grid-row-span`。
 - 交付内容必须静态可见；不得依赖可执行脚本、远程运行时、远程样式、动画或异步数据。
 - Canvas 图表转成 SVG；图片、PDF、PSD、AI 和 SVG 保留真实资源引用。
-- 图形协议字段写在实际资源元素上：图片用带 `src` 的 `img`，PDF/AI 等用带 `data` 的 `object`；不要只在外层容器或视觉图框上写 `data-id-asset-path`、`data-id-asset-kind`、页码、画板或 fitting 字段。
+- 图形协议字段写在实际资源元素上：图片用带 `src` 的 `img`，PDF/AI 等用带 `data` 的 `object`。普通单资源 wrapper 可以保留图框样式；资源专用的路径、页码、画板和手工裁切事实仍属于实际资源元素。多个候选资源时不得让转换层猜。
 - `data-id-fit` 可用 `cover`、`contain`、`fill`、`none`；只有从 InDesign 回读并明确保留既有内容 bounds 时使用 `manual`，且必须同时保留 `data-id-content-x/y/width/height`，不能用空 `manual` 猜裁切。
-- AI 画板在实际 `object` 上写 `data-id-asset-kind="ai"` 和 `data-id-artboard`；浏览器需要预览时可在 `object` 内放带 `data-id-ignore` 的回退 `img`，避免预览图被编译成第二个资源，原始 AI 的 `data` 仍是置入事实。
+- AI 画板在实际 `object` 上写 `data-id-asset-kind="ai"` 和 `data-id-artboard`；`object` 内唯一的普通 `img` 可直接作为标准 fallback。只有预览图位于 object 外部、存在多个候选图片或不是标准 fallback 结构时，才用 `data-id-ignore` 明确排除；原始 AI 的 `data` 仍是置入事实。
 - 带填充的祖先容器不得位于嵌套资源元素之上的 InDesign 图层，例如 `content` 层白色面板嵌套 `image` 层总图；这会触发 `NESTED_LAYER_PAINT_ORDER_UNSUPPORTED`。把背景改成同层或更低层的独立兄弟对象，或降低祖先图层。
 - 外层卡片、栏、图例只要包含带 `data-id-paragraph-style` 的 `p`、标题或 `span`，外层就写 `data-id-role="container"`，不要写 `text`；HTML/CSS 结构不用改，文字样式留在子元素上。
 - 复杂图表使用外部 SVG；内联 SVG 路径只用 `M/L/C/Z`，其他路径命令改成外部 SVG 资源。
