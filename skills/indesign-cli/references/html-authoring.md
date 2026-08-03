@@ -59,8 +59,8 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - `object` 内只有一个普通 `img` 时，它是标准浏览器 fallback，转换层不会把它编译成第二份资源。
 - 普通 `div/figure` 只包含一个真实 `img/object/svg` 时，可以继续作为视觉图框；边框、背景、padding 和图框样式留在 wrapper。
 - 纯文字 `div` 可以直接写，转换层会把它识别为文字对象。
-- 简单内联 SVG 可以直接写 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline` 和 `polygon`，转换层会生成可编辑的 InDesign 原生矢量；不需要先改写为协议专用 `div`。
-- 空 `div` 使用 `background`、`border` 和 `border-radius: 50%` 画圆或椭圆也可直接使用；方形大圆角圆点会生成 Oval，非方形胶囊保留圆角矩形。
+- 简单内联 SVG 可以直接写 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline` 和 `polygon`，转换层会生成可编辑的 InDesign 原生矢量；`cx="50%"`、`r="25%"`、`width="100%"` 等常见长度也可以直接写，不需要改成协议专用 `div`。
+- 空 `div` 使用 `background`、`border` 和 `border-radius: 50%` 或 `100%` 画圆或椭圆也可直接使用；方形大圆角圆点会生成 Oval，非方形胶囊保留圆角矩形。
 
 常见位置圆点直接这样写；`viewBox` 可写可不写：
 
@@ -80,7 +80,7 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 
 | code | 修改作者源码 |
 | ---- | ------------ |
-| `HTML_INLINE_SVG_UNSUPPORTED` | 把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源 |
+| `HTML_INLINE_SVG_UNSUPPORTED` | 先修正缺失/无效的尺寸和坐标；再把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源 |
 | `HTML_PSEUDO_ELEMENT_UNSUPPORTED` | 把 `::before` / `::after` 的可见内容改成真实 HTML 元素；装饰几何可改成基础 SVG |
 | `HTML_CLIP_PATH_UNSUPPORTED` | 改用 SVG `polygon/path`，或外部 SVG |
 | `HTML_GRADIENT_UNSUPPORTED` | 单色透明度渐变可保留；多色渐变改成外部资源 |
