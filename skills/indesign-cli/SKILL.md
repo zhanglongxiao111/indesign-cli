@@ -20,8 +20,9 @@ tags:
 
 ## 通用规则
 
-- 公司成品统一使用 `indesign-cli-agent`。
-- 调用工具前先运行 `tool schema <tool_id>`；复杂参数写入 UTF-8 JSON，再用 `--args-file` 传入。
+- 公司成品统一使用 `indesign-cli-agent`。**一律用绝对路径调用**（Setup 返回的 `registration.launcher_abspath`，下文写作 `<agent-exe>`）；只有 `Get-Command indesign-cli-agent` 能查到时才可用裸命令。PowerShell 用 `powershell.exe -NoProfile -ExecutionPolicy Bypass`，不要用 `pwsh`（未必安装）。
+- 调用工具前先运行 `tool schema <tool_id>`（`<tool_id>` 是位置参数）；`tool search` 必须带 `--query`；`tool list` 没有 `--all`。
+- 复杂参数一律写入 UTF-8 JSON 文件再用 `--args-file` 传入；内联 JSON 会被 shell 转义打坏。
 - 不关闭或覆盖用户已经打开的文档；需要改原文件时先确认，默认另存新文件。
 - NAS 素材使用主机名 UNC 原位引用；只有用户要求可移动交付包或工具明确需要时才复制。
 - 以工具返回的 `ok`、`error` 和 `artifacts` 判断结果；失败时按错误提示处理，不把“命令执行过”当作完成。

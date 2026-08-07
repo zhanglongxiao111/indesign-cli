@@ -10,19 +10,21 @@
 
 ## 原子工具
 
+`<agent-exe>` 是 CLI 可执行文件绝对路径，见 `references/installation-and-update.md`。
+
 ```powershell
-indesign-cli-agent tool search --query "<英文动作或对象>"
-indesign-cli-agent tool call <tool_id> --args-file args.json
+& "<agent-exe>" tool search --query "<英文动作或对象>"
+& "<agent-exe>" tool call <tool_id> --args-file args.json
 ```
 
-参数以 `tool schema <tool_id>` 为准。
+参数以 `tool schema <tool_id>` 为准（`<tool_id>` 是位置参数，不带旗标）。
 
 ## 脚本编辑
 
 把完整操作写入一个 `.jsx` 文件，并返回包含 `ok`、`step`、`data` 和 `error` 的 JSON 结果：
 
 ```powershell
-indesign-cli-agent script run "<script.jsx>" --timeout-ms 900000
+& "<agent-exe>" script run "<script.jsx>" --timeout-ms 900000
 ```
 
 脚本应自行完成目标确认、连续修改、保存和必要的结果检查。不要依赖上一次命令留下的变量。

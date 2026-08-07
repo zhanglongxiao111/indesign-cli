@@ -2,12 +2,12 @@
 
 ## 从零制作
 
-`<skill-dir>` 是本 Skill 的目录，`<author-root>` 是本次作品目录。
+`<skill-dir>` 是本 Skill 的目录，`<author-root>` 是本次作品目录，`<agent-exe>` 是 CLI 可执行文件绝对路径（见 `references/installation-and-update.md`）。
 
 1. 从内置起步模板创建作者包：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
 ```
 
 2. 编辑以下内容：
@@ -20,8 +20,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 不要手改 `deck.html`。每次修改页面、样式或配置后重新组装：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
 ```
+
+`AUTHOR_GENERATED_ENTRY_DIRTY` 就是在提示这一步没做或没做完；该错误的 `hint` 里带着可直接复制的组装命令，照它重跑即可，不要另找入口。
 
 3. 只交付 HTML 时，或创作过程中想提前发现问题，运行作者检查。先把参数写入 `lint.args.json`：
 
@@ -30,7 +32,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 ```
 
 ```powershell
-indesign-cli-agent tool call html.authoring_lint --args-file lint.args.json
+& "<agent-exe>" tool call html.authoring_lint --args-file lint.args.json
 ```
 
 4. 需要 InDesign 时，直接执行正式构建。正式构建会再次严格检查作者包，生成真实 InDesign 文档，并把文档里的页面、对象、文字、资源和协议事实与原 HTML 核对；核对通过后才导出成品。
@@ -42,10 +44,12 @@ indesign-cli-agent tool call html.authoring_lint --args-file lint.args.json
 ```
 
 ```powershell
-indesign-cli-agent tool call html.build_indesign --args-file build.args.json --timeout-ms 900000
+& "<agent-exe>" tool call html.build_indesign --args-file build.args.json --timeout-ms 900000
 ```
 
 `outDir` 必须位于当前工作目录之内：先 `cd` 到项目目录再调用 CLI，不要从个人主目录或临时目录发起构建。同一位置的 UNC 写法和映射盘写法视为等价。
+
+构建被核对拦下时不产出成品：返回体的 `artifactsExported` 为 `false`，`intermediateDir` 指向保留下来的中间产物（instructions、读回快照、保真报告）。不要去那里找 INDD，它没有被导出。
 
 只有结果中的 `verified` 为 `true`，才能把 INDD/PDF/IDML 作为正式成品交付。失败时按返回的页面、对象、字段或文件修改作者源码，重新组装后再构建；不要用未修改的输入反复重试，也不要自行追加二次回环。
 
@@ -118,14 +122,25 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 
 ## 从现有 INDD 重建
 
+先选 `mode`：
+
+| mode | 用途 | 必需参数 |
+| ---- | ---- | -------- |
+| `observation` | 只观察现有版面，不做白名单语义重建；人工制作、语义混乱或来源不明的 INDD 先用它 | 无 |
+| `structured` | 结构化回读并重建白名单语义 | 必须显式给出 `semanticPreset`（对象）或 `profile`（标准语义库名） |
+
+`structured` 缺少这两者会直接返回 `SEMANTIC_PRESET_LOAD_FAILED:profile-required`。不要靠反复重试，补参数即可。
+
+`reconstructionProfile` 是另一个参数，控制语义重建算法强度，取值 `safe`（默认）、`none`（仅观察诊断）、`experimental`（必须同时列出算法）。
+
 把 INDD 和输出目录写入 `reverse.args.json`：
 
 ```json
-{"indd":"<input.indd>","outDir":"<reverse-dir>","mode":"structured","assetPolicy":"reference"}
+{"indd":"<input.indd>","outDir":"<reverse-dir>","mode":"observation","assetPolicy":"reference"}
 ```
 
 ```powershell
-indesign-cli-agent tool call html.reverse_export --args-file reverse.args.json --timeout-ms 900000
+& "<agent-exe>" tool call html.reverse_export --args-file reverse.args.json --timeout-ms 900000
 ```
 
 编辑返回的作者包后，按“重新组装 → 严格检查 → 构建 InDesign”继续。只报告工具实际返回的结果，不自行宣称无损。
