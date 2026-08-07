@@ -509,3 +509,27 @@ def test_server_health_reuses_formal_plugin_validation_for_semantic_errors(monke
     assert payload["runtime"]["builtin_html_plugin"]["available"] is False
     assert payload["runtime"]["builtin_html_plugin"]["code"] == "BUILTIN_PLUGIN_INVALID"
     assert payload["runtime"]["builtin_html_plugin"]["reason"] == "PLUGIN_MANIFEST_INVALID"
+
+
+def test_health_reports_the_bundled_node_absolute_path(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    node = tmp_path / "runtime" / "node" / "node.exe"
+    node.parent.mkdir(parents=True)
+    node.write_text("", encoding="utf-8")
+    monkeypatch.setenv("INDESIGN_CLI_RUNTIME_ROOT", str(tmp_path / "runtime"))
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["node"]["bundled_node_path"] == str(node)
+    assert "PATH" in payload["node"]["note"]
+
+
+def test_health_bundled_node_path_is_none_without_active_runtime(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    monkeypatch.delenv("INDESIGN_CLI_RUNTIME_ROOT", raising=False)
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["node"]["bundled_node_path"] is None

@@ -99,6 +99,18 @@ def _server_root_diagnostics(repo_root: Path) -> dict[str, Any]:
     return diagnostics
 
 
+def _bundled_node_path() -> str | None:
+    """当前 runtime 自带的 node 绝对路径。
+
+    CLI 从不依赖 PATH 上的 node；把绝对路径直接给出来，调用方就不必满盘搜索。
+    """
+    root_value = os.environ.get("INDESIGN_CLI_RUNTIME_ROOT")
+    if not root_value:
+        return None
+    candidate = Path(root_value).resolve() / "node" / ("node.exe" if os.name == "nt" else "node")
+    return str(candidate) if candidate.exists() else None
+
+
 def _python_diagnostics() -> dict[str, Any]:
     try:
         user_base = site.getuserbase()
@@ -119,7 +131,12 @@ def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) 
     toolchain = toolchain_report()
     payload: dict[str, Any] = {
         "deep": deep,
-        "node": {"available": toolchain["node"]["path"] is not None, **toolchain["node"]},
+        "node": {
+            "available": toolchain["node"]["path"] is not None,
+            **toolchain["node"],
+            "note": "available 仅表示 PATH 上是否有 node；CLI 使用 bundled_node_path，不依赖 PATH。",
+            "bundled_node_path": _bundled_node_path(),
+        },
         "npm": {"available": toolchain["npm"]["version"] is not None, **toolchain["npm"]},
         "python": _python_diagnostics(),
         "server_root": _server_root_diagnostics(repo_root),
