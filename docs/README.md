@@ -58,6 +58,8 @@
 | `AI协作/反馈循环/分析Agent任务书.md` | 定时分析 Agent 的固定任务书 |
 | `技术决策/2026-07-07_终态架构.md` | 终态架构长期决策：tool-module 共置、profiles/internal、artifact 单向投影、无 fallback |
 | `技术决策/2026-07-06-agent反馈闭环流程.md` | Agent 反馈闭环的长期流程约束 |
+| `superpowers/plans/2026-08-07-agent-incident-p0-followup-plan.md` | 8/6 事故 P0 批实施计划（已完成，随 runtime 0.5.9 / 插件 0.2.8 发布） |
+| `superpowers/plans/2026-08-07-agent-runtime-environment-backlog.md` | **待办清单**：PowerShell 7 切换（被环境前置条件阻塞）、消除 PowerShell 依赖、两个 issue 未覆盖的 P1/P2 |
 
 已取代存档：`2026-07-04-indesign-architecture-refactor-design.md`、`2026-07-05-indesign-architecture-refactor-plan.md`、`2026-07-04-indesign-tool-semantics-plan.md`（顶部均有取代标注，不要按其执行；旧 `src/handlers/`、`src/types/`、`src/core/InDesignMCPServer.js` 口径只作为历史资料追溯）。
 
