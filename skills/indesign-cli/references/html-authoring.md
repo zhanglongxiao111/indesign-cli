@@ -45,6 +45,8 @@ indesign-cli-agent tool call html.authoring_lint --args-file lint.args.json
 indesign-cli-agent tool call html.build_indesign --args-file build.args.json --timeout-ms 900000
 ```
 
+`outDir` 必须位于当前工作目录之内：先 `cd` 到项目目录再调用 CLI，不要从个人主目录或临时目录发起构建。同一位置的 UNC 写法和映射盘写法视为等价。
+
 只有结果中的 `verified` 为 `true`，才能把 INDD/PDF/IDML 作为正式成品交付。失败时按返回的页面、对象、字段或文件修改作者源码，重新组装后再构建；不要用未修改的输入反复重试，也不要自行追加二次回环。
 
 `mode: "draft"` 会跳过真实文档核对，结果始终是未验证草稿，不能作为正式成品。只需要 HTML 时，在严格检查通过后交付 `deck.html` 和完整作者包，不执行第 4 步。
@@ -107,6 +109,7 @@ indesign-cli-agent tool call html.build_indesign --args-file build.args.json --t
 - 外层卡片、栏、图例只要包含带 `data-id-paragraph-style` 的 `p`、标题或 `span`，外层就写 `data-id-role="container"`，不要写 `text`；HTML/CSS 结构不用改，文字样式留在子元素上。
 - 简单内联 SVG 使用 `path/circle/ellipse/rect/line/polyline/polygon`；其中 path 只用 `M/L/C/Z`（可用相对命令）。复杂 SVG 使用外部 SVG 资源；不要用伪元素、`clip-path` 或透明边框技巧替代基础 SVG 图元。
 - 语义和样式 token 使用项目已登记值；检查报未知 token 时先改正，不自行发明近义字段。
+- 固定高度的文本对象必须让文字真正排得进内框：`height ≥ 行高 × 行数 + padding-top + padding-bottom`。浏览器允许行盒溢出内容盒照常显示，InDesign 的 inset 是硬边界，排不下的整行会溢出隐藏，成品里该对象就是空的；构建核对会以 `content.text` 差异拦下。宁可加高度或去掉上下 padding，不要依赖浏览器的溢出宽容。
 
 建议：
 
