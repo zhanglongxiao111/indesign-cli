@@ -46,7 +46,9 @@ if ($PSCmdlet.ParameterSetName -eq 'Create') {
     if ($Title) { $config.title = $Title }
     Write-Utf8NoBom $configPath (($config | ConvertTo-Json -Depth 100) + "`n")
 } else {
-    # Resolve-Path 的 .Path 对 UNC 会带 PowerShell provider 前缀，交给 node 会变成畸形路径。
+    # Keep this file pure ASCII: Windows PowerShell 5.1 decodes a BOM-less script
+    # with the ANSI code page, and mangled non-ASCII bytes can swallow the next line.
+    # .Path would hand node a provider-qualified UNC path it cannot open.
     $configPath = (Resolve-Path -LiteralPath $Package).ProviderPath
 }
 

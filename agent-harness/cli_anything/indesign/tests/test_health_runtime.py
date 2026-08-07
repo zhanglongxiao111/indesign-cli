@@ -533,3 +533,20 @@ def test_health_bundled_node_path_is_none_without_active_runtime(monkeypatch, tm
     payload = health_module.health(REPO_ROOT, deep=False)
 
     assert payload["node"]["bundled_node_path"] is None
+
+
+def test_published_skill_powershell_scripts_are_pure_ascii():
+    """Windows PowerShell 5.1 decodes a BOM-less .ps1 with the ANSI code page.
+
+    Non-ASCII bytes then turn into mojibake that can swallow the following line,
+    so a comment silently deletes real code. Company workstations run 5.1, so
+    keep these scripts ASCII-only rather than relying on a BOM surviving edits.
+    """
+    scripts = sorted((REPO_ROOT / "skills").rglob("*.ps1"))
+    assert scripts, "expected at least one published PowerShell script"
+    offenders = []
+    for script in scripts:
+        raw = script.read_bytes()
+        if any(byte > 127 for byte in raw):
+            offenders.append(str(script.relative_to(REPO_ROOT)))
+    assert offenders == [], f"non-ASCII bytes in published PowerShell scripts: {offenders}"
