@@ -78,6 +78,12 @@ def validate_release(release_dir: Path) -> dict[str, Any]:
     expected_name = f"runtime-windows-x64-{version}.zip"
     if archive_name != expected_name or Path(archive_name).name != archive_name:
         raise SystemExit("Runtime artifact filename is invalid")
+    artifact_url = str(artifact.get("url") or "")
+    if not artifact_url.startswith("\\\\") or not artifact_url.endswith(archive_name):
+        raise SystemExit(
+            "Runtime artifact url must be a UNC path (leading double backslash) ending with the archive name; "
+            f"received: {artifact_url}"
+        )
     archive_path = release_dir / archive_name
     checksum_path = release_dir / f"{archive_name}.sha256"
     for path in (archive_path, checksum_path, setup_path):

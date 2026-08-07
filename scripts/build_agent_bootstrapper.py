@@ -290,6 +290,12 @@ def write_runtime_release(
     required_components = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
     if not required_components.issubset(components) or components.get("browser") != "msedge":
         raise SystemExit("Runtime components are incomplete or browser is not msedge")
+    # shell 转义会悄悄吃掉 UNC 前导反斜杠（\\host 变 \host），坏 URL 一旦发布，
+    # 全员 agent 只会报 UPDATE_ARTIFACT_NOT_FOUND；在构建入口直接拒绝。
+    if not nas_url.startswith("\\\\"):
+        raise SystemExit(f"--nas-url must be a UNC path starting with two backslashes, received: {nas_url}")
+    if not github_url.startswith("https://"):
+        raise SystemExit(f"--github-url must be an https URL, received: {github_url}")
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / f"runtime-windows-x64-{version}.zip"
     base_manifest = {

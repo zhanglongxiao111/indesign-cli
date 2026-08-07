@@ -19,7 +19,14 @@ def _load_publisher():
     return module
 
 
-def _write_release(root: Path, version: str, plugin_version: str, *, corrupt_checksum: bool = False) -> Path:
+def _write_release(
+    root: Path,
+    version: str,
+    plugin_version: str,
+    *,
+    corrupt_checksum: bool = False,
+    artifact_url: str | None = None,
+) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     archive_name = f"runtime-windows-x64-{version}.zip"
     archive = root / archive_name
@@ -38,7 +45,7 @@ def _write_release(root: Path, version: str, plugin_version: str, *, corrupt_che
         "components": components,
         "artifact": {
             "file": archive_name,
-            "url": rf"\\daga-nas5\sa-ai-app\tools\indesign-cli\{archive_name}",
+            "url": artifact_url if artifact_url is not None else rf"\\daga-nas5\sa-ai-app\tools\indesign-cli\{archive_name}",
             "github_url": f"https://github.com/example/releases/download/v{version}/{archive_name}",
             "sha256": "0" * 64,
         },
@@ -84,6 +91,25 @@ def test_publish_runtime_dry_run_then_archives_and_switches_current_manifest(tmp
     assert json.loads((nas_root / "runtime-latest.json").read_text())["version"] == "0.5.1"
     assert (nas_root / "runtime-windows-x64-0.5.1.zip").is_file()
     assert not (nas_root / "runtime-windows-x64-0.5.0.zip").exists()
+
+
+def test_publish_runtime_rejects_non_unc_artifact_url(tmp_path):
+    publisher = _load_publisher()
+    archive_name = "runtime-windows-x64-0.5.1.zip"
+    release = _write_release(
+        tmp_path / "release",
+        "0.5.1",
+        "0.2.1",
+        # shell 转义吃掉一层反斜杠后的真实事故形态：\daga-nas5\...
+        artifact_url=rf"\daga-nas5\sa-ai-app\tools\indesign-cli\{archive_name}",
+    )
+
+    try:
+        publisher.publish_release(release, nas_root=tmp_path / "nas", dry_run=True)
+    except SystemExit as exc:
+        assert "UNC" in str(exc)
+    else:
+        raise AssertionError("malformed artifact url was accepted")
 
 
 def test_publish_runtime_rejects_manifest_checksum_mismatch(tmp_path):
