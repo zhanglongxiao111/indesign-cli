@@ -87,10 +87,17 @@ def write_user_path(value: str) -> None:
 def register_user_command(root: Path | None = None) -> dict[str, Any]:
     actual_root = root or install_root()
     directory = str(bin_dir(actual_root))
+    # 写用户 PATH 只影响之后新建的进程。调用方所在的这次会话——尤其是把
+    # HOME/LOCALAPPDATA 重定向到隔离目录的 Agent 运行时——必须用绝对路径调用。
+    located = {
+        "bin": directory,
+        "launcher_abspath": str(agent_exe_path(actual_root)),
+        "path_effective_in_current_process": False,
+    }
     current_user_path = read_user_path()
     new_user_path = updated_user_path(directory, current_path=current_user_path)
     if new_user_path == current_user_path:
-        return {"registered": False, "bin": directory}
+        return {"registered": False, **located}
     write_user_path(new_user_path)
     os.environ["PATH"] = updated_user_path(directory, current_path=os.environ.get("PATH", ""))
-    return {"registered": True, "bin": directory}
+    return {"registered": True, **located}

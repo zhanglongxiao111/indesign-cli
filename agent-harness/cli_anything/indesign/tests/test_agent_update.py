@@ -140,6 +140,33 @@ def test_register_user_command_writes_user_path_without_process_path(monkeypatch
     assert r"C:\Windows" not in written["path"]
 
 
+def test_register_user_command_reports_launcher_path_and_path_effectiveness(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import agent_update
+
+    monkeypatch.setenv("PATH", r"C:\Windows")
+    monkeypatch.setattr(agent_update, "read_user_path", lambda: r"C:\Users\me\bin")
+    monkeypatch.setattr(agent_update, "write_user_path", lambda value: None)
+
+    result = register_user_command(root=tmp_path)
+
+    assert result["launcher_abspath"] == str(tmp_path / "bin" / "indesign-cli-agent.exe")
+    assert result["path_effective_in_current_process"] is False
+
+
+def test_register_user_command_reports_launcher_path_when_already_registered(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import agent_update
+
+    already = str(tmp_path / "bin")
+    monkeypatch.setenv("PATH", already)
+    monkeypatch.setattr(agent_update, "read_user_path", lambda: already)
+
+    result = register_user_command(root=tmp_path)
+
+    assert result["registered"] is False
+    assert result["launcher_abspath"] == str(tmp_path / "bin" / "indesign-cli-agent.exe")
+    assert result["path_effective_in_current_process"] is False
+
+
 def test_legacy_update_state_compatibility_api_is_removed():
     from cli_anything.indesign.core import agent_update
 
