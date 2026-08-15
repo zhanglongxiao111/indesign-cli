@@ -16,6 +16,21 @@ from .runtime import internal_tool_bridge_path, resolve_node_executable
 # 并按需附带这些定位字段；宿主必须原样上浮，不得替换成笼统的 INTERNAL_TOOL_FAILED。
 _SCRIPT_DIAGNOSTIC_KEYS = ("step", "errorName", "errorNumber", "line", "fileName")
 
+# 设计原则：hint 为 null 视为缺陷。把 code 与真实文本救回来之后，还得告诉
+# Agent 下一步该干什么——否则这 30 个工具只是从"不知道错在哪"变成
+# "知道错在哪但不知道怎么办"。
+_SCRIPT_FAILURE_DEFAULT_HINT = (
+    "先看 error.details 里的 step/line/fileName 定位；确认 InDesign 侧状态用 "
+    "`indesign-cli session doctor`。同样的输入不要直接重试。"
+)
+_SCRIPT_FAILURE_HINTS = {
+    "NO_ACTIVE_DOCUMENT": "该工具需要已打开的文档：先用 document 域的工具打开或新建，再重试。",
+    "INDESIGN_SCRIPT_FAILED": (
+        "InDesign 脚本内部抛错。看 error.details 的 errorName/line 定位到脚本位置；"
+        "属工具缺陷时用 `indesign-cli feedback report` 上报，不要反复重试。"
+    ),
+}
+
 
 class InternalToolBackend:
     def __init__(self, repo_root: Path, catalog: Catalog | None = None, timeout_seconds: int = 60) -> None:
@@ -110,10 +125,12 @@ class InternalToolBackend:
             ),
             None,
         )
+        resolved_code = code.strip() if isinstance(code, str) and code.strip() else "INTERNAL_TOOL_FAILED"
         return CliError(
             scrub_text_paths(message) if message else "Internal tool failed",
-            code=code.strip() if isinstance(code, str) and code.strip() else "INTERNAL_TOOL_FAILED",
+            code=resolved_code,
             details=details,
+            hint=_SCRIPT_FAILURE_HINTS.get(resolved_code, _SCRIPT_FAILURE_DEFAULT_HINT),
         )
 
     def _parse_bridge_payload(self, proc: subprocess.CompletedProcess[str], tool_id: str) -> dict[str, Any]:

@@ -129,9 +129,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 | mode | 用途 | 必需参数 |
 | ---- | ---- | -------- |
 | `observation` | 只观察现有版面，不做白名单语义重建；人工制作、语义混乱或来源不明的 INDD 先用它 | 无 |
-| `structured` | 结构化回读并重建白名单语义 | 必须显式给出 `semanticPreset`（对象）或 `profile`（标准语义库名） |
+| `structured` | 结构化回读并重建白名单语义 | 需要能解析出语义 profile，见下 |
 
-`structured` 缺少这两者会直接返回 `SEMANTIC_PRESET_LOAD_FAILED:profile-required`。不要靠反复重试，补参数即可。
+`structured`（默认值）取不到语义 profile 时直接返回 `SEMANTIC_PRESET_LOAD_FAILED:profile-required`。
+
+**profile 不是本工具的参数，不要直接传 `profile` 或 `semanticPreset`**——`html.reverse_export` 的 schema 是 `additionalProperties: false`，传了会被 `ARGS_UNKNOWN_KEY` 挡下。两条合法出路：
+
+- 传 `sourceRoot` 指向一个 `deck.config.json` 里配置了 `semanticPreset` 的作者包目录，profile 从那里解析；
+- 源 INDD 本来就是由带 profile 的正向构建产生的，此时无需额外参数。
+
+两者都不成立时改用 `mode: "observation"`，放弃白名单语义重建。用相同参数反复重试不会有不同结果。
 
 `reconstructionProfile` 是另一个参数，控制语义重建算法强度，取值 `safe`（默认）、`none`（仅观察诊断）、`experimental`（必须同时列出算法）。
 
