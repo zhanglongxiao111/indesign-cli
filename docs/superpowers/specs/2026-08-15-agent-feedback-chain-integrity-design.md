@@ -145,16 +145,68 @@ JS 侧（`src/utils/stringUtils.js:46-59`）失败时固定产出 `success: fals
 
 Skill 文档缺口见 §6。
 
-### 5.2 P1 — 静默错位
+### 5.2 P1 — 缺少「项目根」概念，只好拿 cwd 顶替
 
-`outDir` 省略时默认落 `<cwd>/test/workspace/...`（`path-policy.js:39-41`）。当 cwd 本身漂移到临时目录或家目录时，输出目录、`.indesign-cli/session.json`、插件上下文全部以错误 cwd 为基准正常跑完，**返回 `ok: true`，无任何 warning**。
+#### 5.2.1 根因
 
-这是本次审计唯一一条「不报错、看起来成功、结果在错的地方」的路径，比硬拒绝危险。
+CLI 没有独立工作目录，也没有项目根的概念。`core/router.py:226-232`：
 
-而 Agent 自查用的两个工具答不上这个问题：`core/health.py:143` 关于 cwd 只给
-`{"unc": str(Path.cwd()).startswith("\\\\")}`，不给实际值；`session doctor` 也不回显它读的是哪个目录下的 session。
+```python
+@staticmethod
+def _plugin_context() -> dict[str, Any]:
+    cwd = Path.cwd()
+    return {
+        "cwd": str(cwd),
+        "session_path": str(cwd / ".indesign-cli" / "session.json"),
+        "host_tools": sorted(ALLOWED_HOST_ACTIONS),
+    }
+```
 
-改法：
+无参静态方法，`Path.cwd()` 硬编码——**没有参数、环境变量或配置能覆盖**。插件侧 `path-policy.js:6-8` 的 `getCwd(context)` 在 `context.cwd` 缺失时同样回落 `process.cwd()`。
+
+于是「项目目录」的实际定义退化成「Agent 调用 CLI 时恰好所在的目录」：
+
+- 项目边界判定（`OUTPUT_OUTSIDE_PROJECT`）以它为准；
+- `outDir` 默认值以它为准；
+- `.indesign-cli/session.json` 落点以它为准——Agent 换目录，会话记录跟着换地方。
+
+错误消息把它称作 "project cwd"（`path-policy.js:45`），但代码里只有 cwd，没有 project：没有项目标记文件，没有注册表，没有任何校验。
+
+#### 5.2.2 生产环境本应不受影响，实测受影响
+
+公司内 Agent 统一由 SA-AIAPP 内嵌的 OpenCode 启动，SA-AIAPP 会把项目目录作为 workspace 传下去，并且 `public.thread_metadata.workspace_dir` 里存着这个值（要求必须是 UNC）。**默认情况下 Agent 的初始工作目录就是项目目录，CLI 隐式继承它，判定正确。**
+
+但这个继承是隐式的——靠「恰好在那里」，不靠「明确告知」。没有任何机制维持它。实测遥测（2026-08-01 起）：
+
+```
+9  C:\Users\Administrator\AppData\Local\Temp
+4  C:\Users\Administrator
+3  C:\Users\Administrator\AppData\Local\Temp\opencode
+2  C:\Users\Administrator\AppData\Local\Temp\luoshan-a3-render
+1  C:\Users\l\AppData\Local\Temp\opencode
+```
+
+最能说明问题的是 2026-08-06 的 PC-202606302155：**同一个会话内 cwd 变化三次**——`C:\Users\Administrator` → `...\Temp\opencode` → `\\daga-nas5\...\C20260624_北小河`。
+
+SA-AIAPP 约束的是 Agent 的 workspace，Agent 执行 shell 命令时会自行 `cd` 或从别处起 shell，两者之间没有任何绑定。
+
+#### 5.2.3 两个后果
+
+**硬拒绝**：Agent 人在临时目录、要往真实项目写 → `OUTPUT_OUTSIDE_PROJECT`。全期 10 次、8 个会话、4 台机器。不是 Agent 写错路径，是围栏挡错了方向——它保护了临时目录，把真实项目挡在外面。
+
+**静默错位**：Agent 人在临时目录、且省略 `outDir` → 默认落 `<cwd>/test/workspace/...`，输出目录、session、插件上下文全部以错误 cwd 为基准跑完，**返回 `ok: true`，零 warning**。这是本次审计唯一一条「不报错、看起来成功、结果在错的地方」的路径，比硬拒绝危险。
+
+而 Agent 自查用的两个工具答不上「我现在在哪」：`core/health.py:143` 关于 cwd 只给 `{"unc": str(Path.cwd()).startswith("\\\\")}`，不给实际值；`session doctor` 也不回显它读的是哪个目录下的 session。
+
+#### 5.2.4 改法
+
+**根治（跨仓库，优先）**：引入显式项目根。
+
+1. CLI 读环境变量 `INDESIGN_CLI_PROJECT_ROOT`（名称待定），存在则作为项目根；不存在才回落 `Path.cwd()`，并在返回体里标明本次用的是哪一种来源；
+2. 项目边界判定、`outDir` 默认值、`session.json` 落点全部改用项目根，不再用 cwd——这样 Agent 在项目内任意子目录执行都不影响判定；
+3. SA-AIAPP 侧在启动 OpenCode 时把 `thread_metadata.workspace_dir` 注入该环境变量。该值库里已有且已约束为 UNC，不需要新增数据。已提 issue 到该仓（见 §10）。
+
+**兜底（本仓可独立完成）**：即使项目根未落地，以下三条也应实施。
 
 1. `health()` 回显 `str(Path.cwd())`，并对「位于 `%TEMP%` / `%LOCALAPPDATA%` / 用户家目录根」「目录内无项目标志文件」给 warning；
 2. `session doctor` / `session show` 回显所读 session 文件的绝对路径；
@@ -224,7 +276,14 @@ Skill 文档缺口见 §6。
 - 不解决 `GRID_ALIGNMENT_OFF` 本身——73 个元素为何整体偏移（`top`/`left`/`right` 普遍未对齐、`bottom` 全对齐）属网格判定或容差取值问题，另行开单。
 - 不涉及 Agent 侧观测能力（模型归因、会话存档），那属 SA-AIAPP，已记在该仓 issue #385。
 
-## 9. 落地后的长期约束
+## 9. 跨仓依赖
+
+§5.2.4 的根治方案需要 SA-AIAPP 配合注入项目根环境变量，已提 issue：
+`zhanglongxiao111/SA-AIAPP` — 「OpenCode 启动时未把 workspace_dir 传给子进程」。
+
+在该 issue 落地前，本仓按 §5.2.4「兜底」三条独立实施，不阻塞。
+
+## 10. 落地后的长期约束
 
 以下两条落地后需同步进 `AGENTS.md` 或 `docs/技术决策/`：
 
