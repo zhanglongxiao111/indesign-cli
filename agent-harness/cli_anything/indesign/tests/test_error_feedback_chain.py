@@ -270,15 +270,31 @@ def test_batch_propagates_uncertain_state_from_host_failure(tmp_path):
     assert exc.details["cleanup_suggestions"]
 
 
-def test_batch_defaults_to_uncertain_when_state_flag_missing(tmp_path):
+def test_batch_stays_uncertain_when_a_mutating_step_fails_after_touching_indesign(tmp_path):
+    """危险区间：CliError 默认 state_uncertain=False，而插件在文档已建好之后
+    才失败时抛的正是这种默认值的错误。直接透传会让 Agent 拿相同参数重试，
+    把同一次改动施加两遍。"""
+    from cli_anything.indesign.core.batch import _step_state_uncertain
     from cli_anything.indesign.core.errors import CliError
 
-    error = CliError("Legacy error object", code="LEGACY_ERROR")
-    del error.state_uncertain
+    exc = CliError("InDesign build failed", code="INDESIGN_BUILD_FAILED")
+    assert exc.state_uncertain is False, "前提：这类错误自身并不声明不确定"
 
-    exc = _batch_failure(tmp_path, error)
+    assert _step_state_uncertain(exc, {"mutates_document": True}) is True
+    assert _step_state_uncertain(exc, {"mutates_document": False}) is False
+    assert _step_state_uncertain(exc, None) is True, "工具信息取不到时必须保守"
 
-    assert exc.state_uncertain is True
+
+def test_batch_step_state_follows_failure_classification(tmp_path):
+    from cli_anything.indesign.core.batch import _step_state_uncertain
+    from cli_anything.indesign.core.errors import CliError
+
+    mutating = {"mutates_document": True}
+    # 没碰到 InDesign 就结束的两类，即使工具本身会改文档也是确定的
+    assert _step_state_uncertain(CliError("bad arg", code="MISSING_ARGUMENT"), mutating) is False
+    assert _step_state_uncertain(CliError("no npm", code="NPM_NOT_AVAILABLE"), mutating) is False
+    # 门禁拒绝可能发生在构建之后（如 FIDELITY_GATE_FAILED），保守处理
+    assert _step_state_uncertain(CliError("gate", code="FIDELITY_GATE_FAILED"), mutating) is True
 
 
 def test_failure_envelope_reports_failure_category():
