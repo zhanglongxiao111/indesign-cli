@@ -14,17 +14,22 @@ class SessionStore:
 
     def read(self, compact: bool = True) -> dict[str, Any]:
         if not self.path.exists():
-            return {"version": 1, "recent_calls": []}
-        payload = json.loads(self.path.read_text(encoding="utf-8"))
-        if compact:
-            payload.pop("verbose_paths", None)
+            payload: dict[str, Any] = {"version": 1, "recent_calls": []}
+        else:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+            if compact:
+                payload.pop("verbose_paths", None)
+        # Agent 自查「我现在在哪」的一部分：回显实际读的是哪个绝对路径的 session 文件，
+        # 而不是让 Agent 靠猜测 cwd 来判断。派生字段，write() 不会把它落盘。
+        payload["session_path"] = str(self.path)
         return payload
 
     def write(self, payload: dict[str, Any]) -> None:
         # 临时文件 + 原子替换，避免多 Agent 并发写出半截 JSON
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(f"session.{os.getpid()}.tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        to_store = {key: value for key, value in payload.items() if key != "session_path"}
+        tmp.write_text(json.dumps(to_store, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(self.path)
 
     def record_call(
@@ -41,6 +46,7 @@ class SessionStore:
         command: str | None = None,
         error_code: str | None = None,
         error_summary: str | None = None,
+        hint: str | None = None,
         warnings_count: int = 0,
         document_state: dict[str, Any] | None = None,
         state_uncertain: bool = False,
@@ -61,6 +67,7 @@ class SessionStore:
             "command": command,
             "error_code": error_code,
             "error_summary": error_summary,
+            "hint": hint,
             "documentState": document_state,
             "next_action": next_action,
         }
@@ -112,5 +119,6 @@ class SessionStore:
             "recent_failure": recent_failure,
             "recent_artifacts": recent_artifacts[:10],
             "documents": latest_document_state,
+            "session_path": payload.get("session_path"),
             "next_action": "Run `indesign-cli server health --deep --connect-indesign` before mutating documents.",
         }

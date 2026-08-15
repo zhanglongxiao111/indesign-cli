@@ -133,6 +133,85 @@ def test_health_reports_project_files():
     assert payload["deep"] is False
 
 
+def _isolate_cwd_location_env(monkeypatch, tmp_path):
+    """把 TEMP/TMP/LOCALAPPDATA/家目录全部指向测试可控的目录，避免真实机器环境干扰判定。"""
+    monkeypatch.delenv("TEMP", raising=False)
+    monkeypatch.delenv("TMP", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "unrelated-home"))
+
+
+def test_looks_like_temp_or_home_root_matches_temp_subdirectories(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.health import _looks_like_temp_or_home_root
+
+    _isolate_cwd_location_env(monkeypatch, tmp_path)
+    temp_root = tmp_path / "Temp"
+    subdir = temp_root / "opencode"
+    subdir.mkdir(parents=True)
+    monkeypatch.setenv("TEMP", str(temp_root))
+
+    assert _looks_like_temp_or_home_root(temp_root) is True
+    assert _looks_like_temp_or_home_root(subdir) is True
+
+    unrelated = tmp_path / "not-temp"
+    unrelated.mkdir()
+    assert _looks_like_temp_or_home_root(unrelated) is False
+
+
+def test_looks_like_temp_or_home_root_matches_home_root_exactly(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.health import _looks_like_temp_or_home_root
+
+    _isolate_cwd_location_env(monkeypatch, tmp_path)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: home))
+
+    assert _looks_like_temp_or_home_root(home) is True
+
+    project_under_home = home / "Projects" / "my-app"
+    project_under_home.mkdir(parents=True)
+    assert _looks_like_temp_or_home_root(project_under_home) is False
+
+
+def test_has_project_marker_detects_known_marker_files(tmp_path):
+    from cli_anything.indesign.core.health import _has_project_marker
+
+    assert _has_project_marker(tmp_path) is False
+    (tmp_path / "deck.config.json").write_text("{}", encoding="utf-8")
+    assert _has_project_marker(tmp_path) is True
+
+
+def test_health_reports_real_cwd_and_warns_when_outside_project(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    _isolate_cwd_location_env(monkeypatch, tmp_path)
+    outside = tmp_path / "scratch"
+    outside.mkdir()
+    monkeypatch.chdir(outside)
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["cwd"]["path"] == str(Path.cwd())
+    assert payload["cwd"]["unc"] is False
+    assert payload["warnings"]
+    assert "项目目录" in payload["warnings"][0]
+    assert str(outside) in payload["warnings"][0]
+
+
+def test_health_reports_no_warning_when_cwd_has_project_marker(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import health as health_module
+
+    _isolate_cwd_location_env(monkeypatch, tmp_path)
+    project = tmp_path / "real-project"
+    (project / ".indesign-cli").mkdir(parents=True)
+    monkeypatch.chdir(project)
+
+    payload = health_module.health(REPO_ROOT, deep=False)
+
+    assert payload["cwd"]["path"] == str(Path.cwd())
+    assert payload["warnings"] == []
+
+
 def test_health_reports_toolchain_diagnostics(monkeypatch):
     from cli_anything.indesign.core import health as health_module
 

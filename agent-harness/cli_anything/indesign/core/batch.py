@@ -96,17 +96,20 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
                     "duration_ms": duration_ms,
                 }
             )
+            # 透传下层判断：参数拼写错误根本没碰到 InDesign，不该逼 Agent 先跑 doctor。
+            state_uncertain = bool(getattr(exc, "state_uncertain", True))
+            cleanup_suggestions = ["Inspect session doctor before retrying mutating steps."] if state_uncertain else []
             raise CliError(
                 f"Batch failed at step {step_id}",
                 code="BATCH_STEP_FAILED",
                 details={
                     "failed_step": step_id,
                     "steps": results,
-                    "state_uncertain": True,
-                    "cleanup_suggestions": ["Inspect session doctor before retrying mutating steps."],
+                    "state_uncertain": state_uncertain,
+                    "cleanup_suggestions": cleanup_suggestions,
                 },
-                state_uncertain=True,
-                next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
+                state_uncertain=state_uncertain,
+                next_action="Run `indesign-cli session doctor` before retrying mutating steps." if state_uncertain else None,
             ) from exc
         duration_ms = max(1, now_ms() - started)
         record_tool_call(

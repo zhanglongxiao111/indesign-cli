@@ -111,6 +111,64 @@ def _bundled_node_path() -> str | None:
     return str(candidate) if candidate.exists() else None
 
 
+# 用来判断 cwd 是否「看起来像项目目录」的标志文件/目录。
+# 命中任意一个就认为 cwd 是项目目录；一个都不命中则视为可疑。
+PROJECT_MARKER_NAMES = (".indesign-cli", "deck.config.json", ".git", "package.json")
+
+CWD_NOT_PROJECT_HINT = (
+    "当前工作目录看起来不是项目目录：{cwd}。"
+    "建议切换到包含 .indesign-cli/ 或 deck.config.json 的项目根目录后重试，"
+    "否则 outDir 默认值、session.json 落点都会以这个目录为准。"
+)
+
+
+def _resolve_or_self(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except OSError:
+        return path
+
+
+def _looks_like_temp_or_home_root(cwd: Path) -> bool:
+    """cwd 是否位于 %TEMP%/%TMP%/%LOCALAPPDATA% 之内，或恰好就是用户家目录根。
+
+    TEMP/LOCALAPPDATA 按前缀匹配（其下任意子目录都算），因为生产遥测里
+    实际出现的可疑 cwd 全是这类子目录（如 Temp\\opencode）。
+    家目录根只按精确匹配——用户在家目录下的真实项目子目录不该被误伤。
+    """
+    resolved_cwd = _resolve_or_self(cwd)
+    for var in ("TEMP", "TMP", "LOCALAPPDATA"):
+        value = os.environ.get(var)
+        if not value:
+            continue
+        candidate = _resolve_or_self(Path(value))
+        if resolved_cwd == candidate or candidate in resolved_cwd.parents:
+            return True
+    try:
+        home = _resolve_or_self(Path.home())
+    except RuntimeError:
+        home = None
+    if home is not None and resolved_cwd == home:
+        return True
+    return False
+
+
+def _has_project_marker(cwd: Path) -> bool:
+    return any((cwd / name).exists() for name in PROJECT_MARKER_NAMES)
+
+
+def _cwd_diagnostics() -> tuple[dict[str, Any], list[str]]:
+    cwd = Path.cwd()
+    diagnostics: dict[str, Any] = {
+        "path": str(cwd),
+        "unc": str(cwd).startswith("\\\\"),
+    }
+    warnings: list[str] = []
+    if _looks_like_temp_or_home_root(cwd) or not _has_project_marker(cwd):
+        warnings.append(CWD_NOT_PROJECT_HINT.format(cwd=cwd))
+    return diagnostics, warnings
+
+
 def _python_diagnostics() -> dict[str, Any]:
     try:
         user_base = site.getuserbase()
@@ -129,6 +187,7 @@ def _python_diagnostics() -> dict[str, Any]:
 
 def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) -> dict[str, Any]:
     toolchain = toolchain_report()
+    cwd_diagnostics, cwd_warnings = _cwd_diagnostics()
     payload: dict[str, Any] = {
         "deep": deep,
         "node": {
@@ -140,7 +199,8 @@ def health(repo_root: Path, deep: bool = False, connect_indesign: bool = False) 
         "npm": {"available": toolchain["npm"]["version"] is not None, **toolchain["npm"]},
         "python": _python_diagnostics(),
         "server_root": _server_root_diagnostics(repo_root),
-        "cwd": {"unc": str(Path.cwd()).startswith("\\\\")},
+        "cwd": cwd_diagnostics,
+        "warnings": cwd_warnings,
         "runtime": _runtime_diagnostics(),
         "edge": probe_edge(),
         "node_entry_advanced": {

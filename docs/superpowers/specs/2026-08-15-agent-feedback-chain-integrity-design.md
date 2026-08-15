@@ -273,7 +273,9 @@ SA-AIAPP 约束的是 Agent 的 workspace，Agent 执行 shell 命令时会自�
 - 不改任何检查规则、阈值或严格模式语义。
 - 不自动改写作者 HTML/CSS。
 - 不新增诊断字段体系；分类计数由既有 `errors[].code` 聚合。
-- 不解决 `GRID_ALIGNMENT_OFF` 本身——73 个元素为何整体偏移（`top`/`left`/`right` 普遍未对齐、`bottom` 全对齐）属网格判定或容差取值问题，另行开单。
+- 不解决 `GRID_ALIGNMENT_OFF` 本身——那属于作者包的版式问题，不属于反馈链路。
+
+  （更正：先前把实测的「`top`/`left`/`right` 普遍未对齐而 `bottom` 全对齐」记为待查的系统性偏移，是误读。`src/adapters/html/validators/authoring-validator.js:552-556` 里，文字、表格与 `data-id-role="container"` 三类角色**本就不核对 bottom 边**——文字高度随内容回流，底边不可控。`bottom` 计数为 0 是设计如此，没有待查的谜团。）
 - 不涉及 Agent 侧观测能力（模型归因、会话存档），那属 SA-AIAPP，已记在该仓 issue #385。
 
 ## 9. 跨仓依赖

@@ -25,4 +25,4 @@ tags:
 - 复杂参数一律写入 UTF-8 JSON 文件再用 `--args-file` 传入；内联 JSON 会被 shell 转义打坏。
 - 不关闭或覆盖用户已经打开的文档；需要改原文件时先确认，默认另存新文件。
 - NAS 素材使用主机名 UNC 原位引用；只有用户要求可移动交付包或工具明确需要时才复制。
-- 以工具返回的 `ok`、`error` 和 `artifacts` 判断结果；失败时按错误提示处理，不把“命令执行过”当作完成。
+- 以工具返回的 `ok`、`error` 和 `artifacts` 判断结果；失败时按错误提示处理，不把“命令执行过”当作完成。`error` 里的字段各自含义、`error.category` 五种取值分别该怎么做，见 [失败时能拿到什么](references/failure-handling.md)。

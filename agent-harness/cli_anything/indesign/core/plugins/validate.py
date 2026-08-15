@@ -55,9 +55,24 @@ def _schema_errors(tool: dict[str, Any], schema_payload: dict[str, Any]) -> list
     if not isinstance(properties, dict):
         errors.append(_error("PLUGIN_SCHEMA_INVALID", "inputSchema.properties must be an object", tool_id=tool_id))
         properties = {}
-    for arg_name in tool.get("arg_names", []):
-        if arg_name not in properties:
-            errors.append(_error("PLUGIN_SCHEMA_INVALID", "arg_names must match inputSchema.properties", tool_id=tool_id, argument=arg_name))
+    arg_names = tool.get("arg_names", [])
+    arg_name_set = set(arg_names) if isinstance(arg_names, list) else set()
+    property_set = set(properties)
+    # 双向校验：arg_names 与 inputSchema.properties 必须是同一个集合。
+    # 单向检查（只查 arg_names ⊆ properties）查不出 schema 加了参数但 arg_names
+    # 没同步更新的漂移——这正是本次要堵住的回归。
+    for arg_name in sorted(arg_name_set - property_set):
+        errors.append(_error(
+            "PLUGIN_SCHEMA_INVALID",
+            "arg_names declares an argument that is missing from inputSchema.properties",
+            tool_id=tool_id, argument=arg_name,
+        ))
+    for prop_name in sorted(property_set - arg_name_set):
+        errors.append(_error(
+            "PLUGIN_SCHEMA_INVALID",
+            "inputSchema.properties has an argument that arg_names does not declare",
+            tool_id=tool_id, argument=prop_name,
+        ))
     for required in schema.get("required", []):
         if required not in properties:
             errors.append(_error("PLUGIN_SCHEMA_INVALID", "required argument missing from properties", tool_id=tool_id, argument=required))
