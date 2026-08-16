@@ -27,14 +27,41 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 ## 🚀 快速安装
 
-### 事务所内部 Agent 分发
+**先看这张表选路。两条路装出来的能力不一样：**
 
-受控工位和无人值守 Agent 使用公司离线 Setup 安装持久运行环境，不需要在每台电脑安装 Node、npm 或编译 `winax`：
+| | 完整运行环境（推荐） | 从 PyPI 装 CLI |
+| --- | --- | --- |
+| 怎么装 | 下载 Setup 运行一次 | `pip install indesign-cli` |
+| 本机要不要装 Node / npm / 编译 `winax` | 不要，全部内置 | 要 |
+| InDesign 工具（150 个） | ✅ | ✅ |
+| **HTML → InDesign（`html` 域）** | ✅ 内置 | ❌ 要另外装插件 |
+| 适合 | 所有想直接用起来的人 | 改源码、二次开发、CI |
+
+如果你是冲着 **HTML 转 InDesign、AI 生成画册** 来的，走左边那条。`pip install` 装出来的 CLI **没有 `html` 域**，这是新用户最常踩的坑。
+
+### 推荐路线：安装完整运行环境
+
+一个离线 Setup 就够了，不需要在本机装 Node、npm 或编译 `winax`。
+
+- **外部 / 开源用户**：到 [GitHub Releases](https://github.com/zhanglongxiao111/indesign-cli/releases/latest) 下载 `indesign-cli-agent-setup.exe`。
+- **事务所内部工位和无人值守 Agent**：从公司 NAS 取同一个 Setup。
 
 ```powershell
-indesign-cli-agent install
+# 1. 运行 Setup，装到 %LOCALAPPDATA%，不需要管理员权限
+.\indesign-cli-agent-setup.exe
+
+# 2. 重开一个终端 —— PATH 注册只对新开的进程生效
+
+# 3. 验证；第二条命令能列出工具才说明 HTML 能力可用
 indesign-cli-agent server health --deep --connect-indesign
+indesign-cli-agent tool list --domain html
 ```
+
+`server health` 返回 `ok: true` 且 `data.indesign_com.checked` 为 `true`，说明真实 InDesign COM 链路已经通了。
+
+> **外部用户请关闭遥测。** 成品 EXE 的共享遥测默认写入 SA 事务所内网 NAS：外网环境不可达、写入会静默失败，但仍建议显式关闭 `$env:INDESIGN_CLI_TELEMETRY="off"`。详见 [反馈与遥测](#-反馈与遥测)。
+
+已经装过的机器用 `indesign-cli-agent install` 就地更新或修复，不必重新下载 Setup。
 
 Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesign-cli`。后续 `indesign-cli-agent <indesign-cli 参数...>` 只读取 `state\current-runtime.json` 并启动 `runtime\<version>\cli\indesign-cli.exe`；embedded runtime 只用于 Setup 的首次离线落地，不作为日常执行目录。
 
@@ -50,34 +77,13 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 
 从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行最新版 Setup。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
 
-### 发行构建（维护者）
+### 另一条路：从 PyPI 安装（不含 `html` 域）
 
-发行脚本会依次构建持久的 PyInstaller `onedir` CLI、轻量启动器、包含 Node/`winax`/HTML 插件生产依赖的 runtime ZIP，以及单个完整离线 Setup：
+这条路装出来的是纯 CLI，适合要改源码、做二次开发或在 CI 里跑的人。
 
-```powershell
-python scripts\build_agent_bootstrapper.py `
-  --node-root "C:\Program Files\nodejs" `
-  --node-modules .\node_modules `
-  --html-plugin-tgz <sa-html-indesign-0.2.8.tgz> `
-  --version 0.5.9 `
-  --nas-url "\\daga-nas5\sa-ai-app\tools\indesign-cli\runtime-windows-x64-0.5.9.zip" `
-  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.9/runtime-windows-x64-0.5.9.zip"
-```
+> **它不带 `html` 域。** `tool domains` 的输出里不会有 `html`，`html.authoring_lint`、`html.build`、`html.reverse_export` 全都调不到。原因是内置插件只在成品运行环境里随 Setup 一起分发。想要 HTML → InDesign 能力，要么改走上面的完整运行环境，要么按 [插件接入](#-插件接入) 单独装 `html-indesign` 插件。
 
-先加 `--dry-run` 可只校验输入并查看三段 PyInstaller 命令。外部 `runtime-latest.json` 是 ZIP 完整性事实源，写入真实 SHA-256。ZIP 和 Setup 内的 `runtime-metadata.json` 只用于离线身份/组件校验，其 SHA 字段固定为 64 个 `0`：归档无法在自身内部保存自己的最终摘要，否则写入摘要本身会再次改变摘要。
-
-构建完成后，使用固定内网发布脚本先空跑再正式切换：
-
-```powershell
-python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run
-python scripts\publish_agent_runtime.py --release-dir .\dist-agent
-```
-
-脚本会校验版本和 SHA-256，归档到 NAS `releases/<version>/`，并把 `runtime-latest.json` 作为最后一步原子切换。不要手工覆盖 NAS 当前清单。
-
-下面的 PyPI 安装方式保留给开发者和开源用户。
-
-### 1. 准备环境
+#### 1. 准备环境
 
 你需要：
 
@@ -88,13 +94,13 @@ python scripts\publish_agent_runtime.py --release-dir .\dist-agent
 
 InDesign 需要和命令行运行在同一个 Windows 用户会话中。
 
-### 2. 从 PyPI 安装
+#### 2. 从 PyPI 安装
 
 ```powershell
 pip install indesign-cli
 ```
 
-### 3. 安装 Node 依赖
+#### 3. 安装 Node 依赖
 
 ```powershell
 indesign-cli server setup
@@ -102,7 +108,7 @@ indesign-cli server setup
 
 这一步会安装 InDesign 自动化所需的 Node 依赖，包括 `winax`。
 
-### 4. 检查环境
+#### 4. 检查环境
 
 ```powershell
 indesign-cli --pretty server health --deep --connect-indesign
@@ -110,9 +116,13 @@ indesign-cli --pretty server health --deep --connect-indesign
 
 如果返回 `ok: true` 且 `data.indesign_com.checked` 为 `true`，真实 InDesign COM 链路已完成只读探针。
 
-### 5. 常见环境问题排查
+#### 5. 常见环境问题排查
 
 `server health` 的输出包含当前 runtime 根目录/版本/组件、builtin HTML 插件、系统 Edge，以及工具链诊断。排查环境问题先看这份输出。
+
+**`tool domains` 里没有 `html`**
+
+这是预期行为，不是装坏了。builtin HTML 插件只随成品运行环境（Setup）分发，pip 安装不带；`server health` 在这条路上报告的 builtin 插件也会是空的。补装办法见 [插件接入](#-插件接入)。
 
 **`ModuleNotFoundError: No module named 'cli_anything'`**
 
@@ -143,6 +153,31 @@ indesign-cli server setup
 
 `server setup` 会先探测 PATH 上的 `npm`；探测失败时自动回退到 Node 自带的 `npm-cli.js`。两者都不可用时报 `NPM_NOT_AVAILABLE`，需要先修复本机 Node / npm 安装。
 
+### 发行构建（维护者）
+
+发行脚本会依次构建持久的 PyInstaller `onedir` CLI、轻量启动器、包含 Node/`winax`/HTML 插件生产依赖的 runtime ZIP，以及单个完整离线 Setup：
+
+```powershell
+python scripts\build_agent_bootstrapper.py `
+  --node-root "C:\Program Files\nodejs" `
+  --node-modules .\node_modules `
+  --html-plugin-tgz <sa-html-indesign-0.2.9.tgz> `
+  --version 0.5.10 `
+  --nas-url "\\<文件服务器主机名>\<共享>\tools\indesign-cli\runtime-windows-x64-0.5.10.zip" `
+  --github-url "https://github.com/zhanglongxiao111/indesign-cli/releases/download/v0.5.10/runtime-windows-x64-0.5.10.zip"
+```
+
+先加 `--dry-run` 可只校验输入并查看三段 PyInstaller 命令。外部 `runtime-latest.json` 是 ZIP 完整性事实源，写入真实 SHA-256。ZIP 和 Setup 内的 `runtime-metadata.json` 只用于离线身份/组件校验，其 SHA 字段固定为 64 个 `0`：归档无法在自身内部保存自己的最终摘要，否则写入摘要本身会再次改变摘要。
+
+构建完成后，使用固定内网发布脚本先空跑再正式切换：
+
+```powershell
+python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run
+python scripts\publish_agent_runtime.py --release-dir .\dist-agent
+```
+
+脚本会校验版本和 SHA-256，归档到 NAS `releases/<version>/`，并把 `runtime-latest.json` 作为最后一步原子切换。不要手工覆盖 NAS 当前清单。
+
 ## 🧠 独立发布 Agent Skill
 
 如果你希望某个项目里的 Agent 自动知道如何制作 HTML/InDesign 演示文稿并使用 `indesign-cli`，需要通过公司 Agent 渠道发布完整 Skill 目录。
@@ -163,16 +198,28 @@ Setup 和 PyPI 包只发布程序，不携带、不安装也不修改 Skill。CL
 
 ## 🧩 插件接入
 
-`indesign-cli` 支持项目级插件，让上层项目把自己的高层能力接入统一工具目录。比如 HTML-to-InDesign 项目可以注册 `html` 域，Agent 再通过同一套 `tool list/schema/call` 使用它。
+`indesign-cli` 支持项目级插件，让上层项目把自己的高层能力接入统一工具目录。比如 HTML-to-InDesign 项目注册 `html` 域，Agent 再通过同一套 `tool list/schema/call` 使用它。
 
-本地插件接入示例：
+### 给 pip 用户补装 `html-indesign`
+
+走完整运行环境（Setup）的用户不需要这一步，`html` 域已经内置。**从 PyPI 装的 CLI 需要手动补上：**
 
 ```powershell
-indesign-cli plugin install D:\AI\html-indesign
-indesign-cli plugin validate D:\AI\html-indesign
-indesign-cli plugin doctor html-indesign
+git clone https://github.com/zhanglongxiao111/html-indesign.git
+cd html-indesign
+
+# --ignore-scripts 很重要：生产依赖里有 playwright，不加会去下载几百 MB 浏览器，
+# 而这个插件用的是系统 Edge，那些浏览器根本用不上。成品运行环境也是这么装的。
+npm install --omit=dev --ignore-scripts
+
+indesign-cli plugin install .
+indesign-cli plugin validate .
 indesign-cli tool list --domain html
 ```
+
+最后一条能列出 `html.authoring_lint`、`html.build`、`html.reverse_export` 等工具，说明 HTML → InDesign 能力已经接上。
+
+插件记录写在**当前目录**的 `.indesign-cli\plugins\`，也就是按项目安装。换一个项目目录要重新跑一次 `plugin install`。
 
 插件工具不会默认挤进 Agent 上下文。Agent 仍然先看 domain 摘要，再按需读取具体 schema。
 
@@ -201,7 +248,8 @@ indesign-cli tool schema feedback.report
 通过 `indesign-cli-agent` 成品 EXE 运行时（0.4.1 起），共享遥测默认写入公司（SA 事务所）内网 NAS 根目录。**公网/外部用户请设置 `INDESIGN_CLI_TELEMETRY=off` 关闭遥测**；未关闭时事件会尝试写入 SA 内网收集点（外网环境不可达，写入静默失败，但建议显式关闭）。pip/源码安装仍保持显式 opt-in，需要自行配置：
 
 ```powershell
-$env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
+# 指向你自己的收集目录，本地路径或 UNC 共享都可以
+$env:INDESIGN_CLI_TELEMETRY_DIR="D:\indesign-cli-telemetry"
 ```
 
 CLI 会直接写入该根目录下的 `sessions/YYYY-MM-DD/*.jsonl` 和 `state/*.json`；`reports/` 预留给后续聚合结果。记录字段为白名单元数据：`session_id`、`origin_key`、`cwd_hash`、可选 Agent 线程/运行 ID、工具 id/source、成功失败、错误码、耗时、参数键名、反馈 code/note 和最近调用摘要；0.4.2 起为便于内部排障，还记录真实工作目录（`cwd`）、机器名（`host`）和路径类参数值（`arg_paths`，仅键名以 path/file/dir/folder 结尾的字符串参数）。

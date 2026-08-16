@@ -27,14 +27,41 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 
 ## 🚀 Quick install
 
-### Internal agent distribution
+**Pick a route first. The two routes do not install the same capabilities:**
 
-Managed workstations and unattended agents use the company offline Setup to install a persistent runtime; Node, npm, and a local `winax` build are not required:
+| | Complete runtime (recommended) | CLI from PyPI |
+| --- | --- | --- |
+| How | Download Setup, run it once | `pip install indesign-cli` |
+| Needs local Node / npm / `winax` build | No, all bundled | Yes |
+| InDesign tools (150) | ✅ | ✅ |
+| **HTML → InDesign (`html` domain)** | ✅ built in | ❌ separate plugin install |
+| For | Anyone who wants to use the tool | Source changes, downstream dev, CI |
+
+If you came here for **HTML to InDesign** or **AI-generated brochures**, take the left route. The CLI installed from PyPI has **no `html` domain** — this is the most common thing new users get stuck on.
+
+### Recommended: install the complete runtime
+
+One offline Setup is all you need. Node, npm, and a local `winax` build are not required.
+
+- **External / open-source users**: download `indesign-cli-agent-setup.exe` from [GitHub Releases](https://github.com/zhanglongxiao111/indesign-cli/releases/latest).
+- **Managed workstations and unattended agents**: take the same Setup from the company NAS.
 
 ```powershell
-indesign-cli-agent install
+# 1. Run Setup. Installs under %LOCALAPPDATA%; no administrator rights needed.
+.\indesign-cli-agent-setup.exe
+
+# 2. Open a NEW terminal — PATH registration only affects newly created processes.
+
+# 3. Verify. The second command must list tools for HTML support to be usable.
 indesign-cli-agent server health --deep --connect-indesign
+indesign-cli-agent tool list --domain html
 ```
+
+`server health` returning `ok: true` with `data.indesign_com.checked` set to `true` means the real InDesign COM link is up.
+
+> **External users should disable telemetry.** The shipped EXE defaults its shared telemetry root to the SA-internal NAS. Writes fail silently outside that intranet, but disable it explicitly: `$env:INDESIGN_CLI_TELEMETRY="off"`. See [Feedback and telemetry](#-feedback-and-telemetry).
+
+On a machine that already has it, `indesign-cli-agent install` updates or repairs in place — no need to download Setup again.
 
 Setup installs a lightweight launcher and a complete runtime under `%LOCALAPPDATA%\indesign-cli`. Normal commands read `state\current-runtime.json` and launch `runtime\<version>\cli\indesign-cli.exe`; the embedded runtime is used only for Setup's first offline installation.
 
@@ -50,17 +77,13 @@ Routine updates read the schema-v2 `runtime-latest.json` from NAS first and GitH
 
 Existing `0.4.2` workstations migrate by having the company Agent run the latest Setup once from NAS. Skill distribution remains independent through the existing company channel; the CLI does not auto-install Skills.
 
-### Release build (maintainers)
+### Alternative: install from PyPI (no `html` domain)
 
-`scripts/build_agent_bootstrapper.py` builds the persistent PyInstaller `onedir` CLI, lightweight launcher, runtime ZIP with Node/`winax` and the HTML plugin's production dependencies, and the single complete offline Setup. Pass `--node-root`, `--node-modules`, `--html-plugin-tgz`, the version from `package.json`, and the NAS/GitHub runtime ZIP URLs; use `--dry-run` to validate inputs and print the three PyInstaller commands without building.
+This route gives you the bare CLI. It suits people who change the source, build on top of it, or run it in CI.
 
-The external `runtime-latest.json` is the integrity source and contains the runtime ZIP's real SHA-256. `runtime-metadata.json` inside the ZIP/Setup is identity and component metadata only, with a 64-zero SHA placeholder: an archive cannot contain its own final digest because writing that digest changes the archive again.
+> **It does not include the `html` domain.** `tool domains` will not list `html`, and `html.authoring_lint`, `html.build`, and `html.reverse_export` are all uncallable. The builtin plugin ships only inside the complete runtime, alongside Setup. To get HTML → InDesign support, either switch to the complete runtime above or install the `html-indesign` plugin separately — see [Plugin integration](#-plugin-integration).
 
-After building, run `python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run`, inspect the plan, then rerun without `--dry-run`. The publisher verifies the release, archives it under NAS `releases/<version>/`, and atomically replaces `runtime-latest.json` last. Do not overwrite the NAS manifest manually.
-
-The PyPI flow below remains available for developers and open-source users.
-
-### 1. Requirements
+#### 1. Requirements
 
 - Windows
 - Adobe InDesign desktop: 2024-2026 recommended. The CLI probes 2022-2026, CC ProgIDs, and the generic `InDesign.Application` COM entry; actual availability depends on local COM registration.
@@ -69,13 +92,13 @@ The PyPI flow below remains available for developers and open-source users.
 
 InDesign must run in the same Windows user session as the CLI.
 
-### 2. Install from PyPI
+#### 2. Install from PyPI
 
 ```powershell
 pip install indesign-cli
 ```
 
-### 3. Install Node dependencies
+#### 3. Install Node dependencies
 
 ```powershell
 indesign-cli server setup
@@ -83,7 +106,7 @@ indesign-cli server setup
 
 This installs the bundled Node server dependencies, including `winax`.
 
-### 4. Check the environment
+#### 4. Check the environment
 
 ```powershell
 indesign-cli --pretty server health --deep --connect-indesign
@@ -91,9 +114,13 @@ indesign-cli --pretty server health --deep --connect-indesign
 
 If the response contains `ok: true` and `data.indesign_com.checked` is `true`, the real InDesign COM path has been probed read-only.
 
-### 5. Troubleshooting common environment issues
+#### 5. Troubleshooting common environment issues
 
 `server health` reports the current runtime root/version/components, builtin HTML plugin and system Edge status, plus the existing toolchain diagnostics. Start there when the environment misbehaves.
+
+**`tool domains` does not list `html`**
+
+That is expected, not a broken install. The builtin HTML plugin ships only with the complete runtime (Setup); a pip install does not carry it, and `server health` reports no builtin plugins on this route. See [Plugin integration](#-plugin-integration) to add it.
 
 **`ModuleNotFoundError: No module named 'cli_anything'`**
 
@@ -124,6 +151,14 @@ indesign-cli server setup
 
 `server setup` probes the `npm` found on PATH first; if the probe fails it falls back to the `npm-cli.js` bundled with Node. If neither works it fails with `NPM_NOT_AVAILABLE`, and the local Node / npm installation needs fixing first.
 
+### Release build (maintainers)
+
+`scripts/build_agent_bootstrapper.py` builds the persistent PyInstaller `onedir` CLI, lightweight launcher, runtime ZIP with Node/`winax` and the HTML plugin's production dependencies, and the single complete offline Setup. Pass `--node-root`, `--node-modules`, `--html-plugin-tgz`, the version from `package.json`, and the NAS/GitHub runtime ZIP URLs; use `--dry-run` to validate inputs and print the three PyInstaller commands without building.
+
+The external `runtime-latest.json` is the integrity source and contains the runtime ZIP's real SHA-256. `runtime-metadata.json` inside the ZIP/Setup is identity and component metadata only, with a 64-zero SHA placeholder: an archive cannot contain its own final digest because writing that digest changes the archive again.
+
+After building, run `python scripts\publish_agent_runtime.py --release-dir .\dist-agent --dry-run`, inspect the plan, then rerun without `--dry-run`. The publisher verifies the release, archives it under NAS `releases/<version>/`, and atomically replaces `runtime-latest.json` last. Do not overwrite the NAS manifest manually.
+
 ## 🧠 Publish the Agent Skill independently
 
 To teach agents how to create HTML/InDesign presentations and use `indesign-cli`, publish the complete Skill directory through the company Agent channel.
@@ -144,16 +179,29 @@ Setup and the PyPI package contain only the program; they do not carry, install,
 
 ## 🧩 Plugin integration
 
-`indesign-cli` supports project-level plugins, so higher-level projects can expose their own capabilities through the same tool catalog. For example, an HTML-to-InDesign project can register the `html` domain and let agents use it through `tool list/schema/call`.
+`indesign-cli` supports project-level plugins, so higher-level projects can expose their own capabilities through the same tool catalog. The HTML-to-InDesign project registers the `html` domain and lets agents use it through `tool list/schema/call`.
 
-Local plugin example:
+### Adding `html-indesign` to a pip install
+
+Complete-runtime (Setup) users can skip this — the `html` domain is already built in. **A CLI installed from PyPI needs it added manually:**
 
 ```powershell
-indesign-cli plugin install D:\AI\html-indesign
-indesign-cli plugin validate D:\AI\html-indesign
-indesign-cli plugin doctor html-indesign
+git clone https://github.com/zhanglongxiao111/html-indesign.git
+cd html-indesign
+
+# --ignore-scripts matters: playwright is a production dependency and would otherwise
+# download several hundred MB of browsers. The plugin drives system Edge instead, so
+# those browsers go unused. The shipped runtime installs it exactly this way.
+npm install --omit=dev --ignore-scripts
+
+indesign-cli plugin install .
+indesign-cli plugin validate .
 indesign-cli tool list --domain html
 ```
+
+The last command should list `html.authoring_lint`, `html.build`, `html.reverse_export` and friends — that means HTML → InDesign support is wired up.
+
+The plugin record is written to `.indesign-cli\plugins\` in the **current directory**, so installation is per project. Run `plugin install` again in each new project directory.
 
 Plugin tools do not have to occupy the agent context by default. Agents can still inspect compact domain summaries first, then load schemas only when needed.
 
@@ -182,7 +230,8 @@ indesign-cli tool schema feedback.report
 When running through the `indesign-cli-agent` EXE (0.4.1+), shared telemetry defaults to the SA-internal NAS root below. **Public/external users should set `INDESIGN_CLI_TELEMETRY=off`** — otherwise the CLI will attempt to write telemetry to the SA intranet collection point (unreachable outside the intranet, so writes fail silently, but disabling explicitly is recommended). pip/source installs remain opt-in and must configure it explicitly:
 
 ```powershell
-$env:INDESIGN_CLI_TELEMETRY_DIR="\\daga-nas5\sa-ai-app\feedback-reports\indesign-cli-telemetry"
+# Point this at your own collection directory; a local path or a UNC share both work.
+$env:INDESIGN_CLI_TELEMETRY_DIR="D:\indesign-cli-telemetry"
 ```
 
 The CLI writes directly under `sessions/YYYY-MM-DD/*.jsonl` and `state/*.json`; `reports/` is reserved for aggregate outputs. The allowlisted fields: `session_id`, `origin_key`, `cwd_hash`, optional agent thread/run IDs, tool id/source, success status, error code, duration, argument key names, feedback code/note, and recent-call summaries. Since 0.4.2, for internal diagnostics it also records the real working directory (`cwd`), machine name (`host`), and path-like argument values (`arg_paths`, only string arguments whose key ends with path/file/dir/folder).
