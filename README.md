@@ -27,21 +27,16 @@ Adobe InDesign 很强，但对 AI Agent 来说并不好用：
 
 ## 🚀 快速安装
 
-**先看这张表选路。两条路装出来的能力不一样：**
+**一个离线 Setup 就够了。** CLI、Node、`winax` 和 HTML 插件全部打包在里面，本机不需要装 Node 或 npm，也不需要编译任何原生模块。
 
-| | 完整运行环境（推荐） | 从 PyPI 装 CLI |
-| --- | --- | --- |
-| 怎么装 | 下载 Setup 运行一次 | `pip install indesign-cli` |
-| 本机要不要装 Node / npm / 编译 `winax` | 不要，全部内置 | 要 |
-| InDesign 工具（150 个） | ✅ | ✅ |
-| **HTML → InDesign（`html` 域）** | ✅ 内置 | ❌ 要另外装插件 |
-| 适合 | 所有想直接用起来的人 | 改源码、二次开发、CI |
+你只需要：
 
-如果你是冲着 **HTML 转 InDesign、AI 生成画册** 来的，走左边那条。`pip install` 装出来的 CLI **没有 `html` 域**，这是新用户最常踩的坑。
+- Windows
+- Adobe InDesign 桌面版：推荐 2024-2026；CLI 会尝试连接 2022-2026、CC 版本和通用 `InDesign.Application` COM 入口，实际可用版本取决于本机 COM 注册
 
-### 推荐路线：安装完整运行环境
+InDesign 需要和命令行运行在同一个 Windows 用户会话中。
 
-一个离线 Setup 就够了，不需要在本机装 Node、npm 或编译 `winax`。
+下载：
 
 - **外部 / 开源用户**：到 [GitHub Releases](https://github.com/zhanglongxiao111/indesign-cli/releases/latest) 下载 `indesign-cli-agent-setup.exe`。
 - **事务所内部工位和无人值守 Agent**：从公司 NAS 取同一个 Setup。
@@ -76,82 +71,6 @@ Setup 首次把轻量启动器和完整 runtime 安装到 `%LOCALAPPDATA%\indesi
 日常更新读取 NAS 优先、GitHub 兜底的 `runtime-latest.json`（schema v2），下载并校验 runtime ZIP，在 staging 中检查 CLI、Node、`winax`、builtin HTML 插件和系统 Edge 后原子切换。成功后只保留当前 runtime；失败时删除新 staging 并继续使用旧 runtime。日常更新不替换 `bin\indesign-cli-agent.exe`；启动器自身需要升级时重新运行新版 Setup。
 
 从 `0.4.2` 迁移时不做旧协议桥接，由公司 Agent 从 NAS 重新运行最新版 Setup。Skill 仍由公司现有渠道独立发布，本 CLI 不自动安装 Skill。
-
-### 另一条路：从 PyPI 安装（不含 `html` 域）
-
-这条路装出来的是纯 CLI，适合要改源码、做二次开发或在 CI 里跑的人。
-
-> **它不带 `html` 域。** `tool domains` 的输出里不会有 `html`，`html.authoring_lint`、`html.build`、`html.reverse_export` 全都调不到。原因是内置插件只在成品运行环境里随 Setup 一起分发。想要 HTML → InDesign 能力，要么改走上面的完整运行环境，要么按 [插件接入](#-插件接入) 单独装 `html-indesign` 插件。
-
-#### 1. 准备环境
-
-你需要：
-
-- Windows
-- Adobe InDesign 桌面版：推荐 2024-2026；CLI 会尝试连接 2022-2026、CC 版本和通用 `InDesign.Application` COM 入口，实际可用版本取决于本机 COM 注册
-- Node.js 18+
-- Python 3.10+
-
-InDesign 需要和命令行运行在同一个 Windows 用户会话中。
-
-#### 2. 从 PyPI 安装
-
-```powershell
-pip install indesign-cli
-```
-
-#### 3. 安装 Node 依赖
-
-```powershell
-indesign-cli server setup
-```
-
-这一步会安装 InDesign 自动化所需的 Node 依赖，包括 `winax`。
-
-#### 4. 检查环境
-
-```powershell
-indesign-cli --pretty server health --deep --connect-indesign
-```
-
-如果返回 `ok: true` 且 `data.indesign_com.checked` 为 `true`，真实 InDesign COM 链路已完成只读探针。
-
-#### 5. 常见环境问题排查
-
-`server health` 的输出包含当前 runtime 根目录/版本/组件、builtin HTML 插件、系统 Edge，以及工具链诊断。排查环境问题先看这份输出。
-
-**`tool domains` 里没有 `html`**
-
-这是预期行为，不是装坏了。builtin HTML 插件只随成品运行环境（Setup）分发，pip 安装不带；`server health` 在这条路上报告的 builtin 插件也会是空的。补装办法见 [插件接入](#-插件接入)。
-
-**`ModuleNotFoundError: No module named 'cli_anything'`**
-
-命令入口 `indesign-cli.exe` 和 Python 用户包目录不一致，常见于沙箱或受控 Agent 运行时重定向了 `APPDATA` / `USERPROFILE`。检查用户包目录：
-
-```powershell
-python -c "import site; print(site.getuserbase()); print(site.getusersitepackages())"
-```
-
-如果指向临时目录，把 `PYTHONUSERBASE` 固定到真实用户目录或稳定短路径，再重新 `pip install indesign-cli`。
-
-**`winax` 编译失败（如 `error C1083`）**
-
-`server setup` 需要用 MSVC 编译原生模块 `winax`，在超长路径（深层临时目录）下容易失败。解决方式是把 server 目录固定到稳定短路径：
-
-```powershell
-# 1. 定位当前 server 目录
-python -c "from cli_anything.indesign.core.runtime import resolve_server_root; print(resolve_server_root())"
-# 2. 把整个目录复制到短路径，例如 D:\indesign-cli-server
-# 3. 指向它并重装依赖
-setx INDESIGN_CLI_SERVER_ROOT "D:\indesign-cli-server"
-indesign-cli server setup
-```
-
-`INDESIGN_CLI_SERVER_ROOT` 必须指向包含 `package.json`、`src/index.js`、`src/advanced/index.js` 的目录。这也是推荐的预构建模式：`winax` 构建一次，多个会话和受控环境复用，不必每次临时编译。
-
-**`npm` 不可用（Volta / nvm shim 损坏）**
-
-`server setup` 会先探测 PATH 上的 `npm`；探测失败时自动回退到 Node 自带的 `npm-cli.js`。两者都不可用时报 `NPM_NOT_AVAILABLE`，需要先修复本机 Node / npm 安装。
 
 ### 发行构建（维护者）
 
@@ -194,15 +113,15 @@ skills/indesign-cli/
 D:\AI\your-project\.codex\skills\indesign-cli\
 ```
 
-Setup 和 PyPI 包只发布程序，不携带、不安装也不修改 Skill。CLI 不提供自动复制 Skill 的命令；公司 Agent 渠道直接从上述仓库目录独立发布 Skill。
+无论用哪种方式安装，发布的都只有程序本身，不携带、不安装也不修改 Skill。CLI 不提供自动复制 Skill 的命令；公司 Agent 渠道直接从上述仓库目录独立发布 Skill。
 
 ## 🧩 插件接入
 
 `indesign-cli` 支持项目级插件，让上层项目把自己的高层能力接入统一工具目录。比如 HTML-to-InDesign 项目注册 `html` 域，Agent 再通过同一套 `tool list/schema/call` 使用它。
 
-### 给 pip 用户补装 `html-indesign`
+### 从源码安装时补装 `html-indesign`
 
-走完整运行环境（Setup）的用户不需要这一步，`html` 域已经内置。**从 PyPI 装的 CLI 需要手动补上：**
+用 Setup 装的用户**不需要这一步**，`html` 域已经内置。只有从源码（`pip install -e .`）跑的开发者需要手动补上：
 
 ```powershell
 git clone https://github.com/zhanglongxiao111/html-indesign.git
@@ -410,15 +329,54 @@ Agent 负责生成脚本和参数，`indesign-cli` 负责把它们安全地送�
 
 ## 🔧 本地开发
 
+这条路给要改源码、做二次开发或在 CI 里跑的人。和 Setup 不同，它要求本机自备 **Node.js 18+** 和 **Python 3.10+**，并且会现场编译 `winax`。
+
 ```powershell
 git clone https://github.com/zhanglongxiao111/indesign-cli.git
 cd indesign-cli
 pip install -e .
 indesign-cli server setup
-indesign-cli server health --deep
+indesign-cli --pretty server health --deep --connect-indesign
 ```
 
-运行测试：
+`server setup` 会装上 InDesign 自动化所需的 Node 依赖，包括 `winax`。`server health` 返回 `ok: true` 且 `data.indesign_com.checked` 为 `true`，说明真实 InDesign COM 链路已完成只读探针。
+
+从源码跑**不带 `html` 域**——内置 HTML 插件只随成品运行环境分发。补装办法见 [插件接入](#-插件接入)。
+
+### 常见环境问题排查
+
+`server health` 的输出包含当前 runtime 根目录/版本/组件、builtin HTML 插件、系统 Edge，以及工具链诊断。排查环境问题先看这份输出。
+
+**`ModuleNotFoundError: No module named 'cli_anything'`**
+
+命令入口 `indesign-cli.exe` 和 Python 用户包目录不一致，常见于沙箱或受控 Agent 运行时重定向了 `APPDATA` / `USERPROFILE`。检查用户包目录：
+
+```powershell
+python -c "import site; print(site.getuserbase()); print(site.getusersitepackages())"
+```
+
+如果指向临时目录，把 `PYTHONUSERBASE` 固定到真实用户目录或稳定短路径，再重新安装。
+
+**`winax` 编译失败（如 `error C1083`）**
+
+`server setup` 需要用 MSVC 编译原生模块 `winax`，在超长路径（深层临时目录）下容易失败。解决方式是把 server 目录固定到稳定短路径：
+
+```powershell
+# 1. 定位当前 server 目录
+python -c "from cli_anything.indesign.core.runtime import resolve_server_root; print(resolve_server_root())"
+# 2. 把整个目录复制到短路径，例如 D:\indesign-cli-server
+# 3. 指向它并重装依赖
+setx INDESIGN_CLI_SERVER_ROOT "D:\indesign-cli-server"
+indesign-cli server setup
+```
+
+`INDESIGN_CLI_SERVER_ROOT` 必须指向包含 `package.json`、`src/index.js`、`src/advanced/index.js` 的目录。这也是推荐的预构建模式：`winax` 构建一次，多个会话和受控环境复用，不必每次临时编译。
+
+**`npm` 不可用（Volta / nvm shim 损坏）**
+
+`server setup` 会先探测 PATH 上的 `npm`；探测失败时自动回退到 Node 自带的 `npm-cli.js`。两者都不可用时报 `NPM_NOT_AVAILABLE`，需要先修复本机 Node / npm 安装。
+
+### 运行测试
 
 ```powershell
 git diff --check

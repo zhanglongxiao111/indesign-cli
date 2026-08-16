@@ -27,24 +27,19 @@ It is not a manual layout CLI for humans, and it is not a new layout engine. It 
 
 ## 🚀 Quick install
 
-**Pick a route first. The two routes do not install the same capabilities:**
+**One offline Setup is all you need.** The CLI, Node, `winax`, and the HTML plugin are all bundled inside it — no local Node or npm installation, and no native module compilation.
 
-| | Complete runtime (recommended) | CLI from PyPI |
-| --- | --- | --- |
-| How | Download Setup, run it once | `pip install indesign-cli` |
-| Needs local Node / npm / `winax` build | No, all bundled | Yes |
-| InDesign tools (150) | ✅ | ✅ |
-| **HTML → InDesign (`html` domain)** | ✅ built in | ❌ separate plugin install |
-| For | Anyone who wants to use the tool | Source changes, downstream dev, CI |
+All you need is:
 
-If you came here for **HTML to InDesign** or **AI-generated brochures**, take the left route. The CLI installed from PyPI has **no `html` domain** — this is the most common thing new users get stuck on.
+- Windows
+- Adobe InDesign desktop: 2024-2026 recommended. The CLI probes 2022-2026, CC ProgIDs, and the generic `InDesign.Application` COM entry; actual availability depends on local COM registration.
 
-### Recommended: install the complete runtime
+InDesign must run in the same Windows user session as the CLI.
 
-One offline Setup is all you need. Node, npm, and a local `winax` build are not required.
+Download it:
 
-- **External / open-source users**: download `indesign-cli-agent-setup.exe` from [GitHub Releases](https://github.com/zhanglongxiao111/indesign-cli/releases/latest).
-- **Managed workstations and unattended agents**: take the same Setup from the company NAS.
+- **External / open-source users**: `indesign-cli-agent-setup.exe` from [GitHub Releases](https://github.com/zhanglongxiao111/indesign-cli/releases/latest).
+- **Managed workstations and unattended agents**: the same Setup from the company NAS.
 
 ```powershell
 # 1. Run Setup. Installs under %LOCALAPPDATA%; no administrator rights needed.
@@ -77,80 +72,6 @@ Routine updates read the schema-v2 `runtime-latest.json` from NAS first and GitH
 
 Existing `0.4.2` workstations migrate by having the company Agent run the latest Setup once from NAS. Skill distribution remains independent through the existing company channel; the CLI does not auto-install Skills.
 
-### Alternative: install from PyPI (no `html` domain)
-
-This route gives you the bare CLI. It suits people who change the source, build on top of it, or run it in CI.
-
-> **It does not include the `html` domain.** `tool domains` will not list `html`, and `html.authoring_lint`, `html.build`, and `html.reverse_export` are all uncallable. The builtin plugin ships only inside the complete runtime, alongside Setup. To get HTML → InDesign support, either switch to the complete runtime above or install the `html-indesign` plugin separately — see [Plugin integration](#-plugin-integration).
-
-#### 1. Requirements
-
-- Windows
-- Adobe InDesign desktop: 2024-2026 recommended. The CLI probes 2022-2026, CC ProgIDs, and the generic `InDesign.Application` COM entry; actual availability depends on local COM registration.
-- Node.js 18+
-- Python 3.10+
-
-InDesign must run in the same Windows user session as the CLI.
-
-#### 2. Install from PyPI
-
-```powershell
-pip install indesign-cli
-```
-
-#### 3. Install Node dependencies
-
-```powershell
-indesign-cli server setup
-```
-
-This installs the bundled Node server dependencies, including `winax`.
-
-#### 4. Check the environment
-
-```powershell
-indesign-cli --pretty server health --deep --connect-indesign
-```
-
-If the response contains `ok: true` and `data.indesign_com.checked` is `true`, the real InDesign COM path has been probed read-only.
-
-#### 5. Troubleshooting common environment issues
-
-`server health` reports the current runtime root/version/components, builtin HTML plugin and system Edge status, plus the existing toolchain diagnostics. Start there when the environment misbehaves.
-
-**`tool domains` does not list `html`**
-
-That is expected, not a broken install. The builtin HTML plugin ships only with the complete runtime (Setup); a pip install does not carry it, and `server health` reports no builtin plugins on this route. See [Plugin integration](#-plugin-integration) to add it.
-
-**`ModuleNotFoundError: No module named 'cli_anything'`**
-
-The `indesign-cli.exe` entry point and the Python user package directory are out of sync, typically because a sandbox or managed agent runtime redirected `APPDATA` / `USERPROFILE`. Inspect the user package dirs:
-
-```powershell
-python -c "import site; print(site.getuserbase()); print(site.getusersitepackages())"
-```
-
-If they point into a temp directory, pin `PYTHONUSERBASE` to the real user directory or a stable short path, then reinstall with `pip install indesign-cli`.
-
-**`winax` build failures (e.g. `error C1083`)**
-
-`server setup` compiles the native module `winax` with MSVC, which is fragile under very long paths (deeply nested temp directories). Pin the server directory to a stable short path:
-
-```powershell
-# 1. Locate the current server root
-python -c "from cli_anything.indesign.core.runtime import resolve_server_root; print(resolve_server_root())"
-# 2. Copy the whole directory to a short path, e.g. D:\indesign-cli-server
-# 3. Point the CLI at it and reinstall dependencies
-setx INDESIGN_CLI_SERVER_ROOT "D:\indesign-cli-server"
-indesign-cli server setup
-```
-
-`INDESIGN_CLI_SERVER_ROOT` must point to a directory containing `package.json`, `src/index.js`, and `src/advanced/index.js`. This is also the recommended prebuilt pattern: build `winax` once and reuse it across sessions and managed environments instead of recompiling every time.
-
-**`npm` unusable (broken Volta / nvm shim)**
-
-`server setup` probes the `npm` found on PATH first; if the probe fails it falls back to the `npm-cli.js` bundled with Node. If neither works it fails with `NPM_NOT_AVAILABLE`, and the local Node / npm installation needs fixing first.
-
 ### Release build (maintainers)
 
 `scripts/build_agent_bootstrapper.py` builds the persistent PyInstaller `onedir` CLI, lightweight launcher, runtime ZIP with Node/`winax` and the HTML plugin's production dependencies, and the single complete offline Setup. Pass `--node-root`, `--node-modules`, `--html-plugin-tgz`, the version from `package.json`, and the NAS/GitHub runtime ZIP URLs; use `--dry-run` to validate inputs and print the three PyInstaller commands without building.
@@ -175,15 +96,15 @@ Copy the complete directory to the target project. Copying only `SKILL.md` omits
 D:\AI\your-project\.codex\skills\indesign-cli\
 ```
 
-Setup and the PyPI package contain only the program; they do not carry, install, or modify the Skill. The company Agent channel publishes the Skill independently from the repository directory above.
+However you install it, what ships is the program only; it does not carry, install, or modify the Skill. The company Agent channel publishes the Skill independently from the repository directory above.
 
 ## 🧩 Plugin integration
 
 `indesign-cli` supports project-level plugins, so higher-level projects can expose their own capabilities through the same tool catalog. The HTML-to-InDesign project registers the `html` domain and lets agents use it through `tool list/schema/call`.
 
-### Adding `html-indesign` to a pip install
+### Adding `html-indesign` to a source install
 
-Complete-runtime (Setup) users can skip this — the `html` domain is already built in. **A CLI installed from PyPI needs it added manually:**
+Setup users can **skip this** — the `html` domain is already built in. Only developers running from source (`pip install -e .`) need to add it manually:
 
 ```powershell
 git clone https://github.com/zhanglongxiao111/html-indesign.git
@@ -384,15 +305,54 @@ Not a good fit for:
 
 ## 🔧 Local development
 
+This route is for people who change the source, build on top of it, or run it in CI. Unlike Setup, it expects **Node.js 18+** and **Python 3.10+** on the machine, and it compiles `winax` locally.
+
 ```powershell
 git clone https://github.com/zhanglongxiao111/indesign-cli.git
 cd indesign-cli
 pip install -e .
 indesign-cli server setup
-indesign-cli server health --deep
+indesign-cli --pretty server health --deep --connect-indesign
 ```
 
-Run tests:
+`server setup` installs the Node dependencies InDesign automation needs, including `winax`. `server health` returning `ok: true` with `data.indesign_com.checked` set to `true` means the real InDesign COM path has been probed read-only.
+
+A source install has **no `html` domain** — the builtin HTML plugin ships only with the complete runtime. See [Plugin integration](#-plugin-integration) to add it.
+
+### Troubleshooting common environment issues
+
+`server health` reports the current runtime root/version/components, builtin HTML plugin and system Edge status, plus the existing toolchain diagnostics. Start there when the environment misbehaves.
+
+**`ModuleNotFoundError: No module named 'cli_anything'`**
+
+The `indesign-cli.exe` entry point and the Python user package directory are out of sync, typically because a sandbox or managed agent runtime redirected `APPDATA` / `USERPROFILE`. Inspect the user package dirs:
+
+```powershell
+python -c "import site; print(site.getuserbase()); print(site.getusersitepackages())"
+```
+
+If they point into a temp directory, pin `PYTHONUSERBASE` to the real user directory or a stable short path, then reinstall.
+
+**`winax` build failures (e.g. `error C1083`)**
+
+`server setup` compiles the native module `winax` with MSVC, which is fragile under very long paths (deeply nested temp directories). Pin the server directory to a stable short path:
+
+```powershell
+# 1. Locate the current server root
+python -c "from cli_anything.indesign.core.runtime import resolve_server_root; print(resolve_server_root())"
+# 2. Copy the whole directory to a short path, e.g. D:\indesign-cli-server
+# 3. Point the CLI at it and reinstall dependencies
+setx INDESIGN_CLI_SERVER_ROOT "D:\indesign-cli-server"
+indesign-cli server setup
+```
+
+`INDESIGN_CLI_SERVER_ROOT` must point to a directory containing `package.json`, `src/index.js`, and `src/advanced/index.js`. This is also the recommended prebuilt pattern: build `winax` once and reuse it across sessions and managed environments instead of recompiling every time.
+
+**`npm` unusable (broken Volta / nvm shim)**
+
+`server setup` probes the `npm` found on PATH first; if the probe fails it falls back to the `npm-cli.js` bundled with Node. If neither works it fails with `NPM_NOT_AVAILABLE`, and the local Node / npm installation needs fixing first.
+
+### Run tests
 
 ```powershell
 git diff --check
