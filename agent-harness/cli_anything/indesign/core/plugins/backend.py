@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import CliError
+from ..paths import scrub_text_paths
 from .manifest import PluginRecord
+
+
+def _stderr_tail(raw: Any, limit: int = 2000) -> str:
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+    return scrub_text_paths(str(raw or "")[-limit:])
 
 
 class PluginBackend:
@@ -38,11 +45,17 @@ class PluginBackend:
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
+            # 超时最需要证据：TimeoutExpired 自带已捕获的 stderr，别丢。
             raise CliError(
                 "Plugin timed out",
                 code="TIMEOUT",
                 retryable=True,
-                details={"plugin": self.record.id, "method": method, "timeout_seconds": self.timeout},
+                details={
+                    "plugin": self.record.id,
+                    "method": method,
+                    "timeout_seconds": self.timeout,
+                    "stderr_tail": _stderr_tail(exc.stderr),
+                },
                 state_uncertain=True,
                 next_action="Run `indesign-cli session doctor` before retrying plugin host actions.",
             ) from exc
@@ -67,15 +80,30 @@ class PluginBackend:
             error = response["error"]
             if not isinstance(error, dict):
                 raise CliError("Plugin error must be an object", code="PLUGIN_RESPONSE_INVALID", details={"plugin": self.record.id, "method": method})
+            details = error.get("details") if isinstance(error.get("details"), dict) else {}
+            # hint/retryable 顶层优先；插件把它们冗余复制进 details 时（compile-instructions.js 模式）也要取到。
+            hint = self._first_hint(error.get("hint"), details.get("hint"))
+            retryable = error.get("retryable")
+            if retryable is None:
+                retryable = details.get("retryable")
             raise CliError(
                 str(error.get("message") or "Plugin error"),
                 code=str(error.get("code") or "PLUGIN_ERROR"),
-                details=error.get("details") if isinstance(error.get("details"), dict) else {},
+                details=details,
+                hint=hint,
+                retryable=bool(retryable),
             )
         result = response.get("result")
         if not isinstance(result, dict):
             raise CliError("Plugin result must be an object", code="PLUGIN_RESPONSE_INVALID", details={"plugin": self.record.id, "method": method})
         return result
+
+    @staticmethod
+    def _first_hint(*candidates: Any) -> str | None:
+        for candidate in candidates:
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate
+        return None
 
     def handshake(self, host: dict[str, Any]) -> dict[str, Any]:
         return self.request("plugin/handshake", {"host": host})

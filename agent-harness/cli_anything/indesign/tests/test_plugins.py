@@ -18,6 +18,57 @@ def test_plugin_backend_uses_runtime_node_environment_by_default(monkeypatch):
     assert PluginBackend(record).node_executable == runtime_node
 
 
+def _schema_payload(properties, required=None):
+    schema = {"type": "object", "properties": dict(properties)}
+    if required:
+        schema["required"] = list(required)
+    return {"inputSchema": schema}
+
+
+def test_schema_validation_flags_arg_name_missing_from_properties():
+    from cli_anything.indesign.core.plugins.validate import _schema_errors
+
+    errors = _schema_errors(
+        {"id": "html.demo", "arg_names": ["package", "strict"]},
+        _schema_payload({"package": {"type": "string"}, "strict": {"type": "boolean"}, "ghost": {}}),
+    )
+    assert [e["details"]["argument"] for e in errors] == ["ghost"]
+
+
+def test_schema_validation_flags_property_not_declared_in_arg_names():
+    """arg_names 是工具发现阶段唯一可见的参数清单；schema 加了参数却不同步声明，
+    Agent 在 tool list/search 阶段就看不到它——这个方向此前查不出来。"""
+    from cli_anything.indesign.core.plugins.validate import _schema_errors
+
+    errors = _schema_errors(
+        {"id": "html.build_indesign", "arg_names": ["package", "outDir"]},
+        _schema_payload(
+            {
+                "package": {"type": "string"},
+                "outDir": {"type": "string"},
+                "exportPdf": {"type": "boolean"},
+                "timeout": {"type": "integer"},
+            }
+        ),
+    )
+    assert sorted(e["details"]["argument"] for e in errors) == ["exportPdf", "timeout"]
+    assert all(e["code"] == "PLUGIN_SCHEMA_INVALID" for e in errors)
+
+
+def test_schema_validation_accepts_matching_arg_names_and_properties():
+    from cli_anything.indesign.core.plugins.validate import _schema_errors
+
+    assert (
+        _schema_errors(
+            {"id": "html.authoring_lint", "arg_names": ["package", "strict"]},
+            _schema_payload(
+                {"package": {"type": "string"}, "strict": {"type": "boolean"}}, required=["package"]
+            ),
+        )
+        == []
+    )
+
+
 def test_plugin_validate_accepts_fake_plugin():
     result = run_module("plugin", "validate", str(FAKE_PLUGIN_ROOT))
     assert result.returncode == 0
@@ -163,6 +214,74 @@ def test_router_passes_timeout_to_plugin_backend_and_uses_manifest_default():
 
     assert Router(catalog=catalog, repo_root=REPO_ROOT)._plugin_backend(tool).timeout == 3
     assert Router(catalog=catalog, repo_root=REPO_ROOT, backend_timeout_seconds=9)._plugin_backend(tool).timeout == 9
+
+
+def test_plugin_tool_entries_prefer_plugin_provided_next_steps_and_usage_notes():
+    from cli_anything.indesign.core.catalog import plugin_tool_entries
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=manifest,
+    )
+    tools = plugin_tool_entries(
+        record,
+        [
+            {
+                "id": "html.build_indesign",
+                "domain": "html",
+                "name": "build_indesign",
+                "arg_names": ["package"],
+                "side_effects": ["filesystem_write"],
+                "preconditions": [],
+                "return_example": {},
+                "failure_example": {},
+                "common_next_steps": ["Read forward-fidelity-report.json if the build fails."],
+                "safe_usage_notes": ["mode:'final' already runs export.verify internally; do not re-run it."],
+            }
+        ],
+    )
+    entry = tools[0]
+
+    assert entry["common_next_steps"] == ["Read forward-fidelity-report.json if the build fails."]
+    assert not any("export verify" in step for step in entry["common_next_steps"])
+    assert entry["safe_usage_notes"] == ["mode:'final' already runs export.verify internally; do not re-run it."]
+
+
+def test_plugin_tool_entries_fall_back_to_computed_next_steps_when_plugin_omits_them():
+    from cli_anything.indesign.core.catalog import plugin_tool_entries
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    manifest = json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=manifest,
+    )
+    tools = plugin_tool_entries(
+        record,
+        [
+            {
+                "id": "html.compile_instructions",
+                "domain": "html",
+                "name": "compile_instructions",
+                "arg_names": ["package"],
+                "side_effects": ["filesystem_write"],
+                "preconditions": [],
+                "return_example": {},
+                "failure_example": {},
+            }
+        ],
+    )
+    entry = tools[0]
+
+    assert any("export verify" in step for step in entry["common_next_steps"])
 
 
 def test_plugin_install_list_remove_project_plugin(tmp_path):

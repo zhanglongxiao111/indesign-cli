@@ -536,33 +536,40 @@ def plugin_tool_entries(record: PluginRecord, tools: list[dict[str, Any]]) -> li
     for index, tool in enumerate(tools):
         tool_id = str(tool.get("id") or "")
         name = str(tool.get("name") or tool_id.split(".", 1)[-1])
-        entries.append(
-            _with_agent_contract(
-            {
-                "id": tool_id,
-                "domain": str(tool.get("domain") or record.domain),
-                "name": name,
-                "one_line_purpose": str(tool.get("one_line_purpose") or tool.get("description") or name),
-                "arg_names": list(tool.get("arg_names") or []),
-                "source": "plugin",
-                "plugin": record.id,
-                "rank": int(tool.get("rank") or (70 + index)),
-                "schema_size": str(tool.get("schema_size") or "medium"),
-                "availability": "exposed",
-                "callable": bool(tool.get("callable", True)),
-                "requires": list(tool.get("requires") or []),
-                "side_effects": list(tool.get("side_effects") or []),
-                "artifact_kinds": list(tool.get("artifact_kinds") or []),
-                "destructive": bool(tool.get("destructive", False)),
-                "target_scope": str(tool.get("target_scope") or "workspace"),
-                "needs_indesign": bool(tool.get("needs_indesign", False)),
-                "produces_artifacts": bool(tool.get("produces_artifacts", False)),
-                "preconditions": list(tool.get("preconditions") or []),
-                "return_example": tool.get("return_example") if isinstance(tool.get("return_example"), dict) else {},
-                "failure_example": tool.get("failure_example") if isinstance(tool.get("failure_example"), dict) else {},
-            }
-            )
-        )
+        entry: dict[str, Any] = {
+            "id": tool_id,
+            "domain": str(tool.get("domain") or record.domain),
+            "name": name,
+            "one_line_purpose": str(tool.get("one_line_purpose") or tool.get("description") or name),
+            "arg_names": list(tool.get("arg_names") or []),
+            "source": "plugin",
+            "plugin": record.id,
+            "rank": int(tool.get("rank") or (70 + index)),
+            "schema_size": str(tool.get("schema_size") or "medium"),
+            "availability": "exposed",
+            "callable": bool(tool.get("callable", True)),
+            "requires": list(tool.get("requires") or []),
+            "side_effects": list(tool.get("side_effects") or []),
+            "artifact_kinds": list(tool.get("artifact_kinds") or []),
+            "destructive": bool(tool.get("destructive", False)),
+            "target_scope": str(tool.get("target_scope") or "workspace"),
+            "needs_indesign": bool(tool.get("needs_indesign", False)),
+            "produces_artifacts": bool(tool.get("produces_artifacts", False)),
+            "preconditions": list(tool.get("preconditions") or []),
+            "return_example": tool.get("return_example") if isinstance(tool.get("return_example"), dict) else {},
+            "failure_example": tool.get("failure_example") if isinstance(tool.get("failure_example"), dict) else {},
+        }
+        # 插件自带 common_next_steps/safe_usage_notes 时必须优先用插件的：
+        # _with_agent_contract() 只在 key 缺失时才用 setdefault 补通用套话，
+        # 通用套话对 side_effects 含 filesystem_write 的工具一律建议“再跑一次 export verify”，
+        # 但像 html.build_indesign 这类内部已经调用过 export.verify 的工具，这条建议是误导。
+        # 只在插件明确提供（哪怕是空列表，表示插件主动声明没有额外建议）时才写入这个 key，
+        # 未提供则不写，交给 _with_agent_contract() 按 side_effects 推断默认值。
+        if isinstance(tool.get("common_next_steps"), list):
+            entry["common_next_steps"] = list(tool["common_next_steps"])
+        if isinstance(tool.get("safe_usage_notes"), list):
+            entry["safe_usage_notes"] = list(tool["safe_usage_notes"])
+        entries.append(_with_agent_contract(entry))
     return entries
 
 

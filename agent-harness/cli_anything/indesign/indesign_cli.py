@@ -118,16 +118,27 @@ def load_call_args(args: argparse.Namespace, schema: dict[str, Any]) -> dict[str
 
 def validate_call_args(call_args: dict[str, Any], schema: dict[str, Any]) -> None:
     properties = schema.get("properties")
-    if not isinstance(properties, dict) or schema.get("additionalProperties") is True:
+    if not isinstance(properties, dict):
         return
-    unknown = sorted(set(call_args) - set(properties))
-    if unknown:
-        raise CliError(
-            f"Unknown argument keys: {', '.join(unknown)}",
-            code="ARGS_UNKNOWN_KEY",
-            details={"unknown": unknown, "allowed": sorted(properties)},
-            hint="参数名必须与 `tool schema <tool_id>` 返回的 properties 完全一致（大小写敏感），拼错的键不会被静默忽略。",
-        )
+    if schema.get("additionalProperties") is not True:
+        unknown = sorted(set(call_args) - set(properties))
+        if unknown:
+            raise CliError(
+                f"Unknown argument keys: {', '.join(unknown)}",
+                code="ARGS_UNKNOWN_KEY",
+                details={"unknown": unknown, "allowed": sorted(properties)},
+                hint="参数名必须与 `tool schema <tool_id>` 返回的 properties 完全一致（大小写敏感），拼错的键不会被静默忽略。",
+            )
+    required = schema.get("required")
+    if isinstance(required, list) and required:
+        missing = sorted(str(key) for key in required if key not in call_args)
+        if missing:
+            raise CliError(
+                f"Missing required argument{'s' if len(missing) != 1 else ''}: {', '.join(missing)}",
+                code="MISSING_ARGUMENT",
+                details={"missing": missing, "required": sorted(str(key) for key in required)},
+                hint="用 `indesign-cli tool schema <tool_id>` 查看必填参数和类型。",
+            )
 
 
 def failure_stage_from(details: Any) -> str | None:

@@ -285,6 +285,22 @@ def test_tool_schema_includes_agent_metadata():
     assert metadata["returns_artifacts"] is True
 
 
+def test_tool_schema_does_not_duplicate_agent_contract_fields_in_tool():
+    from cli_anything.indesign.core.catalog import Catalog
+    from cli_anything.indesign.core.router import AGENT_CONTRACT_KEYS, Router
+
+    router = Router(catalog=Catalog(repo_root=REPO_ROOT), repo_root=REPO_ROOT)
+    payload = router.schema("export.verify")
+
+    assert set(payload["tool"]).isdisjoint(AGENT_CONTRACT_KEYS)
+    for key in AGENT_CONTRACT_KEYS:
+        assert key in payload["metadata"]
+    # 非重复字段仍然保留在 tool 里
+    assert payload["tool"]["id"] == "export.verify"
+    assert "side_effects" in payload["tool"]
+    assert "arg_names" in payload["tool"]
+
+
 def test_tool_explain_returns_task_level_contract():
     result = run_module("tool", "explain", "graphics.create_rectangle")
     assert result.returncode == 0
@@ -514,6 +530,66 @@ def test_session_doctor_reports_recent_failure(tmp_path):
     assert "recent_failure" in payload["data"]
     assert payload["data"]["recent_failure"]["error_code"] == "ARTIFACT_NOT_FOUND"
     assert "next_action" in payload["data"]
+
+
+def test_record_call_persists_hint_and_doctor_surfaces_it(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(
+        tool_id="export.verify",
+        domain="export",
+        source="cli",
+        ok=False,
+        duration_ms=12,
+        error_code="ARTIFACT_NOT_FOUND",
+        error_summary="Missing output",
+        hint="用 `indesign-cli export verify <path>` 重新生成产物后再验证。",
+        next_action="Create the artifact first.",
+    )
+
+    stored = store.read(compact=False)
+    assert stored["recent_calls"][0]["hint"] == "用 `indesign-cli export verify <path>` 重新生成产物后再验证。"
+
+    doctor = store.doctor()
+    assert doctor["recent_failure"]["hint"] == "用 `indesign-cli export verify <path>` 重新生成产物后再验证。"
+
+
+def test_record_call_omits_hint_key_when_not_given(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="session.show", domain="session", source="cli", ok=True, duration_ms=1)
+
+    stored = store.read(compact=False)
+    assert "hint" not in stored["recent_calls"][0]
+
+
+def test_session_read_and_doctor_report_absolute_session_path(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    expected_path = str(tmp_path / ".indesign-cli" / "session.json")
+
+    read_payload = store.read(compact=True)
+    assert read_payload["session_path"] == expected_path
+
+    store.record_call(tool_id="session.show", domain="session", source="cli", ok=True, duration_ms=1)
+
+    doctor_payload = store.doctor()
+    assert doctor_payload["session_path"] == expected_path
+
+    # session_path 是派生字段，不应该被落盘进 session.json 本体。
+    on_disk = json.loads((tmp_path / ".indesign-cli" / "session.json").read_text(encoding="utf-8"))
+    assert "session_path" not in on_disk
+
+
+def test_session_doctor_command_reports_session_path(tmp_path):
+    result = run_module("session", "doctor", cwd=tmp_path)
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["data"]["session_path"] == str(tmp_path / ".indesign-cli" / "session.json")
 
 
 def test_tool_batch_stops_on_first_failure(tmp_path):
@@ -764,6 +840,47 @@ def test_tool_call_rejects_unknown_argument_keys():
     else:
         raise AssertionError("expected CliError")
     validate_call_args({"path": "x.pdf"}, schema)
+
+
+def test_tool_call_rejects_missing_required_argument():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.indesign_cli import validate_call_args
+
+    schema = {
+        "type": "object",
+        "properties": {"package": {"type": "string"}, "strict": {"type": "boolean"}},
+        "required": ["package"],
+    }
+    try:
+        validate_call_args({"strict": True}, schema)
+    except CliError as exc:
+        assert exc.code == "MISSING_ARGUMENT"
+        assert exc.details["missing"] == ["package"]
+        assert exc.hint
+    else:
+        raise AssertionError("expected CliError")
+    validate_call_args({"package": "deck.config.json"}, schema)
+
+
+def test_tool_call_enforces_required_even_when_additional_properties_allowed():
+    """additionalProperties=True 只应放行未知键，不应连必填检查一起跳过。"""
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.indesign_cli import validate_call_args
+
+    schema = {
+        "type": "object",
+        "additionalProperties": True,
+        "properties": {"path": {"type": "string"}},
+        "required": ["path"],
+    }
+    validate_call_args({"path": "x.pdf", "extra": 1}, schema)
+    try:
+        validate_call_args({"extra": 1}, schema)
+    except CliError as exc:
+        assert exc.code == "MISSING_ARGUMENT"
+        assert exc.details["missing"] == ["path"]
+    else:
+        raise AssertionError("expected CliError")
 
 
 def test_tool_list_output_is_slim():

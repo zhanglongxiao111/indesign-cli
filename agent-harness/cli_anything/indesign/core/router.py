@@ -21,6 +21,28 @@ BACKENDS = {
 }
 
 
+# 这些 key 是 catalog._with_agent_contract() 合并进每个 tool 字典的 agent 契约信息，
+# router.schema() 已经把它们摘进 `metadata` 单独返回；`tool` 里不再重复携带，
+# 否则 `tool schema` 响应里 metadata 与 tool 逐字重复。
+AGENT_CONTRACT_KEYS = (
+    "requires_active_document",
+    "requires_active_page",
+    "uses_selection",
+    "opens_document",
+    "closes_document",
+    "may_close_document",
+    "mutates_document",
+    "writes_filesystem",
+    "returns_artifacts",
+    "return_shape",
+    "return_example",
+    "failure_example",
+    "preconditions",
+    "safe_usage_notes",
+    "common_next_steps",
+)
+
+
 def _extract_plugin_metrics(result: dict[str, Any]) -> dict[str, Any] | None:
     """插件可在结果的 metrics（或 data.metrics）里自报分阶段耗时和任务规模。"""
     if not isinstance(result, dict):
@@ -122,40 +144,28 @@ class Router:
         if not tool["callable"]:
             raise CliError(f"Tool is not callable: {tool_id}", code="TOOL_NOT_CALLABLE")
         metadata = self._metadata(tool)
+        slim_tool = self._slim_tool(tool)
         if tool["source"] in {"cli", "cli.primitive", "script"}:
-            return {"tool": tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}}), "metadata": metadata}
+            return {"tool": slim_tool, "inputSchema": PRIMITIVE_SCHEMAS.get(tool_id, {"type": "object", "properties": {}}), "metadata": metadata}
         if tool["source"] == "hidden_handler":
-            return {"tool": tool, "inputSchema": InternalToolBackend(self.repo_root, catalog=self.catalog).schema(tool_id), "metadata": metadata}
+            return {"tool": slim_tool, "inputSchema": InternalToolBackend(self.repo_root, catalog=self.catalog).schema(tool_id), "metadata": metadata}
         if tool["source"] == "plugin":
             backend = self._plugin_backend(tool)
             payload = backend.schema(tool_id)
-            return {"tool": tool, "inputSchema": payload.get("inputSchema", {}), "metadata": metadata}
+            return {"tool": slim_tool, "inputSchema": payload.get("inputSchema", {}), "metadata": metadata}
         backend = self._backend(tool["source"])
         for item in backend.list_tools():
             if item["name"] == tool["name"]:
-                return {"tool": tool, "inputSchema": item.get("inputSchema", {}), "metadata": metadata}
+                return {"tool": slim_tool, "inputSchema": item.get("inputSchema", {}), "metadata": metadata}
         raise CliError(f"Backend schema missing for {tool_id}", code="SCHEMA_NOT_FOUND")
 
     @staticmethod
     def _metadata(tool: dict[str, Any]) -> dict[str, Any]:
-        keys = (
-            "requires_active_document",
-            "requires_active_page",
-            "uses_selection",
-            "opens_document",
-            "closes_document",
-            "may_close_document",
-            "mutates_document",
-            "writes_filesystem",
-            "returns_artifacts",
-            "return_shape",
-            "return_example",
-            "failure_example",
-            "preconditions",
-            "safe_usage_notes",
-            "common_next_steps",
-        )
-        return {key: tool.get(key) for key in keys}
+        return {key: tool.get(key) for key in AGENT_CONTRACT_KEYS}
+
+    @staticmethod
+    def _slim_tool(tool: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in tool.items() if key not in AGENT_CONTRACT_KEYS}
 
     def call(self, tool_id: str, args: dict[str, Any]) -> dict[str, Any]:
         tool = self._find(tool_id)

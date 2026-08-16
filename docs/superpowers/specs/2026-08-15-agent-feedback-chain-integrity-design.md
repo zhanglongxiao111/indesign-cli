@@ -45,16 +45,23 @@ Agent 修改 5 个文件后错误计数纹丝不动，弃用该工具链，当�
 | 1 | JS 侧算好的 `code`（如 `NO_ACTIVE_DOCUMENT`）与真实错误文本 | `core/internal_backend.py:72-77` 只保留 `operation` | mcp | 已复核 |
 | 2 | 插件构造的 `hint`（`build-indesign.js:241,270,392`） | `core/plugins/backend.py:70-74` 不读该字段 | mcp | 已复核 |
 | 3 | `classify_result()` 的五分类归因 | `core/telemetry.py` 只写遥测，`envelope.failure()` 不下发 | mcp | 已复核 |
-| 4 | `err.validation` 的结构化定位（`itemId`/`pageId`/`styleName`） | `dispatcher.js:119-124` 只读 `err.details` | html | 待复核 |
-| 5 | `reportPath` 已算出（`reverse-export.js:122` 局部变量） | 未传入失败响应构造函数（同文件 `:149`） | html | 待复核 |
-| 6 | `report.json` 已写盘（`reverse-pipeline/index.js:72-73`） | 错误响应无 `reportPath`、无 `artifacts` | html | 待复核 |
-| 7 | INDD 已保存成功（导出阶段部分失败） | `build-indesign.js:381-402` 报整体失败，不提已落盘产物 | html | 待复核 |
+| 4 | `err.validation` 的结构化定位（`itemId`/`pageId`/`styleName`） | `dispatcher.js:119-124` 只读 `err.details` | html | 已复核 |
+| 5 | `reportPath` 已算出（`reverse-export.js:122` 局部变量） | 未传入失败响应构造函数（同文件 `:149`） | html | 已复核 |
+| 6 | `report.json` 已写盘（`reverse-pipeline/index.js:72-73`） | 错误响应无 `reportPath`、无 `artifacts` | html | 已复核 |
+| 7 | INDD 已保存成功（导出阶段部分失败） | `build-indesign.js:381-402` 报整体失败，不提已落盘产物 | html | 已复核 |
 | 8 | `gridTolerance` 代码读取生效（默认 1mm） | `tool-catalog.js` 未声明，`additionalProperties:false` 硬拒 | html | **已复核** |
 | 9 | `lintFailureMessage()` 已实现（`build-indesign.js:172`） | `authoring-lint.js:27` 写死常量，不复用 | html | **已复核** |
-| 10 | `underlyingHostFailure()` 已实现（`build-indesign.js:404`） | `reverse-export.js:71-86` 只报动作 ID | html | 待复核 |
+| 10 | `underlyingHostFailure()` 已实现（`build-indesign.js:404`） | `reverse-export.js:71-86` 只报动作 ID | html | 已复核 |
 | 11 | 下层错误自带 `hint`（`AUTHOR_GENERATED_ENTRY_DIRTY`） | 顶层 `error.hint` 恒为 `null` | 两侧 | **已复核** |
 
 **11 处全部是接线问题，不是功能缺失。** 每处修复量在数行到数十行之间。
+
+**落地状态（2026-08-15）**：11 处已全部实施并带测试。原表内 5 条「待复核」在实施过程中逐条证实，现已改标「已复核」。测试：`mcp-indesign` 247 → 282，`html-indesign` 1190 → 1225，两侧全绿。
+
+实施中另外发现两处同类问题，一并修掉：
+
+- `internal_backend.py` 删除「死码」分支时会连带打开一条静默错位——JS 在解析出的 JSON 缺 `success` 键时默认置 true（`src/utils/stringUtils.js:77`），而错误文本仍可能是 `Error: ...`（`src/core/mcpServer.js:45`）。只认 `success` 会把错误载荷当成功返回。已保留 `Error:` 前缀判据作为兜底。
+- `html.authoring_lint` 失败时新增写报告后，`outDir` 成为它实际读取的参数，但 schema 未声明——与 `gridTolerance` 同一形态（代码读取生效、`additionalProperties: false` 硬拒）。已补进 schema 与 `arg_names`，并把 `produces_artifacts` / `side_effects` 同步为真实行为。
 
 这也解释了一个长期观感：工具"该有的能力都有"，但 Agent 用起来处处碰壁——能力在，链路断。
 
@@ -273,7 +280,9 @@ SA-AIAPP 约束的是 Agent 的 workspace，Agent 执行 shell 命令时会自�
 - 不改任何检查规则、阈值或严格模式语义。
 - 不自动改写作者 HTML/CSS。
 - 不新增诊断字段体系；分类计数由既有 `errors[].code` 聚合。
-- 不解决 `GRID_ALIGNMENT_OFF` 本身——73 个元素为何整体偏移（`top`/`left`/`right` 普遍未对齐、`bottom` 全对齐）属网格判定或容差取值问题，另行开单。
+- 不解决 `GRID_ALIGNMENT_OFF` 本身——那属于作者包的版式问题，不属于反馈链路。
+
+  （更正：先前把实测的「`top`/`left`/`right` 普遍未对齐而 `bottom` 全对齐」记为待查的系统性偏移，是误读。`src/adapters/html/validators/authoring-validator.js:552-556` 里，文字、表格与 `data-id-role="container"` 三类角色**本就不核对 bottom 边**——文字高度随内容回流，底边不可控。`bottom` 计数为 0 是设计如此，没有待查的谜团。）
 - 不涉及 Agent 侧观测能力（模型归因、会话存档），那属 SA-AIAPP，已记在该仓 issue #385。
 
 ## 9. 跨仓依赖
