@@ -1443,6 +1443,9 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 **验收**：defixed 副本严格 lint 0 error；`probe-gridonly` 0 error；全量测试绿。已知留档不修：`compatibility.summary` 维持子对象自身口径（level 计数，内部自洽）；failed 归档时间戳维持 UTC（与遥测 ts 同口径）。
 
+**真机验收（设计 §7 验收 5）**：✅ **PASS** 2026-08-20。本机 InDesign 2025 实跑 `html.build_indesign`（probe-spanonly 副本 + 0819 真实构建参数）：一次成功 82 秒，`forward-fidelity-report.json` errors:[]，物化的 01-04 编号成为 4 个独立 TextFrame 逐字回读（回读快照 sourceNode 带 `data-pseudo-generated:"before"`，该字符串在 builtin 旧插件中 grep 为 0——铁证跑的是新代码），裸 span「行业调查」逐字回读，indd/pdf/idml 三产物落盘，metrics 出现 `normalized_count:71`。产物保留在 `test/workspace/e2e-0819-real-deck/build-e2e/deliverables/`。
+**过程发现（重要）**：① `indesign-cli plugin install` 是 **cwd 级注册**（不拷文件进 runtime），且发现记录**不向父目录回溯**——子目录构建会静默回落 builtin 旧插件，`plugin list` 只是 source 字段变化、不报错。建议后续在 build 返回里回显生效插件的 source/root。② launcher 会无条件自动升级 runtime 并**删除旧版本目录**（本次 0.5.9→0.5.10，旧版已不可回退）。③ `--pretty` 是全局 flag，必须放在子命令之前。
+
 > ✅ **已完成** 2026-08-20，commit `f858234`（10 文件）。真实包反修复复验 **15→1**：两个根因的 14 条全灭；残余 1 条（p1-el3）经审定为**真阳性保留**——作者同时声明 `--grid-span:8` 与 `max-width:980px` 属矛盾声明，lint 指出它是本职，作者侧正解是 `data-id-grid-ignore` 或消除冲突（验收标准由「0 error」修正为「0 假阳性」）。全量 1249/1249 绿；`authoring-lint-feedback.test.js` 的 grid 事故基线 73→56（掉的 17 条经逐条核对均为 flex 家具噪声，审核通过）。另留档：本机 Node v22 下 `node --test a.js b.js` 只跑第一个文件，多文件验证须逐个跑或走 npm test。
 
 ---
