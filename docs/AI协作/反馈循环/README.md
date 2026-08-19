@@ -24,3 +24,7 @@
 - 2026-07-10 决策：这是内部工具，遥测记录真实工作目录（`cwd`）、机器名（`host`）和路径类参数值（`arg_paths`），周报和摩擦簇可以直接引用这些内网路径来定位问题工位与项目。
 - 仍不记录：文档正文内容、脚本内容、非路径参数值。
 - 公网分发的 README 已告知外部用户用 `INDESIGN_CLI_TELEMETRY=off` 关闭上报。
+
+## 指标口径切换点
+
+- 2026-08-19 起（html-indesign > 0.2.9）：lint 的 `warningCount` / 遥测 `plugin_metrics.warning_count` 不再计入 `action:"normalized"` 的兼容归一化条目（另计 `normalizedCount`）。跨版本对比 warning 数时注意口径切换点。

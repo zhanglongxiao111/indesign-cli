@@ -7,7 +7,7 @@
 1. 从内置起步模板创建作者包：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
 ```
 
 2. 编辑以下内容：
@@ -20,10 +20,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 不要手改 `deck.html`。每次修改页面、样式或配置后重新组装：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
 ```
 
 `AUTHOR_GENERATED_ENTRY_DIRTY` 就是在提示这一步没做或没做完；该错误的 `hint` 里带着可直接复制的组装命令，照它重跑即可，不要另找入口。
+
+组装入口按你所处的环境二选一，不要混用：
+
+| 你在哪 | 用什么 |
+| --- | --- |
+| 已安装 runtime（日常使用） | `prepare-author-package.ps1 -Package <deck.config.json>`（底层为 `assemble-author-package.cjs <pluginRoot> <deck.config.json>`） |
+| html-indesign 仓库开发 | `npm run assemble:authoring -- -- --package <deck.config.json>` |
 
 3. 只交付 HTML 时，或创作过程中想提前发现问题，运行作者检查。先把参数写入 `lint.args.json`：
 
@@ -64,7 +71,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 - `img[src]` 是图片资源，`object[data]` 是 PDF/AI 等资源；资源后缀已经明确时不必重复写类型。
 - `object` 内只有一个普通 `img` 时，它是标准浏览器 fallback，转换层不会把它编译成第二份资源。
 - 普通 `div/figure` 只包含一个真实 `img/object/svg` 时，可以继续作为视觉图框；边框、背景、padding 和图框样式留在 wrapper。
-- 纯文字 `div` 可以直接写，转换层会把它识别为文字对象。
+- 纯文字 `div` 可以直接写，转换层会把它识别为文字对象；布局容器里的裸 `<span>` 文本同样会被当作文本叶子捕获（`HTML_ROLE_INFERRED`），不用套一层 `p`。只有直接文本和块级子元素混排在同一个容器里时才阻断。
+- `::before`/`::after` 里的纯字符串 `content` 可以直接写，转换层会把它物化成真实文本并并入宿主文字（`HTML_PSEUDO_CONTENT_MATERIALIZED`）；`counter()`、`attr()`、`url()` 这类动态 content 仍要改成真实元素。
 - 简单内联 SVG 可以直接写 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline` 和 `polygon`，转换层会生成可编辑的 InDesign 原生矢量；`cx="50%"`、`r="25%"`、`width="100%"` 等常见长度也可以直接写，不需要改成协议专用 `div`。
 - 空 `div` 使用 `background`、`border` 和 `border-radius: 50%` 或 `100%` 画圆或椭圆也可直接使用；方形大圆角圆点会生成 Oval，非方形胶囊保留圆角矩形。
 
@@ -79,6 +87,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。读取返回的 `compatibility.summary` 和全部 `compatibility.messages`：
 
 - `action: "normalized"` 表示写法含义唯一，CLI 已在本次转换中安全理解；可以继续 compile/build。
+- 计数口径：`warningCount` 只统计需要你判断的真警告；`action:"normalized"` 的条目单列在 `normalized`/`normalizedCount`（按 code 折叠见 `normalizedSummary`）。归一化数量大不代表有事要做，不要为清零 `normalizedCount` 去逐个补显式属性。
 - `suggestedFix` 表示推荐的显式写法。需要长期维护或承诺作者源码回环零漂移时，把建议写回 `pages/*.html` 或 CSS，重新组装并 lint。
 - `blocked > 0` 或 lint error 表示系统不能可靠判断。按消息中的页面、对象、`suggestedFix` 和 `ruleRef` 修改；不得原样重试。
 
@@ -87,7 +96,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 | code | 修改作者源码 |
 | ---- | ------------ |
 | `HTML_INLINE_SVG_UNSUPPORTED` | 先修正缺失/无效的尺寸和坐标；再把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源 |
-| `HTML_PSEUDO_ELEMENT_UNSUPPORTED` | 把 `::before` / `::after` 的可见内容改成真实 HTML 元素；装饰几何可改成基础 SVG |
+| `HTML_PSEUDO_ELEMENT_UNSUPPORTED` | 只在动态 content（`counter()`/`attr()`/`url()`）或纯装饰 paint 伪元素上出现：把动态 content 改成写死静态文字的真实 HTML 元素，装饰几何改成基础 SVG。静态字符串 content 已自动物化，不会报这个码 |
 | `HTML_CLIP_PATH_UNSUPPORTED` | 改用 SVG `polygon/path`，或外部 SVG |
 | `HTML_GRADIENT_UNSUPPORTED` | 单色透明度渐变可保留；多色渐变改成外部资源 |
 | `HTML_CSS_BORDER_SHAPE_UNSUPPORTED` | 把透明边框拼出的三角形等轮廓改成 SVG `polygon/path` |
@@ -104,7 +113,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 - 每个 `pages/*.html` 只包含一个 `<section class="page">`。
 - 检查的严格程度由 `strict` 决定：`html.authoring_lint` 默认 `strict:false`；`html.build_indesign` 编译前会用固定 `strict:true` 重新跑一次同样的检查，不受 `mode:final/draft` 影响。默认参数 lint 通过不代表 build 会通过——网格对齐、语义 token 等规则只在 `strict:true` 下才会从 warning 升级成拦截 error。创作阶段就按第 3 步用 `strict:true` 跑 lint，不要等 build 才发现。
 - 每页声明 `data-page`、`data-id-layout`、`data-id-margin` 和 `data-id-grid`；这四个属性只在页面根元素（`<section class="page">` 自身）上生效，写在子元素上不会被读取。`data-id-grid` 声明的是网格本身（列数/行数，配合 `data-id-margin`、`data-id-column-gutter`/`data-id-row-gutter` 反推整页网格线），和下面 `.grid-item` 用的 `--grid-col` 等 CSS 变量不是同一层——后者只决定某个元素落在网格的哪一格，不影响网格线怎么算，两者作用域不同、不能互相替代。
-- `.grid-item` 声明 `--grid-col`、`--grid-span`、`--grid-row` 和 `--grid-row-span` 让元素在页面 CSS Grid 里就位；但元素实际渲染出的几何边界仍要落在反推网格线的容差内才算对齐，超出报 `GRID_ALIGNMENT_OFF`（`strict:true` 下升级为 error）。容差默认 1mm，可以用 `html.authoring_lint`/`html.build_indesign` 的 `gridTolerance` 参数放宽（单位 mm）。但放宽容差只该用于确认过版式本身没问题、纯粹是渲染取整导致的越界；成片报错时先改作者源码或用 `data-id-grid-ignore` 豁免，不要靠调大容差把真实的版式偏差盖过去。四边分别核对：文字、表格和 `data-id-role="container"` 的元素只核对 left/top/right，不核对 bottom；其余角色四边都核对。正常写法很容易因为子像素取整或 CSS 计算偏出 1mm，不能凭视觉判断对齐，写完就该跑一次 strict lint 核实。大量报错且集中在同一个 code 时，先怀疑是网格声明（`data-id-grid`、gutter 值）跟实际 CSS 布局对不上这一个系统性原因，不要逐个元素改坐标。
+- `.grid-item` 声明 `--grid-col`、`--grid-span`、`--grid-row` 和 `--grid-row-span` 让元素在页面 CSS Grid 里就位；但元素实际渲染出的几何边界仍要落在反推网格线的容差内才算对齐，超出报 `GRID_ALIGNMENT_OFF`（`strict:true` 下升级为 error）。容差默认 1mm，可以用 `html.authoring_lint`/`html.build_indesign` 的 `gridTolerance` 参数放宽（单位 mm）。但放宽容差只该用于确认过版式本身没问题、纯粹是渲染取整导致的越界；成片报错时先改作者源码或用 `data-id-grid-ignore` 豁免，不要靠调大容差把真实的版式偏差盖过去。四边分别核对：文字、表格和 `data-id-role="container"` 的元素只核对 left/top/right，不核对 bottom；其余角色四边都核对。文字元素还多一档豁免——既没声明宽度（`width`/`min-width`/`grid-column`/`flex-basis`）又没声明网格跨度（`--grid-col`/`--grid-span`）时宽度由内容撑开，右边缘也不核对，页标题这类自动宽度文字不用为了压线补假宽度。正常写法很容易因为子像素取整或 CSS 计算偏出 1mm，不能凭视觉判断对齐，写完就该跑一次 strict lint 核实。大量报错且集中在同一个 code 时，先怀疑是网格声明（`data-id-grid`、gutter 值）跟实际 CSS 布局对不上这一个系统性原因，不要逐个元素改坐标。
 - 元素确实需要故意偏离网格（跨网格、贴边出血等设计意图）时，在该元素或其祖先上加 `data-id-grid-ignore`，跳过它的对齐校验——这是合法逃生舱，但它是元素级豁免，跟页面级的 `data-id-grid` 声明不是同一件事：报 `GRID_ALIGNMENT_OFF` 时，先分清是「网格声明本身错了」还是「这个元素本就该豁免」，对症下药；同一个元素上把两者都改一遍不会让网格声明的错误消失。
 - 交付内容必须静态可见；不得依赖可执行脚本、远程运行时、远程样式、动画或异步数据。
 - Canvas 图表转成 SVG；图片、PDF、PSD、AI 和 SVG 保留真实资源引用。
@@ -113,7 +122,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 - AI 画板在实际 `object` 上写 `data-id-asset-kind="ai"` 和 `data-id-artboard`；`object` 内唯一的普通 `img` 可直接作为标准 fallback。只有预览图位于 object 外部、存在多个候选图片或不是标准 fallback 结构时，才用 `data-id-ignore` 明确排除；原始 AI 的 `data` 仍是置入事实。
 - 带填充的祖先容器不得位于嵌套资源元素之上的 InDesign 图层，例如 `content` 层白色面板嵌套 `image` 层总图；这会触发 `NESTED_LAYER_PAINT_ORDER_UNSUPPORTED`。把背景改成同层或更低层的独立兄弟对象，或降低祖先图层。**这条规则只在生成 InDesign 指令时检查**（`html.compile_instructions`、`html.build_indesign` 都会跑），`html.authoring_lint` 查不到它——lint 全绿不代表这条已经通过。写嵌套资源且祖先容器带填充/背景时手动核对图层顺序；不确定就先跑一次成本更低的 `html.compile_instructions`，不要留到跑完整个 `html.build_indesign` 才发现。
 - 外层卡片、栏、图例只要包含带 `data-id-paragraph-style` 的 `p`、标题或 `span`，外层就写 `data-id-role="container"`，不要写 `text`；HTML/CSS 结构不用改，文字样式留在子元素上。
-- 简单内联 SVG 使用 `path/circle/ellipse/rect/line/polyline/polygon`；其中 path 只用 `M/L/C/Z`（可用相对命令）。复杂 SVG 使用外部 SVG 资源；不要用伪元素、`clip-path` 或透明边框技巧替代基础 SVG 图元。
+- 简单内联 SVG 使用 `path/circle/ellipse/rect/line/polyline/polygon`；其中 path 只用 `M/L/C/Z`（可用相对命令）。复杂 SVG 使用外部 SVG 资源；不要用 `clip-path`、透明边框技巧或纯装饰伪元素替代基础 SVG 图元（`::before`/`::after` 的静态字符串 content 是文字，不受这条限制，会被物化成真实文本）。
 - `data-id-paragraph-style`/`character-style`/`object-style`/`frame-style`/`table-style`/`cell-style`/`layer`/`semantic`/`asset-kind`/`fit`/`crop` 的取值都是封闭词表，不能自己起名。前 8 个（到 `semantic` 为止）用了词表外的值报 `SEMANTIC_TOKEN_UNKNOWN`，只有 `strict:true` 时才是 error，否则是 warning；后 3 个资源属性（`asset-kind`/`fit`/`crop`）用了词表外的值报 `SEMANTIC_ASSET_KIND_UNKNOWN`/`_FIT_UNKNOWN`/`_CROP_UNKNOWN`，不分是否 strict 恒为 error。默认词表文件是 html-indesign 安装目录下的 `presets/architecture-report/semantic-preset.json`：前 7 个样式类属性的合法值是该文件 `styleNameMap.<对应 kind>`（如 `paragraphStyles`）里的 key，`semantic`/`asset-kind`/`fit`/`crop` 的合法值是 `tokens.<kind>`（如 `semantic`/`assets`/`fits`/`crops`）数组里的项。项目在 `deck.config.json` 里声明了 `semanticPreset`（包内相对路径）或 `profile`（标准语义库名）时以那份文件为准；两者都没声明就静默回退到上面的默认文件——不确定当前项目在用哪份词表，直接打开对应文件确认，不要凭经验猜。**不确定某个值是否登记过，就不写这个属性**：转换层会从标签名或内容安全推断角色，只触发 `SEMANTIC_TOKEN_MISSING` 告警——这条告警和上面的 `*_UNKNOWN` 不是一回事，它标了不参与 strict 升级，永远不会变成 error，比自己编一个词表外的值安全得多。
 - 固定高度的文本对象必须让文字真正排得进内框：`height ≥ 行高 × 行数 + padding-top + padding-bottom`。浏览器允许行盒溢出内容盒照常显示，InDesign 的 inset 是硬边界，排不下的整行会溢出隐藏，成品里该对象就是空的；构建核对会以 `content.text` 差异拦下。宁可加高度或去掉上下 padding，不要依赖浏览器的溢出宽容。
 

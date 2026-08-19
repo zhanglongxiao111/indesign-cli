@@ -140,6 +140,22 @@ def test_argparse_errors_emit_json_envelope():
     assert payload["error"]["hint"]
 
 
+def test_top_level_health_redirects_to_server_health():
+    result = run_module("health")
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["error"]["code"] == "BAD_CLI_ARGS"
+    assert "server health" in payload["error"]["hint"]
+    assert "indesign-cli-agent" in payload["error"]["hint"]
+
+
+def test_generic_bad_args_hint_unchanged():
+    result = run_module("tool", "schema")
+    payload = json.loads(result.stdout)
+    assert "indesign-cli --help" in payload["error"]["hint"]
+    assert "server health" not in payload["error"]["hint"]
+
+
 def test_scrub_text_paths_keeps_workspace_paths_relative(tmp_path):
     from cli_anything.indesign.core.paths import scrub_text_paths
 
