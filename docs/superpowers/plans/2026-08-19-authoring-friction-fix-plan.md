@@ -1429,6 +1429,24 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
+## 批 5 · 真实数据 E2E 反馈修复（2026-08-20 追加）
+
+**背景**：用 0819 真实作者包做「反修复」E2E（现场在 html 仓库 `test/workspace/e2e-0819-real-deck/`）：A1/A2/C1/B4 全部兑现（A1 逐条同位置比对 19/20 + 1 并流；A2 精确 4 条物化；warningCount 53→0 / normalizedCount 44；归档修剪 3 份实测），**但 A3 在真实包上零触发**，反修复后 15 条 GRID_ALIGNMENT_OFF。
+
+### Task 11: A3 真实缺口修复 + E2E 抛光
+
+**根因与修法**：
+1. `hasDeclaredWidth` 读 `item.cssVars['--grid-span']`，而 CSS 自定义属性会继承——`.page-head` 声明的值被 h2 继承导致误判。修：捕获层 `cssVarsFor()` 只保留元素自有声明（computed 值与父元素相同即视为继承、丢弃）。
+2. A1 提升的页眉徽标（flex space-between 子项）left/top 天然不落网格线。修：捕获层新增 `inFlexFlow` 事实（父元素 display 含 flex 且自身 position 为 static/relative），`shouldCheckGrid` 对「text 角色 + inFlexFlow + 无声明宽度」整体豁免（flex 排布的文本家具作者无法对齐网格）。既有 folio 用例（合成 item 无 inFlexFlow）不受影响。
+
+**抛光三项**（E2E 发现）：`scripts/lint-authoring.js` 人读输出补 `Normalized:` 行并区分前缀（原先 `Warnings: 0` 下面跟 75 行 `[warning]` 自相矛盾）；`authoring-lint.js`/`build-indesign.js` 的 metrics 补 `normalized_count`（遥测可见 C1 完整口径）；`SEMANTIC_TOKEN_MISSING` 跳过 `data-pseudo-generated` 物化产物。
+
+**验收**：defixed 副本严格 lint 0 error；`probe-gridonly` 0 error；全量测试绿。已知留档不修：`compatibility.summary` 维持子对象自身口径（level 计数，内部自洽）；failed 归档时间戳维持 UTC（与遥测 ts 同口径）。
+
+> ✅ **已完成** 2026-08-20，commit `f858234`（10 文件）。真实包反修复复验 **15→1**：两个根因的 14 条全灭；残余 1 条（p1-el3）经审定为**真阳性保留**——作者同时声明 `--grid-span:8` 与 `max-width:980px` 属矛盾声明，lint 指出它是本职，作者侧正解是 `data-id-grid-ignore` 或消除冲突（验收标准由「0 error」修正为「0 假阳性」）。全量 1249/1249 绿；`authoring-lint-feedback.test.js` 的 grid 事故基线 73→56（掉的 17 条经逐条核对均为 flex 家具噪声，审核通过）。另留档：本机 Node v22 下 `node --test a.js b.js` 只跑第一个文件，多文件验证须逐个跑或走 npm test。
+
+---
+
 ## 收尾：与设计 §7 验收标准对照
 
 | 设计验收 | 由谁覆盖 | 形态 |
