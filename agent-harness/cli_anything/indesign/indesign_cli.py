@@ -44,15 +44,31 @@ def repo_root() -> Path:
 _PRETTY = False
 
 
+# 实测踩过的跨命令面/旧用法混淆映射；只收录真实事故 token，不做模糊匹配。
+_SUBCOMMAND_REDIRECTS = {
+    "health": "顶层 `health` 属于 indesign-cli-agent（bootstrapper 可执行文件）；"
+    "本 CLI 的健康检查是 `indesign-cli server health`。",
+    "lint": "作者包检查用 `indesign-cli tool call html.authoring_lint --args-file args.json`。",
+    "build": "构建用 `indesign-cli tool call html.build_indesign --args-file args.json`。",
+}
+
+
 class AgentArgumentParser(argparse.ArgumentParser):
     """argparse 错误也走 JSON envelope，保持全 CLI 契约闭环。"""
 
     def error(self, message: str) -> None:
+        hint = "用 `indesign-cli --help` 或对应子命令 `--help` 查看用法；JSON 参数优先用 `--args-file` 传文件。"
+        marker = "invalid choice: '"
+        if marker in message:
+            token = message.split(marker, 1)[1].split("'", 1)[0]
+            redirect = _SUBCOMMAND_REDIRECTS.get(token)
+            if redirect:
+                hint = f"{redirect} {hint}"
         raise CliError(
             f"Invalid command line: {message}",
             code="BAD_CLI_ARGS",
             details={"usage": self.format_usage().strip()},
-            hint="用 `indesign-cli --help` 或对应子命令 `--help` 查看用法；JSON 参数优先用 `--args-file` 传文件。",
+            hint=hint,
         )
 
 
