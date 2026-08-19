@@ -147,3 +147,11 @@ A1/A2/A3 落地后，两份 authoring 指引同步更新（权威源 → 精简�
 | 批 2 | A1、A3、C2 | 消除 28/32 个错误；A1 依赖快照层改动，与 C2 同文件顺手做 |
 | 批 3 | A2、B4 | A2 涉及语义模型注入合成 item，需保真验证（验收 5）兜底 |
 | 批 4 | C1 + 文档同步 | 口径变化牵动遥测周报，放最后统一切换 |
+
+## 9. 实施注记（2026-08-19/20）
+
+实施计划见 `../plans/2026-08-19-authoring-friction-fix-plan.md`。三处与本设计的偏差：
+
+1. §3 A1 未新增 `HTML_TEXT_LEAF_INFERRED` 码：孤儿 span 提升为文本候选后，既有 `HTML_ROLE_INFERRED` 分支自动覆盖其归一化消息，避免双码同义。
+2. §3 A3 未对被豁免的右边发 info 条目：每页页标题都命中会产出恒定 per-page 噪音，与 C1 降噪目标冲突；豁免规则改为写入两侧 authoring 文档。
+3. §5 C1 实施中发现并修复计划未预见的嵌套归一化问题（`lintAuthoringPackage` 二次归一化会丢弃已拆分的 normalized 条目），修法为把 `htmlResult.normalized` 带回警告池。
