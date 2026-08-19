@@ -7,7 +7,7 @@
 1. 从内置起步模板创建作者包：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Destination "<author-root>" -Title "汇报标题"
 ```
 
 2. 编辑以下内容：
@@ -20,7 +20,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 不要手改 `deck.html`。每次修改页面、样式或配置后重新组装：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-author-package.ps1" -Package "<author-root>\deck.config.json"
 ```
 
 `AUTHOR_GENERATED_ENTRY_DIRTY` 就是在提示这一步没做或没做完；该错误的 `hint` 里带着可直接复制的组装命令，照它重跑即可，不要另找入口。
@@ -87,6 +87,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\pre
 每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。读取返回的 `compatibility.summary` 和全部 `compatibility.messages`：
 
 - `action: "normalized"` 表示写法含义唯一，CLI 已在本次转换中安全理解；可以继续 compile/build。
+- 计数口径：`warningCount` 只统计需要你判断的真警告；`action:"normalized"` 的条目单列在 `normalized`/`normalizedCount`（按 code 折叠见 `normalizedSummary`）。归一化数量大不代表有事要做，不要为清零 `normalizedCount` 去逐个补显式属性。
 - `suggestedFix` 表示推荐的显式写法。需要长期维护或承诺作者源码回环零漂移时，把建议写回 `pages/*.html` 或 CSS，重新组装并 lint。
 - `blocked > 0` 或 lint error 表示系统不能可靠判断。按消息中的页面、对象、`suggestedFix` 和 `ruleRef` 修改；不得原样重试。
 

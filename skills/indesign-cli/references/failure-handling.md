@@ -26,3 +26,7 @@
   | `runtime_error` | 其余情况，包含疑似工具本身的缺陷；未被归入前四类的错误码默认落在这里 | 收集 `error.details` 完整上报；不要用相同输入反复重试指望它自己变好 |
 
 `error.category` 由 `error.code` 归类得到，不认识的代码一律保守归到 `runtime_error`，不会被误标成门禁拒绝——所以看到 `runtime_error` 不代表一定是工具缺陷，也可能只是这个错误码还没被归类，实际定位仍要看 `error.details`。
+
+## 失败报告落盘
+
+`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）；失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。
