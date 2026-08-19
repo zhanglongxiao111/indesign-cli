@@ -20,7 +20,7 @@ tags:
 
 ## 通用规则
 
-- 公司成品统一使用 `indesign-cli-agent`。**一律用绝对路径调用**（Setup 返回的 `registration.launcher_abspath`，下文写作 `<agent-exe>`）；只有 `Get-Command indesign-cli-agent` 能查到时才可用裸命令。PowerShell 优先用 `pwsh`（PowerShell 7）：SA-AIAPP 运行环境已默认配置 `shell: pwsh` 并自动安装便携版（PATH 已前插，环境变量 `SA_AGENT_PWSH` 指向其绝对路径）；只有 `pwsh` 确实不存在时才退回 `powershell.exe`（5.1，注意无 BOM 脚本按 ANSI 解码、中文输出易乱码）。两者都加 `-NoProfile -ExecutionPolicy Bypass`。
+- 公司成品统一使用 `indesign-cli-agent`。**一律用绝对路径调用**（Setup 返回的 `registration.launcher_abspath`，下文写作 `<agent-exe>`）；只有 `Get-Command indesign-cli-agent` 能查到时才可用裸命令。PowerShell 优先用 `pwsh`（PowerShell 7）：SA-AIAPP 运行环境已默认配置 `shell: pwsh` 并自动安装便携版（PATH 已前插，环境变量 `SA_AGENT_PWSH` 指向其绝对路径）；`pwsh` 确实不存在时：不涉及中文读写的命令可退回 `powershell.exe`；涉及中文路径/内容的操作宁可显式报错要求安装 PowerShell 7，不要用 5.1 静默处理（ANSI 解码会损坏中文数据）。两者都加 `-NoProfile -ExecutionPolicy Bypass`。
 - 调用工具前先运行 `tool schema <tool_id>`（`<tool_id>` 是位置参数）；`tool search` 必须带 `--query`；`tool list` 没有 `--all`。
 - 复杂参数一律写入 UTF-8 JSON 文件再用 `--args-file` 传入；内联 JSON 会被 shell 转义打坏。
 - 不关闭或覆盖用户已经打开的文档；需要改原文件时先确认，默认另存新文件。

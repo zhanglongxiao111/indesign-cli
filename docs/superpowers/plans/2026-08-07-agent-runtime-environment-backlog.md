@@ -6,7 +6,9 @@
 
 已完成部分见 `docs/superpowers/plans/2026-08-07-agent-incident-p0-followup-plan.md` 与 `html-indesign` 仓库 `docs/bugfix/2026-08-07-fidelity-gate-strokeweight-and-text-overset.md`。
 
-## T1　切换到 PowerShell 7（当前被前置条件阻塞）
+## T1　切换到 PowerShell 7（✅ 前置条件已满足，2026-08-20 落地）
+
+> **状态注记（2026-08-20）**：方案 A 已由 SA-AIAPP 侧实现——agent toolbox 从 NAS 自动安装便携 PowerShell 7，opencode 运行时写死 `shell: "pwsh"`，PATH 前插 + `SA_AGENT_PWSH` 兜底（SA-AIAPP 批次 B，`agentToolboxProvision.ts`/`opencodeRuntimeShell.ts`，有单测断言）。据此本仓库已执行解锁后动作 1-4：`skills/indesign-cli/` 全部改为 `pwsh` 优先、SKILL.md 通用规则同步、中文操作禁止静默回落 5.1、ASCII-only 规则（T2）保留。`prepare-author-package.ps1` 另已修复 UNC/中文/provider 前缀路径（2026-08-19 摩擦修复批次）。
 
 **目标**：Skill 文档和脚本调用从 `powershell.exe`（Windows PowerShell 5.1）切到 `pwsh`（PowerShell 7+）。
 

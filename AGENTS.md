@@ -106,7 +106,7 @@
 - builtin 插件来自当前 runtime 的 `plugins/*`，source 为 `builtin`；项目级同 ID 插件可覆盖 builtin 供开发调试。builtin 缺损必须在 health/doctor 中显式报告。
 - 系统浏览器固定为 Edge；允许 `HTML_INDESIGN_BROWSER_EXECUTABLE` 覆盖受控路径。Skill 仍由外部渠道独立发布，CLI 不自动安装。
 - `skills/**/*.ps1` 必须保持纯 ASCII。Windows PowerShell 5.1 按 ANSI 代码页解码无 BOM 脚本，非 ASCII 字节产生的乱码会吞掉下一行代码，使赋值静默消失。由 `test_published_skill_powershell_scripts_are_pure_ascii` 守护。
-- 发布文档中的 PowerShell 调用当前固定为 `powershell.exe -NoProfile -ExecutionPolicy Bypass`：工位不保证装有 `pwsh`，写 `pwsh` 会退化为"命令找不到"。切换到 PowerShell 7 的前置条件和动作清单见 `docs/superpowers/plans/2026-08-07-agent-runtime-environment-backlog.md` T1，未满足前不要改。
+- 发布文档中的 PowerShell 调用统一 `pwsh -NoProfile -ExecutionPolicy Bypass`（PowerShell 7 优先）。T1 前置条件已于 2026-08 满足：SA-AIAPP agent toolbox 自动安装便携 pwsh 并前插 PATH（`SA_AGENT_PWSH` 兜底），见 backlog T1 状态注记。`pwsh` 确实不存在时，不涉及中文读写的命令可退回 `powershell.exe`；涉及中文路径/内容的操作宁可显式报错要求安装 PowerShell 7，不得静默落回 5.1（ANSI 解码会损坏数据）。ASCII-only 脚本规则（T2）继续保留作纵深防御。
 - `0.4.2` 用户不做旧更新协议兼容，由公司 Agent 从 NAS 重新运行一次新版 Setup 完成迁移。
 - `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
