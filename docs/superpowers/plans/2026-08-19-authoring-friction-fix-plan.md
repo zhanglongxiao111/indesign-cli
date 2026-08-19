@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> 🏁 **执行完毕（2026-08-20）**：10/10 任务完成，双仓库分支 `fix/authoring-friction-0819`。html-indesign 8 个 commit（253475d…c3a9b51），全量 1245/1245 绿；mcp-indesign 4 个 commit（1bab285…d6ca5de），285 passed + 2 skipped。执行方式：Opus 5 子代理逐任务实现，控制器逐提交审查。待决策：合入 main/master 时机；遥测 `plugin_metrics` 是否补 `normalized_count`；批 3 手动验收（真机 InDesign 跑一次 friction deck 过保真门）尚未执行。
+
 **Goal:** 落地 `2026-08-19-authoring-friction-fix-design.md`：把 LLM 高频 HTML 写法从「lint 拒绝」改为「自动归一化」，并修掉脚手架三个工程坑（UNC 路径、双组装脚本、废命令提示）与报告覆盖问题。
 
 **Architecture:** 改动横跨两个仓库。`D:\AI\mcp-indesign`（任务 1-2：CLI argparse 提示、PS1 路径解析）与 `D:\AI\html-indesign`（任务 3-10：浏览器捕获层归一化、lint 规则、报告落盘、计数口径）。捕获层（`browser-element-capture.js` 等）运行在 Playwright 页面上下文里，通过 `renderSnapshot()` 端到端测试；`validateAuthoringRules` / `normalizeLintPayload` / `auditHtmlCompatibility` 是纯函数，直接单测。
@@ -57,6 +59,8 @@
 ## 批 1 · mcp-indesign 仓库
 
 ### Task 1: `BAD_CLI_ARGS` 定向迁移提示（B3）
+
+> ✅ **已完成** 2026-08-19，commit `ad55353`。TDD 红→绿；三 token 映射 + 未知 token 回落均实测验证；hint 指向的工具 id 已对照 plugin catalog 确认真实存在。测试基线勘误：实际是 283 passed + 2 skipped（计划写 282），现为 285 + 2 skipped。
 
 **Files:**
 - Modify: `D:\AI\mcp-indesign\agent-harness\cli_anything\indesign\indesign_cli.py:47-56`
@@ -149,6 +153,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ### Task 2: `prepare-author-package.ps1` 支持 UNC/中文/provider 前缀路径（B1，P0）
+
+> ✅ **已完成** 2026-08-19，commit `7e9ef98`。冒烟五例全过（PS5.1 中文/provider 前缀/真实 NAS UNC + pwsh 两例），并用 HEAD 旧脚本复现了原始 `GetFullPath` 异常作对照；额外验证了 `-Package` provider 前缀、`INDESIGN_CLI_RUNTIME_ROOT` provider 前缀与不存在两种情况。计划文本两处勘误：Step 5 的 grep 会命中新注释里的 `GetFullPath` 字样（活调用点为零，注释保留）；成功输出实为 JSON（`{"ok":true,...}`）而非 `Wrote ...`。
 
 **Files:**
 - Modify: `D:\AI\mcp-indesign\skills\indesign-cli\scripts\prepare-author-package.ps1`（全文仅 84 行）
@@ -260,6 +266,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ### Task 3: `assemble-authoring.js` 报错双轨指路（B2）
 
+> ✅ **已完成** 2026-08-19，commit `29af242`（fix/authoring-friction-0819）。TDD 红→绿完整；审查通过：改动仅限目标 else 分支，测试真实拉起子进程断言 stderr。指路文案中 cjs 参数顺序已对照 mcp 仓库源码核实无误。
+
 **Files:**
 - Modify: `D:\AI\html-indesign\scripts\assemble-authoring.js:45`
 - Test: `D:\AI\html-indesign\test\authoring\assemble-authoring-cli.test.js`
@@ -332,6 +340,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ## 批 2 · html-indesign 仓库
 
 ### Task 4: 孤儿 span 文本自动归一化（A1，消除 0819 的 20/32 个错误）
+
+> ✅ **已完成** 2026-08-19，commit `253475d`。红→绿完整，两个守护用例（p 内 span 仍为 run、混排容器仍报错）全程绿。勘误：`isNaturalTextElement` 的消费点实为 **四** 处——计划列的三处之外 `textRunsFor`（:549）也依赖它，这正是提升后的 span 能带上文本的原因（有益副作用）。
 
 **Files:**
 - Modify: `D:\AI\html-indesign\src\adapters\html\reader\browser-element-capture.js:449-456`
@@ -481,6 +491,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ### Task 5: `HTML_TEXT_NOT_CONVERTIBLE` 附带文本预览（C2）
 
+> ✅ **已完成** 2026-08-19，commit `201e673`。无既有用例受影响。
+
 **Files:**
 - Modify: `D:\AI\html-indesign\src\adapters\html\validators\authoring-validator.js:40-49`
 - Test: `D:\AI\html-indesign\test\html-to-indesign\authoring-validator.test.js`
@@ -550,6 +562,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ### Task 6: 自动宽度文本框豁免右边网格校验（A3，消除 0819 的 8/32 个错误）
+
+> ✅ **已完成** 2026-08-19，commit `e69458e`。一个既有用例按新语义更新（class-only folio：edges `['left','right']` → `['left']`，正是本任务定义的假阳性形态，用例本意经 left 边保留）。`test/html-to-indesign` 197/197 绿。
 
 **Files:**
 - Modify: `D:\AI\html-indesign\src\adapters\html\validators\authoring-validator.js:546-558`（`gridEdgesForItem`）
@@ -687,6 +701,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ## 批 3 · html-indesign 仓库
 
 ### Task 7: 伪元素静态内容物化（A2，消除 0819 的 4/32 个错误；依赖 Task 4）
+
+> ✅ **已完成** 2026-08-20，commit `9d7cbfa`。红→绿 4 例全中；`test/html-to-indesign` 全套 200/200 绿。paint 伪元素不误杀有既有 `unsupported-deck.html` 用例背书；禁用规则幂等、样式快照时序均经双页探针实测。已知边界（可接受，暂不处理）：同宿主 before+after 产两条同 pageId/itemId 的归一化消息；宿主无 id/data-id 时消息省略 itemId（仍有 pageId+hostTag）；`data-id-object` 协议对象宿主 + 伪元素的组合无用例覆盖。
 
 **Files:**
 - Create: `D:\AI\html-indesign\src\adapters\html\reader\browser-pseudo-materialize.js`
@@ -981,6 +997,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ### Task 8: 失败态报告时间戳归档（B4）
 
+> ✅ **已完成** 2026-08-20，commit `7664c1c`。三个接线点按规格落地；既有测试无断言返回形状，零波及。
+
 **Files:**
 - Create: `D:\AI\html-indesign\src\indesign-cli-plugin\report-archive.js`
 - Modify: `D:\AI\html-indesign\src\indesign-cli-plugin\lint-feedback.js:98-109`（`writeLintFailureReport`）
@@ -1128,6 +1146,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ### Task 9: `warningCount` 拆分归一化计数（C1）
 
+> ✅ **已完成** 2026-08-20，commit `e07da30`。全量 1244/1244 绿；仅 1 条既有用例更新口径。**计划勘误（已修复）**：存在嵌套归一化——`lintAuthoringPackage` 从 `htmlResult` 重新组装后二次归一化，必须把 `htmlResult.normalized` 带回警告池（lint.js:76 一行 + 注释），否则归一化条目双双消失、issueCount 从 96 缩水到 73。审核认可该计划外修复（总量守恒实测 96/96）。遗留跟进项：遥测 `plugin_metrics` 未加 `normalized_count` 字段，周报如需可后续补。
+
 **Files:**
 - Modify: `D:\AI\html-indesign\src\authoring\lint.js:171-189`（`normalizeLintPayload`）及 module.exports
 - Test: `D:\AI\html-indesign\test\authoring\lint-normalized-count.test.js`（新建）
@@ -1248,6 +1268,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ### Task 10: 0819 摩擦模式综合回归 + 文档同步
+
+> ✅ **已完成** 2026-08-20，html commit `c3a9b51` + mcp commit `d6ca5de`。fixture 一次通过无需调几何，严格模式 0 error；html 全量 1245/1245 绿。两处合理的主动处置：反馈循环 README 新起「指标口径切换点」小节（避免挂在隐私边界节下）；GRID_ALIGNMENT_OFF 不在指南的阻断表内，豁免说明改写进第 4 节网格契约段。
 
 **Files:**
 - Create: `D:\AI\html-indesign\test\fixtures\fixed-html\friction-0819-deck.html`
