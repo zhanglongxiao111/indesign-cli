@@ -28,3 +28,4 @@
 ## 指标口径切换点
 
 - 2026-08-19 起（html-indesign > 0.2.9）：lint 的 `warningCount` / 遥测 `plugin_metrics.warning_count` 不再计入 `action:"normalized"` 的兼容归一化条目（另计 `normalizedCount`）。跨版本对比 warning 数时注意口径切换点。
+- 2026-09（indesign-cli 0.5.12 / html-indesign 0.2.11 起）：lint 与 build 的 `plugin_metrics` 新增 `grid_ignored_count`（带 `data-id-grid-ignore` 的可映射元素数，含继承）、`grid_off_count`（报出的偏差条目数，含块级）、`grid_block_off_count`、`grid_checked_count`、`grid_shielded_count`、`grid_block_checked_count`、`grid_block_skipped_count`、`grid_skipped_count`；`GRID_ALIGNMENT_OFF` 改为"承担网格放置的块负责对齐、块内内容不计、块本身被量"，跨版本比较该错误数时注意。聚合结果 `friction.plugin_metrics` 从本期起给出 gated/draft 构建数、首轮保真失败率与四个网格计数的 calls/sum/max。

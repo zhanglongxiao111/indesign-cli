@@ -79,3 +79,41 @@ def test_health_summary_separates_command_result_from_component_health() -> None
         "command_failures": 1,
         "component_health_status": "not_recorded",
     }
+
+
+def _build(*, metrics: dict[str, object], ok: bool = True) -> dict[str, object]:
+    event = _call("html.build_indesign", ok=ok, error_code=None if ok else "FIDELITY_GATE_FAILED")
+    event["plugin_metrics"] = metrics
+    return event
+
+
+def test_plugin_metrics_summary_separates_gated_and_draft_builds_and_totals_grid_counts() -> None:
+    calls = [
+        _build(metrics={"fidelity_gate_ms": 20, "fidelity_error_count": 2, "grid_ignored_count": 40, "grid_off_count": 3}, ok=False),
+        _build(metrics={"fidelity_gate_ms": 18, "fidelity_error_count": 0, "grid_ignored_count": 40, "grid_off_count": 0}),
+        _build(metrics={"verify_ms": 300, "grid_ignored_count": 7}),
+        _call("html.authoring_lint", ok=False, error_code="AUTHORING_LINT_FAILED"),
+    ]
+    calls[-1]["plugin_metrics"] = {"grid_ignored_count": 5, "grid_off_count": 12, "grid_block_checked_count": 15}
+
+    result = aggregate_module.plugin_metrics_summary(calls)
+
+    assert result == {
+        "build_calls": 3,
+        "gated_builds": 2,
+        "gated_builds_fidelity_failed": 1,
+        "gated_fidelity_failure_rate": 0.5,
+        "draft_builds": 1,
+        "grid_ignored_count": {"calls": 4, "sum": 92, "max": 40},
+        "grid_off_count": {"calls": 3, "sum": 15, "max": 12},
+        "grid_block_checked_count": {"calls": 1, "sum": 15, "max": 15},
+        "grid_checked_count": {"calls": 0, "sum": 0, "max": 0},
+    }
+
+
+def test_plugin_metrics_summary_is_all_zero_without_metrics() -> None:
+    result = aggregate_module.plugin_metrics_summary([_call("export.verify")])
+
+    assert result["build_calls"] == 0
+    assert result["gated_fidelity_failure_rate"] == 0.0
+    assert result["grid_ignored_count"] == {"calls": 0, "sum": 0, "max": 0}

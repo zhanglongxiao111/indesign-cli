@@ -196,6 +196,46 @@ def health_check_summary(calls: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+GRID_METRIC_KEYS = (
+    "grid_ignored_count",
+    "grid_off_count",
+    "grid_block_checked_count",
+    "grid_checked_count",
+)
+
+
+def _plugin_metrics(call: dict[str, Any]) -> dict[str, Any]:
+    metrics = call.get("plugin_metrics")
+    return metrics if isinstance(metrics, dict) else {}
+
+
+def _metric_stat(calls: list[dict[str, Any]], key: str) -> dict[str, int]:
+    values = [int(_plugin_metrics(call)[key]) for call in calls if isinstance(_plugin_metrics(call).get(key), (int, float))]
+    return {"calls": len(values), "sum": sum(values), "max": max(values) if values else 0}
+
+
+def plugin_metrics_summary(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """插件自报的 metrics 视角：保真门禁是否运行、首轮是否被拦、网格豁免/偏差/实测规模。
+
+    draft 构建的特征是只有 verify_ms、没有 fidelity_gate_ms；没有 plugin_metrics 的事件不计入。
+    grid_block_checked_count / grid_checked_count 用来区分"全部对齐"和"什么都没量"。
+    """
+    builds = [call for call in calls if call.get("tool_id") == "html.build_indesign"]
+    gated = [call for call in builds if "fidelity_gate_ms" in _plugin_metrics(call)]
+    draft = [call for call in builds if "fidelity_gate_ms" not in _plugin_metrics(call) and "verify_ms" in _plugin_metrics(call)]
+    fidelity_failed = [call for call in gated if int(_plugin_metrics(call).get("fidelity_error_count") or 0) > 0]
+    summary: dict[str, Any] = {
+        "build_calls": len(builds),
+        "gated_builds": len(gated),
+        "gated_builds_fidelity_failed": len(fidelity_failed),
+        "gated_fidelity_failure_rate": rate(len(fidelity_failed), len(gated)),
+        "draft_builds": len(draft),
+    }
+    for key in GRID_METRIC_KEYS:
+        summary[key] = _metric_stat(calls, key)
+    return summary
+
+
 def feedback_by_code(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     counts: Counter[str] = Counter()
     tools: dict[str, set[str]] = defaultdict(set)
@@ -248,6 +288,7 @@ def aggregate(input_path: Path) -> dict[str, Any]:
             "script_run_analysis": script_run_analysis(sessions),
             "health_checks": health_check_summary(calls),
             "feedback_by_code": feedback_by_code(events),
+            "plugin_metrics": plugin_metrics_summary(calls),
         },
         "origin_distribution": distribution(events, sessions, "origin_key"),
         "cwd_distribution": distribution(events, sessions, "cwd_hash"),
