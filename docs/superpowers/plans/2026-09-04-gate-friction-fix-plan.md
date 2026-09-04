@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> 🏁 **执行记录（2026-09-05）**：Task 0-16 完成，Task 17 进行到构建阶段（发布 NAS/Skill 需作者确认后执行）。html-indesign 分支 `fix/gate-friction-0904` 31 个提交（e3d6e18…7b3dd37），全量 1306 绿（1 个与本次无关的 SVG 偶发用例在并发负载下抖动，单跑通过）；mcp-indesign 同名分支 5 个提交（5093609…3b60fe9），pytest 291 passed + 2 skipped。执行方式：每任务一个子代理（机械任务 Sonnet、其余 Opus），每任务规格审查 + 质量审查各一轮，审查提出的 Important 项均以跟进提交落地。**与计划的实质偏差**：
+> - Task 6 的 mtime 过滤被审查否决（工位与 NAS 时钟可差数分钟），改为开工前给三个产物拍 `{mtimeMs,size}` 快照、收尾时自比（5784dfc）；成功路径也用同一判定，陈旧产物报 `BUILD_ARTIFACTS_MISSING` 并列 `details.stale`。
+> - Task 5 的 `PREVIOUS_OUTPUT_CLOSED` 原本无人读取；补了宿主脚本警告全阶段收集，成功结果 `data.warnings`、失败结果 `error.details.hostWarnings` 都带（5b9b1a9、2389fa0、a32cbb7、c5056ef）。
+> - Task 8 落地后发现"母元素负责对齐"只做了一半：无边框包裹块不是捕获对象，没人量它。补了捕获层给承担放置的祖先节点记 `rectPx/boundsMm`、校验器量块本身（`block: true`、`blockOf`）、八个网格计数区分"全部对齐"与"什么都没量"（2a4cff3、11d33c2、b7f7e0d、4f2aa7a）。真实 fixture：15 个块全部被量且在线上，0+75+19+0=94 账本闭合。
+> - Task 1 的 `table.headerRowCount = n` 被真机 E2E 证明是**追加**空表头行而非原地转换，整表错一行；改为逐行 `rowType = RowTypes.HEADER_ROW`（9b8073e）。真机结果：8 页 2 表零差异。
+> - Task 13 为满足既有契约测试做了两处附带改动：新页加页码母版覆盖；`data-table` 类名在**发行预设**里映射为 `数据表格`（否则落到英文 `default-table`）。随后把英文兜底名统一改为 `默认表格`（7b3dd37）。
+> - Task 3 补了 hint 取"第一条带 hint 的差异"并带定位（3b9aaa8、ebcd5a9）；Task 4 补了 `finish()` 形状守卫与 vm 行为测试（85cebf4）。
+> **未做/待办**：D-6 draft 文件名后缀、B2-3 CLI 通用层 `formatScriptResult`（设计 §9）；网格线区分列起/列止（审查发现整条 gutter 宽度的偏差会被放过）；`table-source-html.js` 反向路径的表头口径同步；`hi_reverse_tables.jsxinc` 的表头样式名启发式在 headerRowCount 已落地后是否保留；rowspan 跨表头边界目前跳过转换并告警，无 fixture 覆盖；`svg-vector-geometry.test.js` 偶发用例。
+
 **Goal:** 落地 `docs/superpowers/specs/2026-09-04-gate-friction-fix-design.md`：表格保真门禁不再误判、目标 INDD 已打开时 1 秒内失败且文案可读、网格门禁按"母元素负责对齐"重定义并给出偏移量、五处文案/文档快通道。
 
 **Architecture:** 改动横跨两个仓库。`D:\AI\html-indesign`（任务 1-15：JSX 执行库、保真比对、宿主模板、浏览器捕获层、作者校验器、lint 反馈、文档）与 `D:\AI\mcp-indesign`（任务 14 后半、16、17：Skill 文档、遥测聚合、runtime 发布）。捕获层代码运行在 Playwright 页面上下文里，通过 `renderSnapshot()` 端到端测试；其余模块都是纯 Node 单测。
