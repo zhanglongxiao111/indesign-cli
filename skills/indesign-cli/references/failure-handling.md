@@ -29,4 +29,22 @@
 
 ## 失败报告落盘
 
-`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）；失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。
+`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）；失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。保真报告里 `FORWARD_TEXT_CHANGED` 条目若读回文本是源文本的前缀，会带 `reason: 'overset'` 与提示（文本框容不下：加大框或减少内边距、缩小字号或缩短文本）；`FORWARD_TABLE_CHANGED` 条目带 `dimensions` 说明差在表头、段落样式、文本还是行列数。
+
+## 目标 INDD 正在 InDesign 中打开
+
+`html.build_indesign` 会在建文档前检查 `<outDir>/<outputBaseName>.indd` 是否已在 InDesign 里打开。是本工具上一轮产物且未被修改，会自动关闭并继续（成功结果 `data.warnings` 里有 `PREVIOUS_OUTPUT_CLOSED`）；否则立即返回 `OUTPUT_TARGET_OPEN`（`retryable: true`，不会白跑一次构建）。处理：让用户在 InDesign 里关闭该文档，或改用别的 `outputBaseName`，然后重跑同一命令。不要删文件、不要改 outDir 绕过。只有同一个 InDesign 实例里打开的文档能被查到；UNC 路径和映射盘路径不互认，这类情况仍会在保存阶段失败并给出 `INDD_SAVE_FAILED`。
+
+## 宿主脚本的警告
+
+构建过程中 InDesign 脚本产生的警告（字体回落 `FONT_FALLBACK_APPLIED`、IDML 导出失败 `IDML_EXPORT_FAILED`、预检自动关闭 `PREVIOUS_OUTPUT_CLOSED` 等）会随结果一起返回：成功时在 `data.warnings`，失败时在 `error.details.hostWarnings`，每条含 `code`、`message` 和标量 `details`（如 `requestedFont`/`appliedFont`/`itemId`）。读它们，尤其是 `BUILD_ARTIFACTS_MISSING` 时——缺的那份产物通常在这里能找到原因。
+
+## 上报工具本身的问题
+
+遇到下面任一情况，用 `feedback report` 把摩擦记进共享遥测，不要只在对话里抱怨：`error.category` 为 `runtime_error` 且 `details` 看不出原因；文档说不清某个参数或错误码；明显缺一个本该有的工具或参数。
+
+```powershell
+indesign-cli feedback report --code <TOOL_GAP|DOC_UNCLEAR|ERROR_MESSAGE_USELESS|SCHEMA_CONFUSING|UNEXPECTED_BEHAVIOR> --note "<一句话摩擦摘要>" --tool <相关工具 id，可省略>
+```
+
+`--note` 最多 500 字，不得包含客户名称、文档内容或文件路径。上报不会改变当前任务的结果，只是让维护者下次能修。

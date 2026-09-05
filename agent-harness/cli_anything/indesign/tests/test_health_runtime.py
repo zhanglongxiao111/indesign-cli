@@ -31,6 +31,24 @@ def test_published_skill_is_standard_unified_html_first_skill():
     assert "cli-anything-indesign" not in skill_text
 
 
+def test_published_skill_explains_parent_grid_rule_and_feedback_channel():
+    skill_root = REPO_ROOT / "skills" / "indesign-cli"
+    html_reference = (skill_root / "references" / "html-authoring.md").read_text(encoding="utf-8")
+    failure_reference = (skill_root / "references" / "failure-handling.md").read_text(encoding="utf-8")
+
+    assert "承担网格放置的块负责对齐" in html_reference
+    assert "块内的内容不参与网格校验" in html_reference
+    assert "edgeOffsets" in html_reference
+    assert "gridIgnoredCount" in html_reference
+    assert "blockOf" in html_reference
+
+    assert "OUTPUT_TARGET_OPEN" in failure_reference
+    assert "PREVIOUS_OUTPUT_CLOSED" in failure_reference
+    assert "hostWarnings" in failure_reference
+    assert "indesign-cli feedback report --code" in failure_reference
+    assert "ERROR_MESSAGE_USELESS" in failure_reference
+
+
 def test_node_dependency_setup_runs_npm_install_against_server_root(monkeypatch, tmp_path):
     from cli_anything.indesign.core.node_setup import setup_node_dependencies
 
