@@ -141,6 +141,35 @@ def test_assemble_runtime_contains_cli_node_server_plugin_dependencies_and_jsx(t
     assert commands and "--omit=dev" in commands[0]
 
 
+def test_assemble_runtime_ships_the_launcher_equivalent_entry_script(tmp_path):
+    # SA 工具箱不经 launcher，靠 runtime 根目录这份脚本启动 CLI；缺了它，工具箱认不出载荷根，整件工具装不上。
+    builder = _load_builder()
+    cli, node, node_modules, tgz = _fixture_inputs(tmp_path)
+
+    def fake_runner(args, **kwargs):
+        plugin_root = Path(kwargs["cwd"])
+        for dependency in ("cheerio", "playwright", "reveal.js"):
+            _write_file(plugin_root / "node_modules" / dependency / "package.json", b'{"version":"1.0.0"}')
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    runtime = builder.assemble_runtime(
+        cli_onedir=cli,
+        node_root=node,
+        node_modules=node_modules,
+        html_plugin_tgz=tgz,
+        target=tmp_path / "runtime",
+        npm_bin="npm.cmd",
+        runner=fake_runner,
+    )
+
+    import support  # noqa: F401
+    from cli_anything.indesign.core.bootstrapper import RUNTIME_ENTRY_SCRIPT_NAME, render_runtime_entry_script
+
+    entry = runtime / RUNTIME_ENTRY_SCRIPT_NAME
+    assert entry.is_file()
+    assert entry.read_bytes() == render_runtime_entry_script().encode("utf-8")
+
+
 def test_assemble_runtime_rejects_plugin_package_manifest_version_mismatch(tmp_path):
     builder = _load_builder()
     cli, node, node_modules, _tgz = _fixture_inputs(tmp_path)

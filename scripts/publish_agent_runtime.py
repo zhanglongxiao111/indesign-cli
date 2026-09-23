@@ -3,6 +3,10 @@
 The runtime ZIP and Setup are copied first. ``runtime-latest.json`` is
 replaced last, so clients never observe a manifest that points at an
 incomplete artifact. Every version is also retained under ``releases``.
+
+The same runtime ZIP is then put on the SA-AIAPP agent toolbox shelf: SA
+installs it on every start, which is how colleagues' machines actually get
+new versions (the launcher's own self-update is blocked inside SA agents).
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import os
 import re
 import shutil
 import sys
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -23,6 +28,13 @@ from typing import Any
 DEFAULT_NAS_ROOT = Path(r"\\daga-nas5\sa-ai-app\tools\indesign-cli")
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 REQUIRED_COMPONENTS = {"indesign_cli", "html_indesign", "node", "winax", "browser"}
+
+# SA-AIAPP 工具箱货架（09 号文档：Agent 基础工具货架唯一声明处）。
+DEFAULT_SHELF_ROOT = Path(r"\\daga-nas5\sa-ai-app\tools\agent-toolbox")
+# 货架 manifest 的键 = SA 工具箱适配器名；SA 按 SA_AGENT_<键大写> 把入口交给 Agent。两边必须一致。
+SHELF_TOOL_NAME = "indesign"
+# 工具箱靠 runtime 根目录的这份入口脚本认载荷、拉起 CLI（定义在 cli_anything.indesign.core.bootstrapper）。
+RUNTIME_ENTRY_SCRIPT_NAME = "indesign-cli.ps1"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -132,7 +144,88 @@ def _atomic_copy(source: Path, target: Path) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def publish_release(release_dir: Path, *, nas_root: Path = DEFAULT_NAS_ROOT, dry_run: bool = False) -> dict[str, Any]:
+def shelf_archive_name(version: str) -> str:
+    return f"indesign-cli-{version}-win-x64.zip"
+
+
+def publish_to_shelf(
+    archive_path: Path,
+    *,
+    version: str,
+    sha256: str,
+    shelf_root: Path,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """把 runtime ZIP 放上工具箱货架并写入本工具条目。
+
+    与货架既有做法一致：先放归档、复读校验，再备份并原子替换 manifest；其它工具的条目原样保留。
+    同一版本同一归档重跑是空操作，方便 NAS 已发布而货架失败时单独重试。
+    """
+    shelf_root = shelf_root.resolve()
+    try:
+        with zipfile.ZipFile(archive_path) as payload:
+            has_entry_script = RUNTIME_ENTRY_SCRIPT_NAME in payload.namelist()
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise SystemExit(f"Runtime ZIP is unreadable: {archive_path}") from exc
+    if not has_entry_script:
+        raise SystemExit(
+            f"Runtime ZIP has no {RUNTIME_ENTRY_SCRIPT_NAME} at its root; the SA toolbox could not launch it"
+        )
+    manifest_path = shelf_root / "manifest.json"
+    if not manifest_path.is_file():
+        raise SystemExit(f"Toolbox shelf manifest is missing: {manifest_path}")
+    shelf = _read_json(manifest_path)
+    archive_name = shelf_archive_name(version)
+    target = shelf_root / archive_name
+    entry = {"version": version, "archive": archive_name, "sha256": sha256}
+    current = shelf.get(SHELF_TOOL_NAME)
+    current_version = str(current.get("version") or "") if isinstance(current, dict) else None
+    plan: dict[str, Any] = {
+        "shelf_root": str(shelf_root),
+        "tool": SHELF_TOOL_NAME,
+        "entry": entry,
+        "previous_version": current_version,
+    }
+    if current == entry and target.is_file() and _sha256(target) == sha256:
+        return {**plan, "changed": False}
+    if current_version and _version_tuple(version) <= _version_tuple(current_version):
+        raise SystemExit(f"Toolbox shelf version must increase: current={current_version}, new={version}")
+    plan["changed"] = True
+    if dry_run:
+        return plan
+
+    if target.is_file():
+        if _sha256(target) != sha256:
+            raise SystemExit(f"Toolbox shelf already holds a different {archive_name}")
+    else:
+        _atomic_copy(archive_path, target)
+        if _sha256(target) != sha256:
+            target.unlink(missing_ok=True)
+            raise SystemExit(f"Toolbox shelf copy of {archive_name} does not match its SHA-256")
+
+    backup = shelf_root / f"manifest.json.bak-before-{SHELF_TOOL_NAME}-{version}-{time.strftime('%Y%m%d-%H%M%S')}"
+    backup.write_bytes(manifest_path.read_bytes())
+    updated = dict(shelf)
+    updated[SHELF_TOOL_NAME] = entry
+    temporary = shelf_root / f".manifest.json.tmp-{uuid.uuid4().hex[:8]}"
+    try:
+        # 不带 BOM：SA 装机侧按 JSON.parse 读，BOM 会让整张货架读不出来。
+        temporary.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, manifest_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    if _read_json(manifest_path).get(SHELF_TOOL_NAME) != entry:
+        raise SystemExit("Toolbox shelf manifest did not keep the new entry")
+    return {**plan, "backup": str(backup)}
+
+
+def publish_release(
+    release_dir: Path,
+    *,
+    nas_root: Path = DEFAULT_NAS_ROOT,
+    shelf_root: Path | None = None,
+    dry_run: bool = False,
+) -> dict[str, Any]:
     release_dir = release_dir.resolve()
     nas_root = nas_root.resolve()
     release = validate_release(release_dir)
@@ -155,6 +248,15 @@ def publish_release(release_dir: Path, *, nas_root: Path = DEFAULT_NAS_ROOT, dry
         "components": release["components"],
         "sha256": release["sha256"],
     }
+    if shelf_root is not None:
+        # 货架的前置检查放在动 NAS 之前：ZIP 缺入口脚本、货架读不到、版本倒退，都在这里就拦下。
+        plan["shelf"] = publish_to_shelf(
+            release_dir / release["archive_name"],
+            version=version,
+            sha256=release["sha256"],
+            shelf_root=shelf_root,
+            dry_run=True,
+        )
     if dry_run:
         return {"ok": True, "dry_run": True, "plan": plan}
 
@@ -209,7 +311,7 @@ def publish_release(release_dir: Path, *, nas_root: Path = DEFAULT_NAS_ROOT, dry
             shutil.rmtree(archive_target, ignore_errors=True)
         raise
 
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "dry_run": False,
         "plan": plan,
@@ -219,6 +321,21 @@ def publish_release(release_dir: Path, *, nas_root: Path = DEFAULT_NAS_ROOT, dry
             "archive_exists": archive_target.is_dir(),
         },
     }
+    if shelf_root is not None:
+        # 货架是独立的第二条分发路：它失败不回滚已经完好发布的 NAS 版本，只说清怎么单独补上。
+        try:
+            result["shelf"] = publish_to_shelf(
+                archive_target / release["archive_name"],
+                version=version,
+                sha256=release["sha256"],
+                shelf_root=shelf_root,
+            )
+        except SystemExit as exc:
+            raise SystemExit(
+                f"NAS runtime {version} 已发布；SA 工具箱货架同步失败：{exc}。"
+                "修好后用 --shelf-only 单独重试这一步。"
+            ) from exc
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -226,12 +343,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--release-dir", required=True, help="Built release directory")
     parser.add_argument("--nas-root", default=str(DEFAULT_NAS_ROOT), help="Company NAS indesign-cli directory")
     parser.add_argument("--dry-run", action="store_true", help="Validate and print the publication plan only")
-    args = parser.parse_args(argv)
-    payload = publish_release(
-        Path(args.release_dir),
-        nas_root=Path(args.nas_root),
-        dry_run=args.dry_run,
+    parser.add_argument("--shelf-root", default=str(DEFAULT_SHELF_ROOT), help="SA-AIAPP agent toolbox shelf directory")
+    parser.add_argument(
+        "--shelf-only",
+        action="store_true",
+        help="Only sync this release onto the toolbox shelf (retry after the NAS step already succeeded)",
     )
+    args = parser.parse_args(argv)
+    if args.shelf_only:
+        release_dir = Path(args.release_dir).resolve()
+        release = validate_release(release_dir)
+        payload = {
+            "ok": True,
+            "dry_run": args.dry_run,
+            "shelf": publish_to_shelf(
+                release_dir / release["archive_name"],
+                version=release["version"],
+                sha256=release["sha256"],
+                shelf_root=Path(args.shelf_root),
+                dry_run=args.dry_run,
+            ),
+        }
+    else:
+        payload = publish_release(
+            Path(args.release_dir),
+            nas_root=Path(args.nas_root),
+            shelf_root=Path(args.shelf_root),
+            dry_run=args.dry_run,
+        )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
