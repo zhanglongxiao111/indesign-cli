@@ -25,6 +25,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 
 `AUTHOR_GENERATED_ENTRY_DIRTY` 就是在提示这一步没做或没做完；该错误的 `hint` 里带着可直接复制的组装命令，照它重跑即可，不要另找入口。
 
+组装同时处理 `presentation.html`（reveal.js 预览）：包里已经有它就按当前页面重写，重写失败就删掉；没有就不新建。组装输出会说明它被重写还是被删除。转换和检查一律以 `deck.html` 为准，不要把 `presentation.html` 当作页面真相。
+
+组装报 `AUTHOR_ENTRY_WRITE_BUSY`：`deck.html` 或 `presentation.html` 被占用（常见于预览窗口或 NAS 锁），组装器已自动重试约 3 秒。关闭占用该文件的预览后重跑组装，或换一个 outDir。**严禁改 entry 文件名、另存副本或结束无关进程来绕过**，否则会留下陈旧副本，出现两份页面真相。
+
 组装入口按你所处的环境二选一，不要混用：
 
 | 你在哪 | 用什么 |
@@ -41,6 +45,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 ```powershell
 & "<agent-exe>" tool call html.authoring_lint --args-file lint.args.json
 ```
+
+lint 和 build 默认只返回摘要（`format:"summary"`）：`ok`、`errorCount`、`warningCount`、`topCodes`（最多 5 类）、`firstErrors`（最多 3 条，带页面、对象和修法）、`normalizedCount`、`gridIgnoredCount`、`gridObservedDowngradedCount`、`compatibility.summary`（只有计数），以及 `reportPath` 和 `runId`。逐条明细（全部 errors/warnings、`compatibility.messages`、`edgeOffsets` 等）在 `reportPath` 指向的报告文件里，需要时读文件，不要为了看全文改传 `format:"full"` 把几十 KB 塞进上下文。报告写不出来时会自动退回完整返回，并带 `formatFallback` 说明原因。
 
 4. 需要 InDesign 时，直接执行正式构建。正式构建会再次严格检查作者包，生成真实 InDesign 文档，并把文档里的页面、对象、文字、资源和协议事实与原 HTML 核对；核对通过后才导出成品。
 
@@ -84,7 +90,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 </svg>
 ```
 
-每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。读取返回的 `compatibility.summary` 和全部 `compatibility.messages`：
+每次重新组装后都先调用 `html.authoring_lint`，即使用户催着直接 build 也不能省略。先看摘要里的 `compatibility.summary` 计数；有需要处理的条目时，到 `reportPath` 报告里读全部 `compatibility.messages`：
 
 - `action: "normalized"` 表示写法含义唯一，CLI 已在本次转换中安全理解；可以继续 compile/build。
 - 计数口径：`warningCount` 只统计需要你判断的真警告；`action:"normalized"` 的条目单列在 `normalized`/`normalizedCount`（按 code 折叠见 `normalizedSummary`）。归一化数量大不代表有事要做，不要为清零 `normalizedCount` 去逐个补显式属性。
@@ -115,6 +121,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "<skill-dir>\scripts\prepare-autho
 - 每页声明 `data-page`、`data-id-layout`、`data-id-margin` 和 `data-id-grid`；这四个属性只在页面根元素（`<section class="page">` 自身）上生效，写在子元素上不会被读取。`data-id-grid` 声明的是网格本身（列数/行数，配合 `data-id-margin`、`data-id-column-gutter`/`data-id-row-gutter` 反推整页网格线），和下面 `.grid-item` 用的 `--grid-col` 等 CSS 变量不是同一层——后者只决定某个元素落在网格的哪一格，不影响网格线怎么算，两者作用域不同、不能互相替代。
 - `.grid-item` 声明 `--grid-col`、`--grid-span`、`--grid-row` 和 `--grid-row-span` 让元素在页面 CSS Grid 里就位。网格对齐校验（`GRID_ALIGNMENT_OFF`，`strict:true` 下升级为 error）的规则是：**承担网格放置的块负责对齐，块内的内容不参与网格校验**。带 `--grid-col`/`--grid-row`、`grid-item` 类名或显式 `grid-column`/`grid-row` 的元素就是"块"——卡片、栏、页眉条带；块本身哪怕只是个无边框的包裹 `div` 也会被量（条目带 `block: true`、`blockOf` 列出块内元素、`itemId` 是块的 id 或 CSS 路径），核对 left/top/right 三条边；块内的段落、小标题、条形图该有内边距就有内边距，不会因为离格线一个 padding 而报错；块套块时只量最外层。没有放置祖先的元素仍逐条量（文字、表格和 `data-id-role="container"` 只核对 left/top/right；自动宽度文字连 right 也不核对）。容差默认 1mm，`gridTolerance` 只用于确认版式正确后的取整误差，不要用它盖住真实偏差。每条 `GRID_ALIGNMENT_OFF` 都带 `edgeOffsets`（每条边偏了多少毫米、最近的格线在哪）和 `suggestedFix`（该往哪挪多少；块级条目会指出成因是块自身的 margin/transform 或 `data-id-grid` 声明与 CSS 网格不符），首条消息会列出前三条 `Fix examples`；按数字改块的位置或 `--grid-*` 声明，不要逐个改块内元素。lint 结果顶层的 `gridCheckedCount`/`gridShieldedCount`/`gridBlockCheckedCount`/`gridBlockSkippedCount` 说明量了多少、遮蔽了多少、有多少块没量到——`0 错误` 只有在 `gridBlockCheckedCount` 或 `gridCheckedCount` 大于 0 时才说明"对齐了"。正常写法很容易因为子像素取整偏出 1mm，写完就跑一次 strict lint 核实。
 - 元素确实需要故意偏离网格（出血图、贴边色块、跨格大标题）时，在该元素或其祖先上加 `data-id-grid-ignore`，跳过整棵子树的对齐校验。它不影响后面的保真门禁，但**不是给卡片内容用的**——块内内容本来就不校验；整包给段落贴豁免只会让 lint 结果里的 `gridIgnoredCount`（被豁免的元素数，含继承；遥测同名上报，首条消息也会点明 `Grid exemptions already in this package`）变得难看，人会据此要求返工。报 `GRID_ALIGNMENT_OFF` 时先分清三种情况：网格声明本身（`data-id-grid`、gutter）跟 CSS 布局对不上——改声明；块没坐在格线上——按 `edgeOffsets` 挪块或去掉它自己的 margin/transform；块本来就该越线——豁免。
+- 从人做的 INDD 反向导出的作者包，lint 和 build 都传 `lintProfile: "reverse-export"`。观察态对象（反向导出原样带出的对象）的网格偏移会降为提示，列在 `notices[]`，数量见 `gridObservedDowngradedCount`，摘要里还会单列 `gridObservedDowngraded`。不要再给这些对象批量贴 `data-id-grid-ignore`。你新增或改写的对象照常检查：改写时去掉它身上的观察态标记（`observed-text`、`id-object` 类名和 `data-id-observed*` 属性），也不要照抄这些标记到新对象上。`lintProfile` 和 `deck.config.json` 里的语义 `profile` 是两回事。
 - 交付内容必须静态可见；不得依赖可执行脚本、远程运行时、远程样式、动画或异步数据。
 - Canvas 图表转成 SVG；图片、PDF、PSD、AI 和 SVG 保留真实资源引用。
 - 图形协议字段写在实际资源元素上：图片用带 `src` 的 `img`，PDF/AI 等用带 `data` 的 `object`。普通单资源 wrapper 可以保留图框样式；资源专用的路径、页码、画板和手工裁切事实仍属于实际资源元素。多个候选资源时不得让转换层猜。
