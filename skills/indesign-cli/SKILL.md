@@ -20,7 +20,7 @@ tags:
 
 ## 通用规则
 
-- 公司成品统一使用 `indesign-cli-agent`。**一律用绝对路径调用**（Setup 返回的 `registration.launcher_abspath`，下文写作 `<agent-exe>`）；只有 `Get-Command indesign-cli-agent` 能查到时才可用裸命令。PowerShell 优先用 `pwsh`（PowerShell 7）：SA-AIAPP 运行环境已默认配置 `shell: pwsh` 并自动安装便携版（PATH 已前插，环境变量 `SA_AGENT_PWSH` 指向其绝对路径）；`pwsh` 确实不存在时：不涉及中文读写的命令可退回 `powershell.exe`；涉及中文路径/内容的操作宁可显式报错要求安装 PowerShell 7，不要用 5.1 静默处理（ANSI 解码会损坏中文数据）。两者都加 `-NoProfile -ExecutionPolicy Bypass`。
+- 下文用 `<agent-exe>` 指代调用入口，一律写成 `& "<agent-exe>" ...` 的形式。**在 SA-AIAPP 里，入口是 `$env:SA_AGENT_INDESIGN`**：SA 每次启动时会自动安装并保持最新版，不需要、也不要自己运行 Setup。只有不在 SA 里，或者本机 SA 还没更新到提供这个变量的版本时，才用 launcher 的绝对路径（Setup 返回的 `registration.launcher_abspath`）；只有 `Get-Command indesign-cli-agent` 能查到时，才能用裸命令。查运行环境目录、node、Edge 用 `server health`，两种入口都支持；`health`、`install` 只有 launcher 才有，详见[安装与更新](references/installation-and-update.md)。PowerShell 优先用 `pwsh`（PowerShell 7）：SA-AIAPP 运行环境已默认配置 `shell: pwsh` 并自动安装便携版（PATH 已前插，环境变量 `SA_AGENT_PWSH` 指向其绝对路径）；`pwsh` 确实不存在时：不涉及中文读写的命令可退回 `powershell.exe`；涉及中文路径/内容的操作宁可显式报错要求安装 PowerShell 7，不要用 5.1 静默处理（ANSI 解码会损坏中文数据）。两者都加 `-NoProfile -ExecutionPolicy Bypass`。
 - 调用工具前先运行 `tool schema <tool_id>`（`<tool_id>` 是位置参数）；`tool search` 必须带 `--query`；`tool list` 没有 `--all`。
 - 复杂参数一律写入 UTF-8 JSON 文件再用 `--args-file` 传入；内联 JSON 会被 shell 转义打坏。
 - 不关闭或覆盖用户已经打开的文档；需要改原文件时先确认，默认另存新文件。

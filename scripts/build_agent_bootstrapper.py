@@ -264,7 +264,17 @@ def assemble_runtime(
                 raise SystemExit(f"HTML plugin runtime file is missing: {required_plugin_file}")
     finally:
         shutil.rmtree(extract_root, ignore_errors=True)
+    _write_runtime_entry_script(target)
     return target
+
+
+def _write_runtime_entry_script(target: Path) -> None:
+    # 入口脚本的内容由 launcher 同一模块定义（与 build_runtime_env 同一份环境约定），这里只负责落盘。
+    if str(AGENT_HARNESS) not in sys.path:
+        sys.path.insert(0, str(AGENT_HARNESS))
+    from cli_anything.indesign.core.bootstrapper import RUNTIME_ENTRY_SCRIPT_NAME, render_runtime_entry_script
+
+    (target / RUNTIME_ENTRY_SCRIPT_NAME).write_text(render_runtime_entry_script(), encoding="utf-8", newline="")
 
 
 def _zip_tree(source: Path, archive: Path) -> None:
