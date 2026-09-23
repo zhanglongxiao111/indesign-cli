@@ -68,6 +68,15 @@ if ($env:INDESIGN_CLI_RUNTIME_ROOT) {
         throw "INDESIGN_CLI_RUNTIME_ROOT does not exist: $runtimeRootRaw"
     }
     $runtimeRoot = (Resolve-Path -LiteralPath $runtimeRootRaw).ProviderPath
+} elseif ($env:SA_AGENT_INDESIGN) {
+    # Inside SA-AIAPP the agent toolbox installs the runtime on every start and keeps it
+    # current. Its entry script (indesign-cli.ps1) sits at the runtime root, so the
+    # launcher is not needed here (and its self-update is blocked inside SA agents).
+    $entryRaw = Remove-ProviderPrefix $env:SA_AGENT_INDESIGN
+    if (-not (Test-Path -LiteralPath $entryRaw -PathType Leaf)) {
+        throw "SA_AGENT_INDESIGN does not exist: $entryRaw. Restart SA-AIAPP so its toolbox reinstalls the InDesign tool."
+    }
+    $runtimeRoot = Split-Path -Parent (Resolve-Path -LiteralPath $entryRaw).ProviderPath
 } else {
     $agent = Get-Command indesign-cli-agent -ErrorAction SilentlyContinue
     $agentPath = if ($agent) { $agent.Source } else { Join-Path $env:LOCALAPPDATA 'indesign-cli\bin\indesign-cli-agent.exe' }

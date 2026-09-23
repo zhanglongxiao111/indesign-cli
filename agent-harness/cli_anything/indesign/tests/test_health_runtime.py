@@ -31,6 +31,25 @@ def test_published_skill_is_standard_unified_html_first_skill():
     assert "cli-anything-indesign" not in skill_text
 
 
+def test_published_skill_routes_sa_agents_to_the_toolbox_entry_not_setup():
+    # 2026-09-23：SA Agent 环境里 launcher 找不到 Edge 就拒绝升级、静默回落旧版，同事全卡在旧版。
+    # SA 工具箱接手安装后，技能必须把 SA 里的 Agent 指向 SA_AGENT_INDESIGN，不能再让它自己跑 Setup，
+    # 也不能再用 launcher 专属、且不检查升级的 health 去找 runtime 目录。
+    skill_root = REPO_ROOT / "skills" / "indesign-cli"
+    skill_text = (skill_root / "SKILL.md").read_text(encoding="utf-8")
+    install_text = (skill_root / "references" / "installation-and-update.md").read_text(encoding="utf-8")
+    prepare_script = (skill_root / "scripts" / "prepare-author-package.ps1").read_text(encoding="utf-8")
+
+    assert "$env:SA_AGENT_INDESIGN" in skill_text
+    assert "$env:SA_AGENT_INDESIGN" in install_text
+    assert "不要自己运行 Setup" in install_text
+    assert "server health" in install_text and "data.runtime.root" in install_text
+    assert "data.update.warnings" in install_text
+    # 组装脚本在 SA 里直接取入口所在目录作 runtime 根，不去问 launcher。
+    assert "$env:SA_AGENT_INDESIGN" in prepare_script
+    assert prepare_script.index("SA_AGENT_INDESIGN") < prepare_script.index("indesign-cli-agent health")
+
+
 def test_published_skill_explains_parent_grid_rule_and_feedback_channel():
     skill_root = REPO_ROOT / "skills" / "indesign-cli"
     html_reference = (skill_root / "references" / "html-authoring.md").read_text(encoding="utf-8")
