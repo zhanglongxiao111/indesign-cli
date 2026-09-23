@@ -270,6 +270,7 @@ def test_classify_result_buckets():
     assert classify_result(False, "AUTHORING_LINT_FAILED") == "gate_rejection"
     assert classify_result(False, "TOOL_NOT_FOUND") == "input_error"
     assert classify_result(False, "ARGS_UNKNOWN_KEY") == "input_error"
+    assert classify_result(False, "TOOL_ARGS_INVALID") == "input_error"
     assert classify_result(False, "INTERNAL_TOOL_START_FAILED") == "environment_error"
     assert classify_result(False, "HOST_ACTION_FAILED") == "runtime_error"
     assert classify_result(False, None) == "runtime_error"

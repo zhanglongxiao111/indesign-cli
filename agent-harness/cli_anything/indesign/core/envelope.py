@@ -27,6 +27,8 @@ _INPUT_ERROR_CODES = {
     "MISSING_ARGUMENT",
     "ARGS_REQUIRED",
     "ARGS_UNKNOWN_KEY",
+    # 插件按自身 schema 拒绝参数值（枚举、类型不符等）：宿主只拦未知键，值由插件校验。
+    "TOOL_ARGS_INVALID",
     "ARGS_JSON_INVALID",
     "ARGS_FILE_NOT_FOUND",
     "ARGS_NOT_OBJECT",

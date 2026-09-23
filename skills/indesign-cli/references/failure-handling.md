@@ -29,7 +29,7 @@
 
 ## 失败报告落盘
 
-`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）；失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。保真报告里 `FORWARD_TEXT_CHANGED` 条目若读回文本是源文本的前缀，会带 `reason: 'overset'` 与提示（文本框容不下：加大框或减少内边距、缩小字号或缩短文本）；`FORWARD_TABLE_CHANGED` 条目带 `dimensions` 说明差在表头、段落样式、文本还是行列数。
+`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）。每份报告顶层都有 `runId`、`generatedAt`、`tool`，返回体里也带同一个 `runId`（成功在 `data.runId`，失败在 `error.details.runId`）：读报告前先核对两边的 `runId` 一致，不一致就说明读到的是别的轮次，不能据此下结论。build 开始时，outDir 里没轮到的报告会先被换成本次 `runId`、`status: "not-produced"` 的占位；旧报告没能替换掉时，返回体会带 `STALE_LINT_REPORT_NOT_REPLACED` 警告和文件路径。反向导出的 `report.json` 同样带 `runId`。失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。保真报告里 `FORWARD_TEXT_CHANGED` 条目若读回文本是源文本的前缀，会带 `reason: 'overset'` 与提示（文本框容不下：加大框或减少内边距、缩小字号或缩短文本）；`FORWARD_TABLE_CHANGED` 条目带 `dimensions` 说明差在表头、段落样式、文本还是行列数。
 
 ## 目标 INDD 正在 InDesign 中打开
 
