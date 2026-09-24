@@ -62,7 +62,7 @@ lint 和 build 默认只返回摘要（`format:"summary"`）：`ok`、`errorCoun
 
 `outDir` 必须位于当前工作目录之内：先 `cd` 到项目目录再调用 CLI，不要从个人主目录或临时目录发起构建。同一位置的 UNC 写法和映射盘写法视为等价。
 
-构建被核对拦下时不产出成品：返回体的 `artifactsExported` 为 `false`，`intermediateDir` 指向保留下来的中间产物（instructions、读回快照、保真报告）。不要去那里找 INDD，它没有被导出。
+构建被核对拦下时不产出成品：返回体的 `artifactsExported` 为 `false`，`intermediateDir` 指向保留下来的中间产物（instructions、读回快照、保真报告）。不要去那里找 INDD，它没有被导出。上一轮成功构建的成品如果还需要，到 outDir 下的 `previous-output/` 里找（见 failure-handling.md）。
 
 只有结果中的 `verified` 为 `true`，才能把 INDD/PDF/IDML 作为正式成品交付。失败时按返回的页面、对象、字段或文件修改作者源码，重新组装后再构建；不要用未修改的输入反复重试，也不要自行追加二次回环。
 
@@ -101,7 +101,7 @@ lint 和 build 默认只返回摘要（`format:"summary"`）：`ok`、`errorCoun
 
 | code | 修改作者源码 |
 | ---- | ------------ |
-| `HTML_INLINE_SVG_UNSUPPORTED` | 先修正缺失/无效的尺寸和坐标；再把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源 |
+| `HTML_INLINE_SVG_UNSUPPORTED` | 先修正缺失/无效的尺寸和坐标；再把 `use`、SVG text/image、transform、clip/mask/filter、paint server 或复杂 path 改成基础图元，或者保存为外部 `.svg` 资源。transform 只拦真正起作用的变换：`rotate(0deg)`、单位矩阵这类等于没变换的写法放行；独立的 `rotate`/`translate`/`scale` 属性也算变换，要把旋转直接画进 path 坐标 |
 | `HTML_PSEUDO_ELEMENT_UNSUPPORTED` | 只在动态 content（`counter()`/`attr()`/`url()`）或纯装饰 paint 伪元素上出现：把动态 content 改成写死静态文字的真实 HTML 元素，装饰几何改成基础 SVG。静态字符串 content 已自动物化，不会报这个码 |
 | `HTML_CLIP_PATH_UNSUPPORTED` | 改用 SVG `polygon/path`，或外部 SVG |
 | `HTML_GRADIENT_UNSUPPORTED` | 单色透明度渐变可保留；多色渐变改成外部资源 |
@@ -118,10 +118,13 @@ lint 和 build 默认只返回摘要（`format:"summary"`）：`ok`、`errorCoun
 
 - 每个 `pages/*.html` 只包含一个 `<section class="page">`。
 - 检查的严格程度由 `strict` 决定：`html.authoring_lint` 默认 `strict:false`；`html.build_indesign` 编译前会用固定 `strict:true` 重新跑一次同样的检查，不受 `mode:final/draft` 影响。默认参数 lint 通过不代表 build 会通过——网格对齐、语义 token 等规则只在 `strict:true` 下才会从 warning 升级成拦截 error。创作阶段就按第 3 步用 `strict:true` 跑 lint，不要等 build 才发现。
+- lint 会用 build 编译阶段同一套转换和校验把作者包预跑一遍，所以作者包本身的问题（同页重复 id、资源文件找不到等）不论 strict 与否都在 lint 阶段报 error，条目的 `stage` 为 `semantic-model` 或 `instructions`。只取决于 build 参数的问题（例如 `targetSize` 比例和源页面不符）lint 管不到，仍到 build 才报。
+  - `ITEM_ID_DUPLICATED`：同一页里元素 id 必须唯一，跨页同名不拦。看条目的 `occurrences`（每处的 `sourceFile`、`sourcePath`）和 `suggestedFix`，到 `pages/*.html` 改名，连同 CSS 里的 `#id` 选择器一起改，重新组装后再 lint。
+  - `ASSET_FILE_NOT_FOUND`：条目带页面里写的原始引用和解析后的路径。资源路径相对入口 `deck.html` 解析；复制作者包时，包外的共享素材目录要一起复制。
 - 每页声明 `data-page`、`data-id-layout`、`data-id-margin` 和 `data-id-grid`；这四个属性只在页面根元素（`<section class="page">` 自身）上生效，写在子元素上不会被读取。`data-id-grid` 声明的是网格本身（列数/行数，配合 `data-id-margin`、`data-id-column-gutter`/`data-id-row-gutter` 反推整页网格线），和下面 `.grid-item` 用的 `--grid-col` 等 CSS 变量不是同一层——后者只决定某个元素落在网格的哪一格，不影响网格线怎么算，两者作用域不同、不能互相替代。
 - `.grid-item` 声明 `--grid-col`、`--grid-span`、`--grid-row` 和 `--grid-row-span` 让元素在页面 CSS Grid 里就位。网格对齐校验（`GRID_ALIGNMENT_OFF`，`strict:true` 下升级为 error）的规则是：**承担网格放置的块负责对齐，块内的内容不参与网格校验**。带 `--grid-col`/`--grid-row`、`grid-item` 类名或显式 `grid-column`/`grid-row` 的元素就是"块"——卡片、栏、页眉条带；块本身哪怕只是个无边框的包裹 `div` 也会被量（条目带 `block: true`、`blockOf` 列出块内元素、`itemId` 是块的 id 或 CSS 路径），核对 left/top/right 三条边；块内的段落、小标题、条形图该有内边距就有内边距，不会因为离格线一个 padding 而报错；块套块时只量最外层。没有放置祖先的元素仍逐条量（文字、表格和 `data-id-role="container"` 只核对 left/top/right；自动宽度文字连 right 也不核对）。容差默认 1mm，`gridTolerance` 只用于确认版式正确后的取整误差，不要用它盖住真实偏差。每条 `GRID_ALIGNMENT_OFF` 都带 `edgeOffsets`（每条边偏了多少毫米、最近的格线在哪）和 `suggestedFix`（该往哪挪多少；块级条目会指出成因是块自身的 margin/transform 或 `data-id-grid` 声明与 CSS 网格不符），首条消息会列出前三条 `Fix examples`；按数字改块的位置或 `--grid-*` 声明，不要逐个改块内元素。lint 结果顶层的 `gridCheckedCount`/`gridShieldedCount`/`gridBlockCheckedCount`/`gridBlockSkippedCount` 说明量了多少、遮蔽了多少、有多少块没量到——`0 错误` 只有在 `gridBlockCheckedCount` 或 `gridCheckedCount` 大于 0 时才说明"对齐了"。正常写法很容易因为子像素取整偏出 1mm，写完就跑一次 strict lint 核实。
 - 元素确实需要故意偏离网格（出血图、贴边色块、跨格大标题）时，在该元素或其祖先上加 `data-id-grid-ignore`，跳过整棵子树的对齐校验。它不影响后面的保真门禁，但**不是给卡片内容用的**——块内内容本来就不校验；整包给段落贴豁免只会让 lint 结果里的 `gridIgnoredCount`（被豁免的元素数，含继承；遥测同名上报，首条消息也会点明 `Grid exemptions already in this package`）变得难看，人会据此要求返工。报 `GRID_ALIGNMENT_OFF` 时先分清三种情况：网格声明本身（`data-id-grid`、gutter）跟 CSS 布局对不上——改声明；块没坐在格线上——按 `edgeOffsets` 挪块或去掉它自己的 margin/transform；块本来就该越线——豁免。
-- 从人做的 INDD 反向导出的作者包，lint 和 build 都传 `lintProfile: "reverse-export"`。观察态对象（反向导出原样带出的对象）的网格偏移会降为提示，列在 `notices[]`，数量见 `gridObservedDowngradedCount`，摘要里还会单列 `gridObservedDowngraded`。不要再给这些对象批量贴 `data-id-grid-ignore`。你新增或改写的对象照常检查：改写时去掉它身上的观察态标记（`observed-text`、`id-object` 类名和 `data-id-observed*` 属性），也不要照抄这些标记到新对象上。`lintProfile` 和 `deck.config.json` 里的语义 `profile` 是两回事。
+- 从人做的 INDD 反向导出的作者包，lint 和 build 都传 `lintProfile: "reverse-export"`。观察态对象（反向导出原样带出的对象）的网格偏移会降为提示，列在 `notices[]`，数量见 `gridObservedDowngradedCount`，摘要里还会单列 `gridObservedDowngraded`。不要再给这些对象批量贴 `data-id-grid-ignore`。你新增或改写的对象照常检查：改写时去掉它身上的观察态标记（`observed-text`、`id-object` 类名和 `data-id-observed*` 属性），也不要照抄这些标记到新对象上。`lintProfile` 和 `deck.config.json` 里的语义 `profile` 是两回事。反向导出作者包里的矢量线条和形状，外框位置、尺寸写在 `styles/reverse-overrides.css` 的 `[id="…"]` 规则里，path 已经是最终几何（旋转已画进坐标）。要挪动或改尺寸，就改那条规则或改 path，不要在 svg 上加 `transform`、`left`/`top`。
 - 交付内容必须静态可见；不得依赖可执行脚本、远程运行时、远程样式、动画或异步数据。
 - Canvas 图表转成 SVG；图片、PDF、PSD、AI 和 SVG 保留真实资源引用。
 - 图形协议字段写在实际资源元素上：图片用带 `src` 的 `img`，PDF/AI 等用带 `data` 的 `object`。普通单资源 wrapper 可以保留图框样式；资源专用的路径、页码、画板和手工裁切事实仍属于实际资源元素。多个候选资源时不得让转换层猜。

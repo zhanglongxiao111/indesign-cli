@@ -29,7 +29,16 @@
 
 ## 失败报告落盘
 
-`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）。每份报告顶层都有 `runId`、`generatedAt`、`tool`，返回体里也带同一个 `runId`（成功在 `data.runId`，失败在 `error.details.runId`）：读报告前先核对两边的 `runId` 一致，不一致就说明读到的是别的轮次，不能据此下结论。build 开始时，outDir 里没轮到的报告会先被换成本次 `runId`、`status: "not-produced"` 的占位；旧报告没能替换掉时，返回体会带 `STALE_LINT_REPORT_NOT_REPLACED` 警告和文件路径。反向导出的 `report.json` 同样带 `runId`。失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。保真报告里 `FORWARD_TEXT_CHANGED` 条目若读回文本是源文本的前缀，会带 `reason: 'overset'` 与提示（文本框容不下：加大框或减少内边距、缩小字号或缩短文本）；`FORWARD_TABLE_CHANGED` 条目带 `dimensions` 说明差在表头、段落样式、文本还是行列数。
+`html.authoring_lint` 失败和 `html.build_indesign` 的 lint/保真阶段，会在 `outDir`（lint 未传 outDir 时为作者包旁的 `.indesign-cli/`）落盘 `authoring-lint-report.json` / `forward-fidelity-report.json` 主报告（原地覆盖，永远是最新一次的结果）。每份报告顶层都有 `runId`、`generatedAt`、`tool`，返回体里也带同一个 `runId`（成功在 `data.runId`，失败在 `error.details.runId`）：读报告前先核对两边的 `runId` 一致，不一致就说明读到的是别的轮次，不能据此下结论。build 开始时，outDir 里没轮到的报告会先被换成本次 `runId`、`status: "not-produced"` 的占位；旧报告没能替换掉时，返回体会带 `STALE_LINT_REPORT_NOT_REPLACED` 警告和文件路径（失败时在 `error.details.reportWarnings`，成功时在 `data.warnings`）。反向导出的 `report.json` 同样带 `runId`。失败态还会**另存** `<name>.failed-<时间戳>.json`，同名归档保留最近 3 份——这是离线复盘（无 InDesign 重跑审计）的第一入口，返回体 `artifacts` 里带报告路径。归档时间戳是 UTC，与遥测 `ts` 同口径，比北京时间早 8 小时，对时注意。保真报告里 `FORWARD_TEXT_CHANGED` 条目若读回文本是源文本的前缀，会带 `reason: 'overset'` 与提示（文本框容不下：加大框或减少内边距、缩小字号或缩短文本）；`FORWARD_TABLE_CHANGED` 条目带 `dimensions` 说明差在表头、段落样式、文本还是行列数。
+
+## 构建失败后 outDir 里的旧成品
+
+`html.build_indesign` 在任何阶段失败后，outDir 里上一轮留下、本次没有重写的文件会被移进 `outDir/previous-output/`。这些文件包括 INDD/PDF/IDML，以及中间产物 instructions.json、expected-semantic-*.json、fidelity-snapshot.json、各个 .jsx 和 previews/。同名文件在 previous-output/ 里只保留最近一份。本次写出的文件原位保留，它们是失败现场，用来复盘。结果写在 `error.details.reportWarnings`：
+
+- `PREVIOUS_OUTPUT_MOVED`：列出移走了哪些文件。
+- `PREVIOUS_OUTPUT_NOT_MOVED`：列出没能移走的文件和原因，通常是 INDD 正在 InDesign 里打开。这些文件还在原位，但**不是本次成品，不要取用或发给别人**。
+
+每次构建失败都会在 outDir 写一份 `BUILD_FAILED.json`，记录本次的 runId、失败码、失败阶段，以及移走和没移走的文件清单。下一次构建成功时，这份文件会被删掉。**从 outDir 取成品之前，先看有没有 `BUILD_FAILED.json`**：有，就说明最近一次构建失败了，outDir 里没有可交付的本次成品。`BUILD_ARTIFACTS_MISSING` 的返回体不再带 `details.stale`，同名旧文件去了哪里，看 `reportWarnings`。
 
 ## 目标 INDD 正在 InDesign 中打开
 
