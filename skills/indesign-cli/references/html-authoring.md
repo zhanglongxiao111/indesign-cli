@@ -172,3 +172,14 @@ lint 和 build 默认只返回摘要（`format:"summary"`）：`ok`、`errorCoun
 ```
 
 编辑返回的作者包后，按“重新组装 → 严格检查 → 构建 InDesign”继续。只报告工具实际返回的结果，不自行宣称无损。
+
+**从现有 INDD 取内容重做**：用 `mode: "observation"` 反向导出成功后，只读返回体里 `data.contentManifestPath` 指向的 `content-manifest.json`。不要为了取内容逐页读 `deck.visual.html` 或 `author/pages/*.html`，那些文件大部分是坐标和层级，体积是清单的好几倍。
+
+- 读之前，先核对清单顶层的 `runId` 和返回体的 `data.runId` 是否一致。
+- 建议的阅读顺序：每页把 `textBlocks` 和 `images` 合在一起，按 `order` 从小到大排。这个顺序是按几何位置推算的，版面复杂时以视觉判断为准。表格读 `rows` 二维数组，`null` 表示这一格被合并单元格覆盖。
+- 坐标单位是 mm，即 InDesign 里的物理尺寸。只用来判断相对位置和大小比例，新的 HTML 按作者规范的网格重新排版，不要照抄坐标。
+- 图片引用用 `linkPath`（原始链接）。有 `packagePath` 时，它是作者包里的拷贝。`kind: "vector"` 的 PDF、AI、SVG 保持矢量置入。
+- 栅格图看 `effectivePpi`：印刷一般要 ≥300，屏幕汇报 ≥150 可以接受。`ppiBasis: "frame-bounds"` 表示这是近似值。想放大重排时，可用宽度（mm）≈ `pixelWidth` ÷ 目标 PPI × 25.4。
+- `pixelError` 不为 null，说明这张图的文件读不到：`share-unreachable`、`file-not-found` 要请人确认 NAS 路径；`unsupported-format` 可以照常置入，只是没有像素信息。`linkStatus` 为 `missing` 或 `modified` 时，提醒人在 InDesign 里更新链接。
+
+想用 InDesign 的默认样式，就不要写 `data-id-*-style`。写 `[基本段落]`、`[无]`、`[Basic Paragraph]` 这类内置样式名，效果等于没写，不会新建样式。
