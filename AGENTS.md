@@ -72,7 +72,7 @@
 - `src/advanced/` 只放高级模板服务器入口壳，不维护独立工具映射。
 - `scripts/` 只放维护脚本和轻量检查，不放临时手测脚本。
 - `tests/` 放测试入口、场景测试和测试数据。
-- `skills/` 放独立发布到公司 Agent 渠道的标准 Agent Skill 目录、references、展示图和轻量模板资产。
+- `skills/` 仅作本地单测夹具保留（`indesign-cli` 画廊技能发布真源已于 2026-11-14 迁至 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\`）。
 
 终态已删除 `src/handlers/`、`src/types/` 和 `src/core/InDesignMCPServer.js`；不要恢复 facade、fallback 或第二套工具映射。新增代码应靠近对应功能边界。不要在根目录堆临时脚本、备份文件或一次性修复脚本。
 
@@ -88,18 +88,18 @@
 ### 2.5 CLI 开发边界
 
 - CLI 实现在 `agent-harness/`，Python 包名为 `cli_anything.indesign`。
-- `AGENTS.md` 只记录实现边界、测试责任和目录职责；CLI 使用教程写入 `README.md` / `README.en.md`，Agent 使用提示写入 `skills/indesign-cli/SKILL.md`。
+- `AGENTS.md` 只记录实现边界、测试责任和目录职责；CLI 使用教程写入 `README.md` / `README.en.md`，面向画廊的 Agent 技能文案写入 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\SKILL.md`。
 - CLI 必须复用当前 MCP server、tool-module handler 和 COM/脚本执行层，不重写一套 InDesign 自动化。
 - CLI 不应引入常驻后台服务；如需改变进程模型，先写方案并说明兼容影响。
 - 工具目录、router、session、schema、artifact、插件协议和脚本执行契约发生变化时，必须同步更新 CLI 单元测试和相关对外文档。
-- CLI contract 改动必须同步 CLI 单元测试、`README.md` / `README.en.md` 和 `skills/indesign-cli/SKILL.md`。
+- CLI contract 改动必须同步 CLI 单元测试、`README.md` / `README.en.md` 和外置画廊技能真源 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\`（若触及本仓单测断言，再同步本地夹具 `skills/indesign-cli/`）。
 - 插件工具必须遵守与内置工具一致的 envelope、session、schema、timeout 和 document-state 契约。
 - `AGENTS.md` 只记录开发边界和测试责任；不要把 Agent 使用教程写进这里。
 - Book、Presentation、Export、Template 等工具域进入 CLI 工具目录；是否公开到 MCP 由 `profiles` 决定。
 - 不要在 CLI 日志、session 或错误信息中记录客户文档内容、客户名称或外部资产完整路径。
 - CLI 遥测字段必须白名单制；禁止记录参数值、脚本内容、文档内容、客户信息和完整路径。新增遥测字段必须过 review；共享遥测目录只写 NAS JSONL、`state` 和 `reports`，不写客户素材。
-- `skills/indesign-cli/` 是公司统一 InDesign/HTML 出版 Skill 的唯一发布源；顶层 `SKILL.md` 负责路线选择，HTML 作者规则等详细内容放 `references/`。不得在 `html-indesign` 或其他仓库维护第二份可发布 Skill。
-- 发布版 Skill 只写公司 Agent 能直接执行的入口；不得放源码仓库命令、内部 E2E 或开发测试流程。可重复且易错的动作放 `skills/indesign-cli/scripts/`，起步模板放 `assets/`。
+- **自 2026-11-14 起，`indesign-cli` 画廊技能唯一维护与发布真源已迁至 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\`，以后修改 Agent 技能文案与参考文档一律去 `SA_skillhub` 改，原仓 `skills/indesign-cli/` 仅作本地单测夹具保留、不再直接发画廊。**不得在 `html-indesign` 或其他仓库维护第二份可发布 Skill。
+- 发布版 Skill 只写公司 Agent 能直接执行的入口；不得放源码仓库命令、内部 E2E 或开发测试流程。可重复且易错的动作放 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\scripts\`，起步模板放其 `assets/`。
 - CLI 不提供自动安装 Skill 的命令；Setup 和 PyPI 包只发布程序，不携带 Skill，Skill 继续由公司 Agent 渠道直接从唯一源目录独立分发。
 - 公司成品采用 `%LOCALAPPDATA%\indesign-cli\{bin,runtime,state,tmp}` 持久布局；`state/current-runtime.json` 是当前 runtime 唯一指针，业务命令不得直接从 embedded runtime 或临时解压目录运行。
 - 日常更新只消费 schema v2 `runtime-latest.json` 并安装 runtime ZIP，不替换 `bin/indesign-cli-agent.exe`。必须 staging 校验后原子切换；成功只保留当前 runtime，失败保留旧 runtime，无旧 runtime 时返回 `INITIAL_INSTALL_FAILED`。
@@ -108,13 +108,13 @@
 - `skills/**/*.ps1` 必须保持纯 ASCII。Windows PowerShell 5.1 按 ANSI 代码页解码无 BOM 脚本，非 ASCII 字节产生的乱码会吞掉下一行代码，使赋值静默消失。由 `test_published_skill_powershell_scripts_are_pure_ascii` 守护。
 - 发布文档中的 PowerShell 调用统一 `pwsh -NoProfile -ExecutionPolicy Bypass`（PowerShell 7 优先）。T1 前置条件已于 2026-08 满足：SA-AIAPP agent toolbox 自动安装便携 pwsh 并前插 PATH（`SA_AGENT_PWSH` 兜底），见 backlog T1 状态注记。`pwsh` 确实不存在时，不涉及中文读写的命令可退回 `powershell.exe`；涉及中文路径/内容的操作宁可显式报错要求安装 PowerShell 7，不得静默落回 5.1（ANSI 解码会损坏数据）。ASCII-only 脚本规则（T2）继续保留作纵深防御。
 - `0.4.2` 用户不做旧更新协议兼容，由公司 Agent 从 NAS 重新运行一次新版 Setup 完成迁移。
-- `skills/indesign-cli/preview.png` 是 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
+- `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\preview.png` 是画廊 Skill 展示资产；更新 Skill 时如影响对外说明或展示，应同步确认该资产是否仍匹配。
 
-#### 2.5.1 统一 Skill 内网发布
+#### 2.5.1 统一 Skill 内网发布（已归口 SA_skillhub）
 
-- 发布源固定为本仓库 `skills/indesign-cli/`；内网当前池固定为 `\\Daga-nas5\sa-ai-app\shared\agent-runtime-skills\assistant\gallery\indesign-cli`，不得手工维护第二份发布副本。
-- 发布规程以 `%USERPROFILE%\.codex\skills\sa-aiapp-publish-skill\SKILL.md` 和 `D:\AI\SA-AIAPP\.codex\skills\sa-aiapp-skill-release\SKILL.md` 为准；每次发布前重新读取，不把本文件中的路径说明当成完整发布规则。
-- 管理员发布固定先运行 `python "%USERPROFILE%\.codex\skills\sa-aiapp-publish-skill\scripts\publish_gallery_skill.py" --source "<repo>\skills\indesign-cli" --dry-run`，确认计划后去掉 `--dry-run` 正式发布；禁止手工复制当前池或直接修改数据库。
+- **自 2026-11-14 起，`indesign-cli` 画廊技能唯一维护与发布真源已迁至 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\`**；以后修改 Agent 技能文案与参考文档一律去 `SA_skillhub` 改，本仓库 `skills/indesign-cli/` 仅作本地单测夹具（如 `test_health_runtime.py`、`test_package_metadata.py`）保留、不再直接发画廊。
+- 内网当前池仍固定为 `\\Daga-nas5\sa-ai-app\shared\agent-runtime-skills\assistant\gallery\indesign-cli`，不得手工维护第二份发布副本。
+- 发布规程以 `D:\AI\SA_skillhub\.agents\skills\sa-aiapp-publish-skill\SKILL.md`、`D:\AI\SA_skillhub\AGENTS.md` 和 `D:\AI\SA_skillhub\操作InDesign\AGENTS.md` 为准；正式发布在 `SA_skillhub` 仓库内先提交推送 `origin/main`，再执行 `python ".agents/skills/sa-aiapp-publish-skill/scripts/publish_gallery_skill.py" --source "操作InDesign/skill/indesign-cli" --scope assistant --visibility official --dry-run`，确认计划后去掉 `--dry-run` 正式发布；禁止从本仓库旧夹具目录发布，禁止手工复制当前池或直接修改数据库。
 - 正式成功标准是输出 `ok: true`、`verify.published_rows: 1`、`verify.skill_md_match: true`。脚本负责旧版归档、NAS 原子换版、数据库升版、失败回滚和发布后核验。
 
 #### 2.5.2 运行环境内网发布
@@ -168,7 +168,7 @@
 2. 在域 `index.js` 聚合；新域再在全局 `src/tools/index.js` 聚合。
 3. 执行 `node src/core/artifact.js --write`，再执行 `node src/core/artifact.js --check`。
 4. 更新 `tests/architecture/registry.test.mjs` 中受影响的数量基线，并补对应单元、required 或真实 E2E 场景测试。
-5. 若 CLI contract、工具目录或对外说明变化，同步 `README.md`、`README.en.md`、`skills/indesign-cli/SKILL.md` 和相关 `docs/` 文档。
+5. 若 CLI contract、工具目录或对外说明变化，同步 `README.md`、`README.en.md`、外置画廊真源 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\SKILL.md`（必要时同步本地单测夹具 `skills/indesign-cli/`）和相关 `docs/` 文档。
 
 ## 3. 执行基线
 
@@ -228,14 +228,7 @@
 | `src/tools/<domain>/` | 各域 tool-module：定义、schema、contract、handler 共置 |
 | `src/utils/` | 字符串、路径、响应格式等共享工具 |
 | `agent-harness/` | Agent 专用 CLI harness、CLI 文档和 CLI 测试 |
-| `skills/` | 独立发布到公司 Agent 渠道的标准 Skill 目录 |
-| `skills/indesign-cli/SKILL.md` | 统一 InDesign/HTML 出版 Skill 主入口与路线选择 |
-| `skills/indesign-cli/references/` | HTML 作者规则等按需加载的详细说明 |
-| `skills/indesign-cli/scripts/` | 作者包创建、组装等 Agent 可直接运行的辅助脚本 |
-| `skills/indesign-cli/assets/html-starter/` | 从零制作固定分页 HTML 的起步作者包 |
-| `skills/indesign-cli/assets/templates/catalog.json` | Skill 内置模板目录 |
-| `skills/indesign-cli/agents/openai.yaml` | Skill 展示与默认提示元数据 |
-| `skills/indesign-cli/preview.png` | Skill 预览图 |
+| `skills/` | 本地单测夹具保留目录（2026-11-14 起画廊唯一维护与发布真源已迁至 `D:\AI\SA_skillhub\操作InDesign\skill\indesign-cli\`，此处不再直接发画廊） |
 | `scripts/` | 维护脚本和轻量检查 |
 | `tests/` | 测试入口、场景测试、工具套件和真实 E2E |
 | `docs/` | 当前说明、流程文档、方案、计划和协作记录 |
