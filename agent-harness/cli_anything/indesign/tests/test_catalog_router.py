@@ -592,6 +592,118 @@ def test_session_doctor_command_reports_session_path(tmp_path):
     assert payload["data"]["session_path"] == str(tmp_path / ".indesign-cli" / "session.json")
 
 
+def test_session_write_falls_back_when_smb_replace_denies_access(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.session import SessionStore
+
+    monkeypatch.setattr(session_module, "_REPLACE_RETRY_DELAYS", ())
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="document.get_document_info", domain="document", source="classic", ok=True, duration_ms=5)
+    assert store.path.exists()
+
+    original_replace = Path.replace
+
+    # Case 1: SMB denies overwriting an existing target via replace, succeeds once unlinked.
+    def deny_when_target_exists(self, target):
+        if Path(target).exists():
+            raise PermissionError(5, "拒绝访问", str(self), 5, str(target))
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", deny_when_target_exists)
+    store.record_call(tool_id="export.export_pdf", domain="export", source="classic", ok=True, duration_ms=10)
+    stored = store.read(compact=False)
+    assert [item["tool_id"] for item in stored["recent_calls"]] == ["export.export_pdf", "document.get_document_info"]
+    assert list(store.root.glob("*.tmp")) == []
+
+    # Case 2: SMB denies every rename; fallback writes directly and still cleans up tmp files.
+    def always_deny_replace(self, target):
+        raise PermissionError(5, "拒绝访问", str(self), 5, str(target))
+
+    monkeypatch.setattr(Path, "replace", always_deny_replace)
+    store.record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=3)
+    stored_after = store.read(compact=False)
+    assert stored_after["recent_calls"][0]["tool_id"] == "export.verify"
+    assert list(store.root.glob("*.tmp")) == []
+
+
+def test_session_read_recovers_from_corrupted_json(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.root.mkdir(parents=True, exist_ok=True)
+    store.path.write_text("{corrupted", encoding="utf-8")
+
+    payload = store.read(compact=True)
+    assert payload["recent_calls"] == []
+    assert payload["session_path"] == str(store.path)
+
+
+def test_cli_survives_session_write_permission_error_for_success_and_cli_error(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    def deny_record_call(self, **_kwargs):
+        raise PermissionError(5, "拒绝访问: \\\\daga-nas5\\share\\project\\.indesign-cli\\session.json")
+
+    monkeypatch.setattr(SessionStore, "record_call", deny_record_call)
+    monkeypatch.chdir(tmp_path)
+
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n" + b"0" * 1024 + b"\n%%EOF\n")
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(indesign_cli, "emit", lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1])
+
+    code = indesign_cli.main(["export", "verify", str(pdf)])
+    assert code == 0
+    ok_payload = json.loads(capsys_buf.pop())
+    assert ok_payload["ok"] is True
+    assert any("SESSION_WRITE_FAILED" in warning for warning in ok_payload["warnings"])
+    assert "daga-nas5" not in json.dumps(ok_payload, ensure_ascii=False)
+
+    monkeypatch.setattr(
+        indesign_cli.Router,
+        "call",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(CliError("No active document", code="NO_ACTIVE_DOCUMENT")),
+    )
+    err_code = indesign_cli.main(["tool", "call", "document.get_document_info"])
+    assert err_code == 1
+    err_payload = json.loads(capsys_buf.pop())
+    assert err_payload["ok"] is False
+    assert err_payload["error"]["code"] == "NO_ACTIVE_DOCUMENT"
+
+
+def test_mcp_backend_preserves_open_document_structured_error_codes():
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+
+    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
+    response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": False,
+                        "operation": "Open Document",
+                        "code": "FILE_NOT_FOUND",
+                        "message": "File not found: //nas/missing.indd",
+                        "result": "File not found: //nas/missing.indd",
+                        "documentState": {"documentsCount": 1, "activeDocumentName": "ref.indd", "state_uncertain": False},
+                    }
+                ),
+            }
+        ]
+    }
+    try:
+        backend._parse_tool_response("open_document", response)
+    except CliError as exc:
+        assert exc.code == "FILE_NOT_FOUND"
+        assert exc.details["documentState"]["activeDocumentName"] == "ref.indd"
+    else:
+        raise AssertionError("expected CliError")
+
+
 def test_tool_batch_stops_on_first_failure(tmp_path):
     plan = tmp_path / "batch.json"
     plan.write_text(

@@ -2,9 +2,40 @@ from __future__ import annotations
 
 import json
 import os
+import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+_REPLACE_RETRY_DELAYS = (0.02, 0.05, 0.1)
+
+
+def _replace_with_smb_fallback(tmp: Path, target: Path, serialized: str) -> None:
+    last_exc: OSError | None = None
+    for index in range(len(_REPLACE_RETRY_DELAYS) + 1):
+        try:
+            tmp.replace(target)
+            return
+        except OSError as exc:
+            last_exc = exc
+            if index < len(_REPLACE_RETRY_DELAYS):
+                time.sleep(_REPLACE_RETRY_DELAYS[index])
+    # Windows SMB/NAS 上覆盖已有文件的 MoveFileExW(MOVEFILE_REPLACE_EXISTING) 常报 WinError 5；
+    # 先删目标再改名，若仍被拒绝则直接原地覆写目标文件。
+    try:
+        target.unlink(missing_ok=True)
+        tmp.replace(target)
+        return
+    except OSError:
+        pass
+    try:
+        target.write_text(serialized, encoding="utf-8")
+        return
+    except OSError:
+        if last_exc is not None:
+            raise last_exc
+        raise
 
 
 class SessionStore:
@@ -13,24 +44,37 @@ class SessionStore:
         self.path = self.root / "session.json"
 
     def read(self, compact: bool = True) -> dict[str, Any]:
+        payload: dict[str, Any]
         if not self.path.exists():
-            payload: dict[str, Any] = {"version": 1, "recent_calls": []}
+            payload = {"version": 1, "recent_calls": []}
         else:
-            payload = json.loads(self.path.read_text(encoding="utf-8"))
-            if compact:
-                payload.pop("verbose_paths", None)
+            try:
+                loaded = json.loads(self.path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                payload = {"version": 1, "recent_calls": []}
+            else:
+                payload = loaded if isinstance(loaded, dict) else {"version": 1, "recent_calls": []}
+                if compact:
+                    payload.pop("verbose_paths", None)
         # Agent 自查「我现在在哪」的一部分：回显实际读的是哪个绝对路径的 session 文件，
         # 而不是让 Agent 靠猜测 cwd 来判断。派生字段，write() 不会把它落盘。
         payload["session_path"] = str(self.path)
         return payload
 
     def write(self, payload: dict[str, Any]) -> None:
-        # 临时文件 + 原子替换，避免多 Agent 并发写出半截 JSON
+        # 临时文件 + 原子替换（含 SMB/NAS WinError 5 回退），避免多 Agent 并发写出半截 JSON
         self.root.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(f"session.{os.getpid()}.tmp")
+        tmp = self.path.with_name(f"session.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
         to_store = {key: value for key, value in payload.items() if key != "session_path"}
-        tmp.write_text(json.dumps(to_store, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(self.path)
+        serialized = json.dumps(to_store, ensure_ascii=False, indent=2)
+        try:
+            tmp.write_text(serialized, encoding="utf-8")
+            _replace_with_smb_fallback(tmp, self.path, serialized)
+        finally:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def record_call(
         self,
@@ -98,8 +142,7 @@ class SessionStore:
         self.write(payload)
 
     def clear(self) -> None:
-        if self.path.exists():
-            self.path.unlink()
+        self.path.unlink(missing_ok=True)
 
     def doctor(self) -> dict[str, Any]:
         payload = self.read(compact=True)

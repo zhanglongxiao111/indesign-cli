@@ -1,13 +1,36 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from pathlib import Path
+
+_PATH_PREFIX = (
+    r"(?:"
+    r"(?<![A-Za-z])[A-Za-z]:(?:\\\\|[\\/])"
+    r"|(?:\\){2,4}[^\\/'\"\r\n\s]+(?:\\\\|[\\/])"
+    r"|(?<!:)//[^\\/'\"\r\n\s]+/"
+    r")"
+)
+_TEXT_PATH_RE = re.compile(
+    rf"(?:"
+    rf"(?<=['\"]){_PATH_PREFIX}[^'\"\r\n]+"
+    rf"|{_PATH_PREFIX}[^\s'\"\r\n]+(?: [^\s'\"\r\n:]*(?:[\\/][^\s'\"\r\n]*|\.[A-Za-z0-9]{{1,8}}))*"
+    rf")"
+)
 
 
 def _hash_path(path: Path) -> str:
     digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()
     return digest[:16]
+
+
+def _normalize_matched_path(raw_path: str) -> str:
+    if raw_path.startswith("\\\\\\\\"):
+        return "\\\\" + raw_path[4:].replace("\\\\", "\\")
+    if len(raw_path) >= 4 and raw_path[1:4] == ":\\\\":
+        return raw_path[:2] + "\\" + raw_path[4:].replace("\\\\", "\\")
+    return raw_path
 
 
 def scrub_path(path_value: str, cwd: Path) -> dict[str, object]:
@@ -39,11 +62,27 @@ def scrub_text_paths(value: str, allow_roots: list[Path] | None = None) -> str:
         try:
             roots.append(root.resolve())
         except OSError:
-            continue
+            roots.append(root)
 
     def replace(match: re.Match[str]) -> str:
-        raw_path = match.group(0)
-        path = Path(raw_path)
+        normalized = _normalize_matched_path(match.group(0))
+        is_unc = normalized.startswith(("\\\\", "//"))
+        if is_unc:
+            unc_win = "\\\\" + normalized.lstrip("\\/").replace("/", "\\")
+            path = Path(os.path.normpath(unc_win))
+            for root in roots:
+                norm_root = Path(os.path.normpath(str(root)))
+                if os.path.normcase(norm_root.drive) != os.path.normcase(path.drive):
+                    continue
+                try:
+                    relative = path.relative_to(norm_root)
+                except ValueError:
+                    continue
+                return str(relative).replace("\\", "/")
+            suffix = path.suffix.lower()
+            return f"<external_path extension={suffix or 'unknown'} hash={_hash_path(path)}>"
+
+        path = Path(normalized)
         try:
             resolved = path.resolve()
         except OSError:
@@ -57,4 +96,4 @@ def scrub_text_paths(value: str, allow_roots: list[Path] | None = None) -> str:
         suffix = path.suffix.lower()
         return f"<external_path extension={suffix or 'unknown'} hash={_hash_path(resolved)}>"
 
-    return re.sub(r"[A-Za-z]:[\\/][^'\"\r\n]+", replace, value)
+    return _TEXT_PATH_RE.sub(replace, value)

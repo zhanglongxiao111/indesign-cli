@@ -341,6 +341,14 @@ def emit_check(command: str, data: dict[str, Any], *, tool_id: str | None = None
     return emit(payload)
 
 
+def _record_session_call(store: SessionStore, *, warnings: list[str] | None = None, **kwargs: Any) -> None:
+    try:
+        store.record_call(**kwargs)
+    except OSError as exc:
+        if warnings is not None:
+            warnings.append(f"SESSION_WRITE_FAILED: {scrub_text_paths(str(exc))[:200]}")
+
+
 def run(argv: list[str] | None = None) -> int:
     global _PRETTY
     start = now_ms()
@@ -396,7 +404,8 @@ def run(argv: list[str] | None = None) -> int:
                 data = router.call(tool_id, {"plan": args.plan, "on_error": args.on_error, "timeout_ms": args.timeout_ms})
             except CliError as exc:
                 duration_ms = elapsed(start)
-                store.record_call(
+                _record_session_call(
+                    store,
                     tool_id=tool_id,
                     domain=tool["domain"],
                     source=tool["source"],
@@ -429,7 +438,7 @@ def run(argv: list[str] | None = None) -> int:
                     return emit(payload)
                 raise
             duration_ms = elapsed(start)
-            store.record_call(tool_id=tool_id, domain=tool["domain"], source=tool["source"], ok=True, duration_ms=duration_ms)
+            _record_session_call(store, warnings=warnings, tool_id=tool_id, domain=tool["domain"], source=tool["source"], ok=True, duration_ms=duration_ms)
             record_tool_call(
                 tool_id=tool_id,
                 source=tool["source"],
@@ -462,7 +471,8 @@ def run(argv: list[str] | None = None) -> int:
             except CliError as exc:
                 duration_ms = elapsed(start)
                 exc_document_state = exc.details.get("documentState") if isinstance(exc.details, dict) else None
-                store.record_call(
+                _record_session_call(
+                    store,
                     tool_id=args.tool_id,
                     domain=tool["domain"],
                     source=tool["source"],
@@ -493,7 +503,9 @@ def run(argv: list[str] | None = None) -> int:
                     )
                 raise
             duration_ms = elapsed(start)
-            store.record_call(
+            _record_session_call(
+                store,
+                warnings=warnings,
                 tool_id=args.tool_id,
                 domain=tool["domain"],
                 source=tool["source"],
@@ -581,7 +593,8 @@ def run(argv: list[str] | None = None) -> int:
                 raise CliError("script run requires a file path or --stdin", code="SCRIPT_INPUT_REQUIRED")
         except CliError as exc:
             exc_document_state = exc.details.get("documentState") if isinstance(exc.details, dict) else None
-            store.record_call(
+            _record_session_call(
+                store,
                 tool_id="script.run",
                 domain="script",
                 source="script",
@@ -591,8 +604,8 @@ def run(argv: list[str] | None = None) -> int:
                 error_summary=exc.message,
                 document_state=exc_document_state if isinstance(exc_document_state, dict) else None,
                 state_uncertain=exc.state_uncertain,
-                    next_action=exc.next_action,
-                )
+                next_action=exc.next_action,
+            )
             record_tool_call(
                 tool_id="script.run",
                 source="script",
@@ -604,7 +617,7 @@ def run(argv: list[str] | None = None) -> int:
             )
             raise
         duration_ms = elapsed(start)
-        store.record_call(tool_id="script.run", domain="script", source="script", ok=True, duration_ms=duration_ms)
+        _record_session_call(store, warnings=warnings, tool_id="script.run", domain="script", source="script", ok=True, duration_ms=duration_ms)
         record_tool_call(
             tool_id="script.run",
             source="script",
@@ -633,7 +646,16 @@ def run(argv: list[str] | None = None) -> int:
             )
             raise
         duration_ms = elapsed(start)
-        SessionStore(Path.cwd()).record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=duration_ms)
+        verify_warnings: list[str] = []
+        _record_session_call(
+            SessionStore(Path.cwd()),
+            warnings=verify_warnings,
+            tool_id="export.verify",
+            domain="export",
+            source="cli",
+            ok=True,
+            duration_ms=duration_ms,
+        )
         record_tool_call(
             tool_id="export.verify",
             source="cli",
@@ -642,7 +664,7 @@ def run(argv: list[str] | None = None) -> int:
             arg_keys=["created_after", "path"],
             arg_paths=[args.path],
         )
-        return emit(success(command="export verify", data=data, duration_ms=duration_ms, tool_id="export.verify", domain="export", source="cli"))
+        return emit(success(command="export verify", data=data, duration_ms=duration_ms, tool_id="export.verify", domain="export", source="cli", warnings=verify_warnings))
     if args.group == "session":
         store = SessionStore(Path.cwd())
         if args.session_command == "show" or args.session_command is None:

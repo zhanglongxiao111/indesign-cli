@@ -449,6 +449,40 @@ def test_edge_probe_reports_stable_missing_code(tmp_path):
     assert result["code"] == "EDGE_NOT_AVAILABLE"
 
 
+def test_edge_probe_falls_back_to_system_program_files_when_programfiles_x86_env_missing(tmp_path):
+    from cli_anything.indesign.core.runtime_health import edge_candidates, probe_edge
+
+    sysdrive = tmp_path / "sysdrive"
+    system_edge = sysdrive / "Program Files (x86)" / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+    system_edge.parent.mkdir(parents=True)
+    system_edge.write_text("edge", encoding="utf-8")
+    env = {
+        "LOCALAPPDATA": str(tmp_path / "local"),
+        "SystemDrive": str(sysdrive),
+    }
+
+    candidates = edge_candidates(env)
+    result = probe_edge(env)
+
+    assert result["available"] is True
+    assert result["path"] == str(system_edge.resolve())
+    assert candidates[0] == system_edge
+    assert candidates[-1] == tmp_path / "local" / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+
+
+def test_edge_candidates_process_env_adds_default_c_drive_when_windows_env_is_minimal(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import runtime_health
+
+    monkeypatch.setattr(runtime_health.os, "name", "nt", raising=False)
+    monkeypatch.setattr(runtime_health.os, "environ", {"LOCALAPPDATA": str(tmp_path / "local")})
+
+    candidates = runtime_health.edge_candidates()
+
+    assert Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe") in candidates
+    assert Path(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe") in candidates
+    assert candidates[-1] == tmp_path / "local" / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+
+
 def test_server_health_reports_current_runtime_components_builtin_html_and_edge(monkeypatch, tmp_path):
     from cli_anything.indesign.core import health as health_module
 

@@ -167,6 +167,20 @@ def test_scrub_text_paths_keeps_workspace_paths_relative(tmp_path):
     assert "<external_path" in scrubbed
 
 
+def test_scrub_text_paths_scrubs_unc_paths_without_touching_urls(tmp_path):
+    from cli_anything.indesign.core.paths import scrub_text_paths
+
+    text = (
+        r"[WinError 5] 拒绝访问: '\\daga-nas5\secret-project\deck.indd' "
+        "and //daga-nas4/client-a/book.indd see https://github.com/zhanglongxiao111/indesign-cli"
+    )
+    scrubbed = scrub_text_paths(text, allow_roots=[tmp_path])
+    assert "daga-nas5" not in scrubbed
+    assert "secret-project" not in scrubbed
+    assert "daga-nas4" not in scrubbed
+    assert "https://github.com/zhanglongxiao111/indesign-cli" in scrubbed
+
+
 def test_batch_step_invalid_includes_expected_step_template(tmp_path):
     from cli_anything.indesign.core.errors import CliError
     from cli_anything.indesign.core.batch import run_batch

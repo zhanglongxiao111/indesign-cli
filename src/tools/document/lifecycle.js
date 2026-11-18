@@ -152,17 +152,130 @@ export async function openDocument(args) {
         const escapedFilePath = escapeFilePathForJsx(filePath);
 
         const script = [
-            'var file = File("' + escapedFilePath + '");',
-            'if (!file.exists) {',
-            `  "File not found: ${escapedFilePath}";`,
-            '} else {',
-            '  app.open(file);',
-            `  "Document opened: ${escapedFilePath}";`,
-            '}'
+            'function __mcpNormPath(p) {',
+            '  if (!p) return "";',
+            '  var s = String(p).replace(/\\\\/g, "/");',
+            '  if (s.indexOf("//") === 0) {',
+            '    s = "//" + s.slice(2).replace(/\\/+/g, "/");',
+            '  } else {',
+            '    s = s.replace(/\\/+/g, "/");',
+            '  }',
+            '  if (s.length > 1 && s.charAt(s.length - 1) === "/") {',
+            '    s = s.slice(0, -1);',
+            '  }',
+            '  return s.toLowerCase();',
+            '}',
+            'function __mcpActiveName() {',
+            '  try { return (app.documents.length > 0 && app.activeDocument) ? String(app.activeDocument.name) : null; } catch (_) { return null; }',
+            '}',
+            'var __result = null;',
+            'try {',
+            `  var file = File("${escapedFilePath}");`,
+            '  var targetFs = __mcpNormPath(file.fsName);',
+            '  var targetFull = __mcpNormPath(file.fullName);',
+            '  var matchedDoc = null;',
+            '  for (var i = 0; i < app.documents.length; i++) {',
+            '    var candidate = app.documents[i];',
+            '    try {',
+            '      var candFile = File(candidate.fullName);',
+            '      var candFs = __mcpNormPath(candFile.fsName);',
+            '      var candFull = __mcpNormPath(candFile.fullName);',
+            '      if ((targetFs && candFs === targetFs) || (targetFull && candFull === targetFull)) {',
+            '        matchedDoc = candidate;',
+            '        break;',
+            '      }',
+            '    } catch (_unsavedErr) {',
+            '      try {',
+            '        if (candidate.filePath) {',
+            '          var fbFile = File(String(candidate.filePath) + "/" + String(candidate.name));',
+            '          var fbFs = __mcpNormPath(fbFile.fsName);',
+            '          var fbFull = __mcpNormPath(fbFile.fullName);',
+            '          if ((targetFs && fbFs === targetFs) || (targetFull && fbFull === targetFull)) {',
+            '            matchedDoc = candidate;',
+            '            break;',
+            '          }',
+            '        }',
+            '      } catch (_) {}',
+            '    }',
+            '  }',
+            '  var doc = null;',
+            '  var alreadyOpen = false;',
+            '  if (matchedDoc) {',
+            '    doc = matchedDoc;',
+            '    alreadyOpen = true;',
+            '    try {',
+            '      app.activeDocument = doc;',
+            '    } catch (_activateErr) {',
+            '      try {',
+            '        if (doc.windows.length === 0) { doc.windows.add(); }',
+            '        app.activeDocument = doc;',
+            '      } catch (_) {}',
+            '    }',
+            '  } else if (!file.exists) {',
+            `    __result = JSON.stringify({ success: false, code: "FILE_NOT_FOUND", message: "File not found: ${escapedFilePath}", documentState: { documentsCount: app.documents.length, activeDocumentName: __mcpActiveName(), state_uncertain: false } });`,
+            '  } else {',
+            '    doc = app.open(file);',
+            '    try { app.activeDocument = doc; } catch (_) {}',
+            '  }',
+            '  if (!__result && doc) {',
+            '    var activeOk = false;',
+            '    try { activeOk = (app.activeDocument === doc) || (app.activeDocument && app.activeDocument.name === doc.name); } catch (_) {}',
+            '    if (!activeOk) {',
+            '      __result = JSON.stringify({ success: false, code: "DOCUMENT_ACTIVATE_FAILED", message: "Document could not be activated: " + doc.name, documentState: { documentsCount: app.documents.length, activeDocumentName: __mcpActiveName(), state_uncertain: true } });',
+            '    } else {',
+            '      var resolvedPath = "";',
+            '      try { resolvedPath = String(File(doc.fullName).fsName); } catch (_) { resolvedPath = String(file.fsName || ""); }',
+            `      var summaryText = alreadyOpen ? ("Document already open and activated: " + doc.name + " (${escapedFilePath})") : "Document opened: ${escapedFilePath}";`,
+            '      var docState = {',
+            '        documentsCount: Number(app.documents.length),',
+            '        activeDocumentName: String(doc.name),',
+            '        alreadyOpen: alreadyOpen,',
+            '        state_uncertain: false',
+            '      };',
+            '      __result = JSON.stringify({',
+            '        success: true,',
+            '        operation: "Open Document",',
+            '        result: summaryText,',
+            '        summary: summaryText,',
+            '        data: {',
+            '          documentName: String(doc.name),',
+            '          filePath: resolvedPath,',
+            '          alreadyOpen: alreadyOpen,',
+            '          pages: Number(doc.pages.length),',
+            '          width: Number(doc.documentPreferences.pageWidth),',
+            '          height: Number(doc.documentPreferences.pageHeight),',
+            '          documentState: docState',
+            '        },',
+            '        documentState: docState',
+            '      });',
+            '    }',
+            '  }',
+            '} catch (error) {',
+            '  __result = JSON.stringify({ success: false, code: "DOCUMENT_OPEN_FAILED", message: "Cannot open document: " + error.message, documentState: { documentsCount: app.documents.length, activeDocumentName: __mcpActiveName(), state_uncertain: false } });',
+            '}',
+            '__result;'
         ].join('\n');
 
         const result = await runScript(script);
-        return formatResponse(result, "Open Document");
+        const response = formatResponse(result, "Open Document");
+        if (response.success && response.data && typeof response.data === 'object') {
+            try {
+                sessionManager.setActiveDocument({
+                    name: response.data.documentName || 'Unknown',
+                    path: response.data.filePath || filePath,
+                    pages: Number(response.data.pages || 0),
+                    width: Number(response.data.width || 0),
+                    height: Number(response.data.height || 0)
+                });
+                if (response.data.width > 0 && response.data.height > 0) {
+                    sessionManager.setPageDimensions({
+                        width: Number(response.data.width),
+                        height: Number(response.data.height)
+                    });
+                }
+            } catch (_) {}
+        }
+        return response;
     }
 
 export async function saveDocument(args) {
