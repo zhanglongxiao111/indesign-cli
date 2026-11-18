@@ -271,7 +271,7 @@ Every command (including argument typos) returns the unified JSON envelope (`sch
 | `MCP_START_FAILED` / `MCP_TOOL_FAILED` / `INDESIGN_SCRIPT_FAILED` | Node backend or InDesign script failure | Run `server health`; inspect `error.details.result` |
 | `NO_ACTIVE_DOCUMENT` | No document is open | Open or create a document first |
 | `FILE_NOT_FOUND` / `DOCUMENT_OPEN_FAILED` / `DOCUMENT_ACTIVATE_FAILED` | Target document missing / failed to open / open but could not become active | Verify the path and permissions; on `DOCUMENT_ACTIVATE_FAILED` (`state_uncertain: true`), run `session doctor` to confirm the active document |
-| `SESSION_BUSY` | Another process is actively updating `.indesign-cli/session.json` and lock wait timed out (`retryable: true`) | Retry `session show` or `session doctor` shortly without deleting the lock file |
+| `SESSION_BUSY` / `SESSION_READ_FAILED` | `.indesign-cli/session.json` is locked by an active write or temporarily unreadable (`retryable: true`) | Retry `session show` or `session doctor` shortly without deleting the lock or session file |
 | `ARTIFACT_*` | Export verification failed | Confirm the export succeeded and the path points at a fresh artifact |
 | `SERVER_ROOT_*` / `NPM_*` | Environment or dependency issues | See the troubleshooting section above |
 | `UNEXPECTED_ERROR` | Unexpected CLI exception | Report it with `error.details` (exception type and location) |

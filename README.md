@@ -293,7 +293,7 @@ indesign-cli tool call template.populate_template_slots --args-file args.json
 | `MCP_START_FAILED` / `MCP_TOOL_FAILED` / `INDESIGN_SCRIPT_FAILED` | Node 后端或 InDesign 脚本失败 | 跑 `server health` 排查；看 `error.details.result` |
 | `NO_ACTIVE_DOCUMENT` | 没有打开的文档 | 先打开或创建文档 |
 | `FILE_NOT_FOUND` / `DOCUMENT_OPEN_FAILED` / `DOCUMENT_ACTIVATE_FAILED` | 目标文档不存在 / 打开失败 / 已打开但未能切换为活动文档 | 核对路径与权限；遇到 `DOCUMENT_ACTIVATE_FAILED`（`state_uncertain: true`）先跑 `session doctor` 确认当前活动文档 |
-| `SESSION_BUSY` | 另一个进程正在更新 `.indesign-cli/session.json`，读取等待锁超时（`retryable: true`） | 稍后重试 `session show` 或 `session doctor`，不要手动删除锁文件 |
+| `SESSION_BUSY` / `SESSION_READ_FAILED` | `.indesign-cli/session.json` 正被其他进程更新锁住或临时无法读取（`retryable: true`） | 稍后重试 `session show` 或 `session doctor`，不要手动删除锁文件或会话文件 |
 | `ARTIFACT_*` | 导出物验证失败 | 确认导出成功、路径正确、产物非旧文件 |
 | `SERVER_ROOT_*` / `NPM_*` | 环境或依赖问题 | 见上文"常见环境问题排查" |
 | `UNEXPECTED_ERROR` | CLI 未预期异常 | 带 `error.details`（含异常类型和位置）反馈 |

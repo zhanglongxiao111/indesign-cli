@@ -141,12 +141,22 @@ class SessionStore:
 
     def _read_unlocked(self, compact: bool = True) -> dict[str, Any]:
         payload: dict[str, Any]
-        if not self.path.exists():
+        try:
+            raw_text = self.path.read_text(encoding="utf-8")
+        except FileNotFoundError:
             payload = {"version": 1, "recent_calls": []}
+        except OSError as exc:
+            raise CliError(
+                "Session state cannot be read",
+                code="SESSION_READ_FAILED",
+                retryable=True,
+                details={"session": scrub_text_paths(str(self.path)), "reason": exc.__class__.__name__},
+                hint="无法读取 .indesign-cli/session.json（可能存在网盘共享冲突或权限限制）；请稍后重试。",
+            ) from exc
         else:
             try:
-                loaded = json.loads(self.path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
+                loaded = json.loads(raw_text)
+            except json.JSONDecodeError:
                 payload = {"version": 1, "recent_calls": []}
             else:
                 payload = loaded if isinstance(loaded, dict) else {"version": 1, "recent_calls": []}

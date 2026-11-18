@@ -884,6 +884,51 @@ def test_session_read_and_doctor_raise_session_busy_instead_of_unlocked_partial_
     assert recovered["recent_calls"][0]["error_code"] == "NO_ACTIVE_DOCUMENT"
 
 
+def test_session_read_io_error_preserves_existing_file_and_surfaces_warning(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="document.open_document", domain="document", source="classic", ok=True, duration_ms=15)
+    original_bytes = store.path.read_bytes()
+
+    original_read_text = Path.read_text
+
+    def deny_session_read(self, *args, **kwargs):
+        if self.name == "session.json":
+            raise PermissionError(5, "拒绝访问", str(self))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", deny_session_read)
+    try:
+        store.record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=2)
+    except CliError as exc:
+        assert exc.code == "SESSION_READ_FAILED"
+        assert exc.retryable is True
+    else:
+        raise AssertionError("expected SESSION_READ_FAILED on unreadable session.json")
+
+    # Existing session.json must not be overwritten with an empty session when read fails transiently.
+    assert store.path.read_bytes() == original_bytes
+
+    monkeypatch.chdir(tmp_path)
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n" + b"0" * 1024 + b"\n%%EOF\n")
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+    code = indesign_cli.main(["export", "verify", str(pdf)])
+    assert code == 0
+    payload = json.loads(capsys_buf.pop())
+    assert payload["ok"] is True
+    assert any("SESSION_WRITE_FAILED" in warning for warning in payload["warnings"])
+    assert store.path.read_bytes() == original_bytes
+
+
 def test_tool_batch_stops_on_first_failure(tmp_path):
     plan = tmp_path / "batch.json"
     plan.write_text(
