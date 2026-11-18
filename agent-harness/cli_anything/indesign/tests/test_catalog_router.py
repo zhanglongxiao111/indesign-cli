@@ -819,6 +819,71 @@ def test_mcp_backend_preserves_open_document_structured_error_codes(monkeypatch,
     assert stored_session["recent_calls"][0]["state_uncertain"] is True
 
 
+def test_session_read_and_doctor_raise_session_busy_instead_of_unlocked_partial_read(monkeypatch, tmp_path):
+    import threading
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(
+        tool_id="export.export_pdf",
+        domain="export",
+        source="classic",
+        ok=False,
+        duration_ms=20,
+        error_code="NO_ACTIVE_DOCUMENT",
+        error_summary="No active document",
+    )
+
+    entered = threading.Event()
+    release = threading.Event()
+    full_bytes = store.path.read_bytes()
+
+    def hold_lock_with_partial_file() -> None:
+        with session_module._session_lock(store.lock_path, timeout_seconds=2.0):
+            # Simulate an in-flight SMB in-place overwrite holding the lock while JSON is incomplete.
+            store.path.write_bytes(b'{"version": 1, "recent_calls": [')
+            entered.set()
+            release.wait(timeout=5.0)
+            store.path.write_bytes(full_bytes)
+
+    holder = threading.Thread(target=hold_lock_with_partial_file)
+    holder.start()
+    assert entered.wait(timeout=2.0)
+    monkeypatch.setattr(session_module, "_LOCK_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.chdir(tmp_path)
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+    try:
+        try:
+            store.read(compact=True)
+        except CliError as exc:
+            assert exc.code == "SESSION_BUSY"
+            assert exc.retryable is True
+        else:
+            raise AssertionError("expected SESSION_BUSY rather than unlocked partial read")
+
+        code = indesign_cli.main(["session", "doctor"])
+        assert code == 1
+        doctor_err = json.loads(capsys_buf.pop())
+        assert doctor_err["error"]["code"] == "SESSION_BUSY"
+        assert doctor_err["error"]["retryable"] is True
+    finally:
+        release.set()
+        holder.join(timeout=2.0)
+
+    monkeypatch.setattr(session_module, "_LOCK_TIMEOUT_SECONDS", 2.0)
+    recovered = store.read(compact=True)
+    assert len(recovered["recent_calls"]) == 1
+    assert recovered["recent_calls"][0]["error_code"] == "NO_ACTIVE_DOCUMENT"
+
+
 def test_tool_batch_stops_on_first_failure(tmp_path):
     plan = tmp_path / "batch.json"
     plan.write_text(

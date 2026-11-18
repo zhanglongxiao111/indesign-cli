@@ -346,7 +346,10 @@ def record_tool_call(
 def recent_call_summaries(cwd: Path | None = None, *, limit: int = 5) -> list[dict[str, Any]]:
     from .session import SessionStore
 
-    payload = SessionStore(cwd or Path.cwd()).read(compact=True)
+    try:
+        payload = SessionStore(cwd or Path.cwd()).read(compact=True)
+    except Exception:
+        return []
     summaries: list[dict[str, Any]] = []
     for call in payload.get("recent_calls") or []:
         if not isinstance(call, dict):

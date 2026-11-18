@@ -344,7 +344,7 @@ def emit_check(command: str, data: dict[str, Any], *, tool_id: str | None = None
 def _record_session_call(store: SessionStore, *, warnings: list[str] | None = None, **kwargs: Any) -> None:
     try:
         store.record_call(**kwargs)
-    except OSError as exc:
+    except (OSError, CliError) as exc:
         if warnings is not None:
             warnings.append(f"SESSION_WRITE_FAILED: {scrub_text_paths(str(exc))[:200]}")
 

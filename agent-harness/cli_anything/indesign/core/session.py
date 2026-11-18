@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 import threading
@@ -10,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from .errors import CliError
 from .paths import scrub_text_paths
 
 _REPLACE_RETRY_DELAYS = (0.02, 0.05, 0.1)
@@ -17,11 +19,28 @@ _LOCK_TIMEOUT_SECONDS = 2.0
 _INPROC_LOCK = threading.Lock()
 
 
+def _session_busy_error(lock_path: Path) -> CliError:
+    return CliError(
+        "Session state is temporarily locked by another process",
+        code="SESSION_BUSY",
+        retryable=True,
+        details={"lock": scrub_text_paths(str(lock_path))},
+        hint="另一个进程正在更新 session.json；请稍后重试 `indesign-cli session show` 或 `indesign-cli session doctor`。",
+    )
+
+
+def _is_lock_contention(exc: OSError) -> bool:
+    winerror = getattr(exc, "winerror", None)
+    if winerror in {33, 36}:
+        return True
+    return exc.errno in {errno.EACCES, errno.EAGAIN}
+
+
 @contextmanager
 def _session_lock(lock_path: Path, *, timeout_seconds: float = _LOCK_TIMEOUT_SECONDS) -> Iterator[None]:
     start = time.monotonic()
     if not _INPROC_LOCK.acquire(timeout=timeout_seconds):
-        raise TimeoutError("Timed out acquiring in-process session lock")
+        raise _session_busy_error(lock_path)
     handle = None
     locked = False
     try:
@@ -46,9 +65,11 @@ def _session_lock(lock_path: Path, *, timeout_seconds: float = _LOCK_TIMEOUT_SEC
                     fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 locked = True
                 break
-            except OSError:
-                if time.monotonic() - start >= timeout_seconds:
+            except OSError as exc:
+                if not _is_lock_contention(exc):
                     raise
+                if time.monotonic() - start >= timeout_seconds:
+                    raise _session_busy_error(lock_path) from exc
                 time.sleep(0.01)
         yield
     finally:
@@ -143,6 +164,8 @@ class SessionStore:
             try:
                 with _session_lock(self.lock_path):
                     return self._read_unlocked(compact=compact)
+            except CliError:
+                raise
             except OSError:
                 pass
         return self._read_unlocked(compact=compact)
