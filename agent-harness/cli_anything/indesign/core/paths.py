@@ -12,10 +12,12 @@ _PATH_PREFIX = (
     r"|(?<!:)//[^\\/'\"\r\n\s]+/"
     r")"
 )
+_NO_URL_AHEAD = r"(?!\s+[A-Za-z][A-Za-z0-9+.-]*://)"
 _TEXT_PATH_RE = re.compile(
     rf"(?:"
     rf"(?<=['\"]){_PATH_PREFIX}[^'\"\r\n]+"
-    rf"|{_PATH_PREFIX}[^\s'\"\r\n]+(?: [^\s'\"\r\n:]*(?:[\\/][^\s'\"\r\n]*|\.[A-Za-z0-9]{{1,8}}))*"
+    rf"|{_PATH_PREFIX}(?:{_NO_URL_AHEAD}[^'\"\r\n:])*\.[A-Za-z0-9]{{1,12}}(?=$|[\s'\".,;)\]}}])"
+    rf"|{_PATH_PREFIX}(?:{_NO_URL_AHEAD}[^'\"\r\n])+"
     rf")"
 )
 
