@@ -725,12 +725,21 @@ def test_cli_survives_session_write_permission_error_for_success_and_cli_error(m
     assert err_payload["error"]["code"] == "NO_ACTIVE_DOCUMENT"
 
 
-def test_mcp_backend_preserves_open_document_structured_error_codes():
-    from cli_anything.indesign.core.errors import CliError
+def test_mcp_backend_preserves_open_document_structured_error_codes(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
     from cli_anything.indesign.core.mcp_backend import McpBackend
+    from cli_anything.indesign.core.session import SessionStore
 
-    backend = McpBackend(repo_root=REPO_ROOT, entry="src/index.js")
-    response = {
+    monkeypatch.chdir(tmp_path)
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+
+    # 1) External file path in structured FILE_NOT_FOUND must be scrubbed in both CLI envelope and session.json.
+    file_not_found_response = {
         "content": [
             {
                 "type": "text",
@@ -739,21 +748,75 @@ def test_mcp_backend_preserves_open_document_structured_error_codes():
                         "success": False,
                         "operation": "Open Document",
                         "code": "FILE_NOT_FOUND",
-                        "message": "File not found: //nas/missing.indd",
-                        "result": "File not found: //nas/missing.indd",
+                        "message": "File not found: C:/SecretClient/private/deck.indd",
+                        "result": "File not found: C:/SecretClient/private/deck.indd",
                         "documentState": {"documentsCount": 1, "activeDocumentName": "ref.indd", "state_uncertain": False},
                     }
                 ),
             }
         ]
     }
-    try:
-        backend._parse_tool_response("open_document", response)
-    except CliError as exc:
-        assert exc.code == "FILE_NOT_FOUND"
-        assert exc.details["documentState"]["activeDocumentName"] == "ref.indd"
-    else:
-        raise AssertionError("expected CliError")
+    monkeypatch.setattr(
+        McpBackend,
+        "call_tool",
+        lambda self, name, _args: self._parse_tool_response(name, file_not_found_response),
+    )
+    monkeypatch.setattr(
+        McpBackend,
+        "list_tools",
+        lambda _self: [
+            {
+                "name": "open_document",
+                "inputSchema": {"type": "object", "properties": {"filePath": {"type": "string"}}, "required": ["filePath"]},
+            }
+        ],
+    )
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps({"filePath": "C:/SecretClient/private/deck.indd"}), encoding="utf-8")
+
+    exit_code = indesign_cli.main(["tool", "call", "document.open_document", "--args-file", str(args_file)])
+    assert exit_code == 1
+    envelope_raw = capsys_buf.pop()
+    envelope = json.loads(envelope_raw)
+    assert envelope["error"]["code"] == "FILE_NOT_FOUND"
+    assert envelope["state_uncertain"] is False
+    assert "SecretClient" not in envelope_raw
+    assert "deck.indd" not in envelope_raw
+    session_raw = (tmp_path / ".indesign-cli" / "session.json").read_text(encoding="utf-8")
+    assert "SecretClient" not in session_raw
+    assert "deck.indd" not in session_raw
+
+    # 2) DOCUMENT_ACTIVATE_FAILED with documentState.state_uncertain=true must propagate to top-level envelope and session.
+    activate_failed_response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": False,
+                        "operation": "Open Document",
+                        "code": "DOCUMENT_ACTIVATE_FAILED",
+                        "message": "Document could not be activated: target.indd",
+                        "result": "Document could not be activated: target.indd",
+                        "documentState": {"documentsCount": 2, "activeDocumentName": "ref.indd", "state_uncertain": True},
+                    }
+                ),
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        McpBackend,
+        "call_tool",
+        lambda self, name, _args: self._parse_tool_response(name, activate_failed_response),
+    )
+    exit_code_2 = indesign_cli.main(["tool", "call", "document.open_document", "--args-file", str(args_file)])
+    assert exit_code_2 == 1
+    envelope_2 = json.loads(capsys_buf.pop())
+    assert envelope_2["error"]["code"] == "DOCUMENT_ACTIVATE_FAILED"
+    assert envelope_2["state_uncertain"] is True
+    assert isinstance(envelope_2["next_action"], str)
+    stored_session = SessionStore(tmp_path).read(compact=False)
+    assert stored_session["recent_calls"][0]["state_uncertain"] is True
 
 
 def test_tool_batch_stops_on_first_failure(tmp_path):

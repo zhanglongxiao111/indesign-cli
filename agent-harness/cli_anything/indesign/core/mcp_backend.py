@@ -27,8 +27,18 @@ def classify_legacy_failure(text: str) -> tuple[str, str] | None:
     if "No document to close" in stripped:
         return ("NO_ACTIVE_DOCUMENT", "No document to close")
     if stripped.startswith(("Error ", "ERROR:", "Failed ")):
-        return ("INDESIGN_SCRIPT_FAILED", stripped[:200])
+        return ("INDESIGN_SCRIPT_FAILED", scrub_text_paths(stripped)[:200])
     return None
+
+
+def _scrub_nested_paths(value: Any) -> Any:
+    if isinstance(value, str):
+        return scrub_text_paths(value)
+    if isinstance(value, list):
+        return [_scrub_nested_paths(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _scrub_nested_paths(item) for key, item in value.items()}
+    return value
 
 
 class McpBackend:
@@ -124,13 +134,13 @@ class McpBackend:
         try:
             response = json.loads(line)
         except json.JSONDecodeError as exc:
-            raise CliError("MCP response is not JSON", code="MCP_BAD_JSON", details={"line": line[:500]}) from exc
+            raise CliError("MCP response is not JSON", code="MCP_BAD_JSON", details={"line": scrub_text_paths(line[:500])}) from exc
         if "error" in response:
             raise CliError(
-                response["error"].get("message", "MCP request failed"),
+                scrub_text_paths(str(response["error"].get("message", "MCP request failed"))),
                 code="MCP_PROTOCOL_ERROR",
                 retryable=False,
-                details=response["error"],
+                details=_scrub_nested_paths(response["error"]),
             )
         return response.get("result", {})
 
@@ -174,7 +184,7 @@ class McpBackend:
         if response.get("isError") or (
             isinstance(parsed, dict) and (parsed.get("success") is False or parsed.get("ok") is False)
         ):
-            details = {"tool": name}
+            details: dict[str, Any] = {"tool": name}
             first_error: dict[str, Any] | None = None
             if isinstance(parsed, dict):
                 details["operation"] = parsed.get("operation")
@@ -182,14 +192,14 @@ class McpBackend:
                 errors = parsed.get("errors")
                 if isinstance(errors, list) and errors and isinstance(errors[0], dict):
                     first_error = {
-                        key: scrub_text_paths(value) if isinstance(value, str) else value
+                        key: _scrub_nested_paths(value)
                         for key, value in errors[0].items()
                         if key in {"code", "message", "pageId", "itemId", "field", "step", "line", "fileName"}
                     }
                     details["first_error"] = first_error
                 details.update(
                     {
-                        key: value
+                        key: _scrub_nested_paths(value)
                         for key, value in parsed.items()
                         if key
                         in {
@@ -211,11 +221,12 @@ class McpBackend:
                 if isinstance(parsed, dict)
                 else "MCP_TOOL_FAILED"
             )
-            message = (
+            raw_message = (
                 str(parsed.get("message") or parsed.get("error") or (first_error or {}).get("message") or "")
                 if isinstance(parsed, dict)
                 else ""
             )
+            message = scrub_text_paths(raw_message).strip()
             if not message:
                 # message 缺失时回退到工具返回文本，Agent 才能看到真实失败原因
                 result_text = scrub_text_paths(str(parsed.get("result") or "")).strip() if isinstance(parsed, dict) else ""
@@ -223,6 +234,20 @@ class McpBackend:
             legacy = classify_legacy_failure(message)
             if legacy:
                 code, message = legacy
-            raise CliError(message, code=code, details=details)
+            doc_state = (
+                parsed.get("documentState")
+                if isinstance(parsed, dict) and isinstance(parsed.get("documentState"), dict)
+                else {}
+            )
+            state_uncertain = bool(
+                (isinstance(parsed, dict) and parsed.get("state_uncertain") is True)
+                or doc_state.get("state_uncertain") is True
+            )
+            next_action = (
+                scrub_text_paths(parsed["next_action"])
+                if isinstance(parsed, dict) and isinstance(parsed.get("next_action"), str) and parsed["next_action"].strip()
+                else ("Run `indesign-cli session doctor` before retrying mutating steps." if state_uncertain else None)
+            )
+            raise CliError(message, code=code, details=details, state_uncertain=state_uncertain, next_action=next_action)
 
         return {"content": content, "parsed": parsed}

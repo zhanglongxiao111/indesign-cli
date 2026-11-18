@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from .paths import scrub_text_paths
+
 _REPLACE_RETRY_DELAYS = (0.02, 0.05, 0.1)
 _LOCK_TIMEOUT_SECONDS = 2.0
 _INPROC_LOCK = threading.Lock()
@@ -201,7 +203,7 @@ class SessionStore:
             "request_id": request_id,
             "command": command,
             "error_code": error_code,
-            "error_summary": error_summary,
+            "error_summary": scrub_text_paths(error_summary) if isinstance(error_summary, str) else error_summary,
             "hint": hint,
             "documentState": document_state,
             "next_action": next_action,
