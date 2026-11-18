@@ -157,4 +157,47 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
   assert.equal(res.message.includes('Corrupted file'), true);
 }
 
+// 5) Same basename in different directories must NOT report success if activation fails and stays on the other file.
+{
+  const FakeFile = createFakeFileFactory(['C:/a/deck.indd', 'C:/b/deck.indd']);
+  const docA = {
+    id: 101,
+    name: 'deck.indd',
+    fullName: FakeFile('C:/a/deck.indd'),
+    pages: { length: 4 },
+    windows: [{}],
+    documentPreferences: { pageWidth: 210, pageHeight: 297 },
+  };
+  const docB = {
+    id: 202,
+    name: 'deck.indd',
+    fullName: FakeFile('C:/b/deck.indd'),
+    pages: { length: 12 },
+    windows: [],
+    documentPreferences: { pageWidth: 297, pageHeight: 210 },
+  };
+  let currentActive = docA;
+  const fakeApp = {
+    documents: [docA, docB],
+    get activeDocument() {
+      return currentActive;
+    },
+    set activeDocument(_next) {
+      throw new Error('Cannot activate headless document');
+    },
+    open() {
+      throw new Error('Should not call app.open');
+    },
+  };
+  sessionManager.clearSession();
+  const res = await runOpenDocumentWithFakeApp(
+    fakeApp,
+    ['C:/a/deck.indd', 'C:/b/deck.indd'],
+    { filePath: 'C:\\b\\deck.indd' }
+  );
+  assert.equal(res.success, false);
+  assert.equal(res.code, 'DOCUMENT_ACTIVATE_FAILED');
+  assert.equal(sessionManager.getActiveDocument(), null);
+}
+
 console.log('registry contract tests passed');

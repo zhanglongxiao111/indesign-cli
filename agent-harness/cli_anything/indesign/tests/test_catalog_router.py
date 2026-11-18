@@ -626,6 +626,58 @@ def test_session_write_falls_back_when_smb_replace_denies_access(monkeypatch, tm
     assert list(store.root.glob("*.tmp")) == []
 
 
+def test_session_smb_fallback_serializes_concurrent_writers_and_preserves_file_on_lock_failure(monkeypatch, tmp_path):
+    import threading
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.session import SessionStore
+
+    monkeypatch.setattr(session_module, "_REPLACE_RETRY_DELAYS", ())
+    monkeypatch.setattr(
+        Path,
+        "replace",
+        lambda self, target: (_ for _ in ()).throw(PermissionError(5, "拒绝访问", str(self), 5, str(target))),
+    )
+    store = SessionStore(tmp_path)
+    store.write({"version": 1, "recent_calls": [{"tool_id": "seed", "ok": True, "pad": "x" * 800}]})
+
+    errors: list[Exception] = []
+
+    def worker(idx: int) -> None:
+        try:
+            payload_len = 900 if idx % 2 == 0 else 20
+            SessionStore(tmp_path).write(
+                {"version": 1, "recent_calls": [{"tool_id": f"call-{idx}", "ok": True, "pad": "y" * payload_len}]}
+            )
+        except Exception as exc:  # pragma: no cover
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    parsed = json.loads(store.path.read_text(encoding="utf-8"))
+    assert parsed["version"] == 1
+    assert len(parsed["recent_calls"]) == 1
+
+    # When lock acquisition fails, the existing session.json must remain intact rather than truncated/unlinked.
+    before_bytes = store.path.read_bytes()
+    monkeypatch.setattr(
+        session_module,
+        "_session_lock",
+        lambda *_a, **_kw: (_ for _ in ()).throw(PermissionError(5, "lock denied")),
+    )
+    try:
+        store.write({"version": 1, "recent_calls": []})
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("expected PermissionError when both replace and lock fail")
+    assert store.path.read_bytes() == before_bytes
+
+
 def test_session_read_recovers_from_corrupted_json(tmp_path):
     from cli_anything.indesign.core.session import SessionStore
 

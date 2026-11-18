@@ -2,16 +2,90 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 _REPLACE_RETRY_DELAYS = (0.02, 0.05, 0.1)
+_LOCK_TIMEOUT_SECONDS = 2.0
+_INPROC_LOCK = threading.Lock()
 
 
-def _replace_with_smb_fallback(tmp: Path, target: Path, serialized: str) -> None:
+@contextmanager
+def _session_lock(lock_path: Path, *, timeout_seconds: float = _LOCK_TIMEOUT_SECONDS) -> Iterator[None]:
+    start = time.monotonic()
+    if not _INPROC_LOCK.acquire(timeout=timeout_seconds):
+        raise TimeoutError("Timed out acquiring in-process session lock")
+    handle = None
+    locked = False
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with lock_path.open("xb") as init_handle:
+                init_handle.write(b"\0")
+        except (FileExistsError, PermissionError):
+            if not lock_path.exists():
+                raise
+        handle = lock_path.open("r+b")
+        while True:
+            try:
+                handle.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except OSError:
+                if time.monotonic() - start >= timeout_seconds:
+                    raise
+                time.sleep(0.01)
+        yield
+    finally:
+        if handle is not None:
+            if locked:
+                try:
+                    handle.seek(0)
+                    if os.name == "nt":
+                        import msvcrt
+
+                        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+
+                        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+            handle.close()
+        _INPROC_LOCK.release()
+
+
+def _overwrite_in_place(target: Path, serialized: str) -> None:
+    data = serialized.encode("utf-8")
+    mode = "r+b" if target.exists() else "wb"
+    with target.open(mode) as handle:
+        handle.seek(0)
+        handle.write(data)
+        handle.truncate()
+        handle.flush()
+
+
+def _replace_with_smb_fallback(
+    tmp: Path,
+    target: Path,
+    lock_path: Path,
+    serialized: str,
+    *,
+    already_locked: bool = False,
+) -> None:
     last_exc: OSError | None = None
     for index in range(len(_REPLACE_RETRY_DELAYS) + 1):
         try:
@@ -22,15 +96,13 @@ def _replace_with_smb_fallback(tmp: Path, target: Path, serialized: str) -> None
             if index < len(_REPLACE_RETRY_DELAYS):
                 time.sleep(_REPLACE_RETRY_DELAYS[index])
     # Windows SMB/NAS 上覆盖已有文件的 MoveFileExW(MOVEFILE_REPLACE_EXISTING) 常报 WinError 5；
-    # 先删目标再改名，若仍被拒绝则直接原地覆写目标文件。
+    # 非原子原地覆写必须在文件锁保护下执行（seek+write+truncate），拿不到锁或无写权限时保留原文件不删除。
     try:
-        target.unlink(missing_ok=True)
-        tmp.replace(target)
-        return
-    except OSError:
-        pass
-    try:
-        target.write_text(serialized, encoding="utf-8")
+        if already_locked:
+            _overwrite_in_place(target, serialized)
+        else:
+            with _session_lock(lock_path):
+                _overwrite_in_place(target, serialized)
         return
     except OSError:
         if last_exc is not None:
@@ -42,8 +114,9 @@ class SessionStore:
     def __init__(self, cwd: Path) -> None:
         self.root = cwd / ".indesign-cli"
         self.path = self.root / "session.json"
+        self.lock_path = self.root / "session.lock"
 
-    def read(self, compact: bool = True) -> dict[str, Any]:
+    def _read_unlocked(self, compact: bool = True) -> dict[str, Any]:
         payload: dict[str, Any]
         if not self.path.exists():
             payload = {"version": 1, "recent_calls": []}
@@ -61,20 +134,40 @@ class SessionStore:
         payload["session_path"] = str(self.path)
         return payload
 
-    def write(self, payload: dict[str, Any]) -> None:
-        # 临时文件 + 原子替换（含 SMB/NAS WinError 5 回退），避免多 Agent 并发写出半截 JSON
+    def read(self, compact: bool = True) -> dict[str, Any]:
+        if not self.path.exists():
+            return self._read_unlocked(compact=compact)
+        if self.lock_path.exists():
+            try:
+                with _session_lock(self.lock_path):
+                    return self._read_unlocked(compact=compact)
+            except OSError:
+                pass
+        return self._read_unlocked(compact=compact)
+
+    def _write_unlocked(self, payload: dict[str, Any], *, already_locked: bool) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(f"session.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
         to_store = {key: value for key, value in payload.items() if key != "session_path"}
         serialized = json.dumps(to_store, ensure_ascii=False, indent=2)
         try:
             tmp.write_text(serialized, encoding="utf-8")
-            _replace_with_smb_fallback(tmp, self.path, serialized)
+            _replace_with_smb_fallback(
+                tmp,
+                self.path,
+                self.lock_path,
+                serialized,
+                already_locked=already_locked,
+            )
         finally:
             try:
                 tmp.unlink(missing_ok=True)
             except OSError:
                 pass
+
+    def write(self, payload: dict[str, Any]) -> None:
+        # 临时文件 + 原子替换（含带锁的 SMB/NAS WinError 5 回退），避免多 Agent 并发写出半截 JSON
+        self._write_unlocked(payload, already_locked=False)
 
     def record_call(
         self,
@@ -96,8 +189,6 @@ class SessionStore:
         state_uncertain: bool = False,
         next_action: str | None = None,
     ) -> None:
-        payload = self.read(compact=False)
-        calls = payload.setdefault("recent_calls", [])
         item: dict[str, Any] = {
             "tool_id": tool_id,
             "domain": domain,
@@ -133,13 +224,24 @@ class SessionStore:
                 for artifact in artifacts
                 if isinstance(artifact, dict) and artifact.get("path")
             ][:10]
-        calls.insert(
-            0,
-            item,
-        )
-        payload["version"] = 1
-        payload["recent_calls"] = calls[:20]
-        self.write(payload)
+
+        try:
+            lock_ctx = _session_lock(self.lock_path)
+            lock_ctx.__enter__()
+            has_lock = True
+        except OSError:
+            lock_ctx = None
+            has_lock = False
+        try:
+            payload = self._read_unlocked(compact=False)
+            calls = payload.setdefault("recent_calls", [])
+            calls.insert(0, item)
+            payload["version"] = 1
+            payload["recent_calls"] = calls[:20]
+            self._write_unlocked(payload, already_locked=has_lock)
+        finally:
+            if lock_ctx is not None and has_lock:
+                lock_ctx.__exit__(None, None, None)
 
     def clear(self) -> None:
         self.path.unlink(missing_ok=True)
