@@ -914,3 +914,82 @@ if (process.argv.includes('--stdio-session')) {
         assert exc_info.value.code == "TIMEOUT"
         assert timeout_backend.is_session_active is False
     assert all(proc.poll() is not None for proc in spawned)
+
+
+def test_plugin_backend_stdio_session_times_out_blocked_stdin_and_captures_stderr(tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.backend import PluginBackend
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    # 1) Plugin that never reads stdin + 1 MB payload must honor timeout (0.3s) and reap child.
+    hang_dir = tmp_path / "hang-stdin-plugin"
+    hang_dir.mkdir(parents=True, exist_ok=True)
+    (hang_dir / "index.js").write_text(
+        "process.stderr.write('stage=indesign-build\\n');\nsetInterval(() => {}, 10000);\n",
+        encoding="utf-8",
+    )
+    manifest = {
+        "schema_version": 1,
+        "protocol": "indesign-cli-plugin.v1",
+        "id": "hang-stdin-plugin",
+        "name": "hang-stdin-plugin",
+        "version": "1.0.0",
+        "kind": "node-plugin",
+        "domain": "demo",
+        "entry": "index.js",
+        "description": "test blocked stdin timeout",
+        "timeout_default_ms": 10000,
+        "document_state_policy": "none",
+        "host_actions": ["session.show"],
+        "requires": {"indesign_cli": ">=0.1.0", "node": ">=18.0.0"},
+        "capabilities": {"tools": True, "stdio_session": True},
+        "permissions": {"filesystem": [], "indesign": "host_only", "network": False},
+    }
+    manifest_path = hang_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    record = PluginRecord(
+        id="hang-stdin-plugin",
+        source="project",
+        root=hang_dir,
+        manifest_path=manifest_path,
+        manifest=manifest,
+    )
+
+    backend = PluginBackend(record, timeout=0.3)  # type: ignore[arg-type]
+    big_payload = {"blob": "x" * (1024 * 1024)}
+    t0 = time.monotonic()
+    with backend.session():
+        with pytest.raises(CliError) as exc_info:
+            backend.call_tool("demo.hang", big_payload, {})
+    elapsed = time.monotonic() - t0
+    assert exc_info.value.code == "TIMEOUT"
+    assert elapsed < 2.0, f"blocked stdin write must respect 0.3s timeout, took {elapsed:.2f}s"
+    assert "stage=indesign-build" in str(exc_info.value.details.get("stderr_tail") or "")
+    assert backend.is_session_active is False
+
+    # 2) Plugin that reads stdin, logs a short diagnostic line to stderr, then hangs must include stderr_tail.
+    log_dir = tmp_path / "hang-after-log-plugin"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / "index.js").write_text(
+        "const rl = require('readline').createInterface({ input: process.stdin });\n"
+        "rl.on('line', () => { process.stderr.write('stage=indesign-build\\n'); });\n"
+        "setInterval(() => {}, 10000);\n",
+        encoding="utf-8",
+    )
+    manifest2 = {**manifest, "id": "hang-after-log-plugin", "name": "hang-after-log-plugin"}
+    manifest2_path = log_dir / "manifest.json"
+    manifest2_path.write_text(json.dumps(manifest2), encoding="utf-8")
+    record2 = PluginRecord(
+        id="hang-after-log-plugin",
+        source="project",
+        root=log_dir,
+        manifest_path=manifest2_path,
+        manifest=manifest2,
+    )
+    backend2 = PluginBackend(record2, timeout=0.3)  # type: ignore[arg-type]
+    with backend2.session():
+        with pytest.raises(CliError) as exc2:
+            backend2.call_tool("demo.hang", {}, {})
+    assert exc2.value.code == "TIMEOUT"
+    assert "stage=indesign-build" in str(exc2.value.details.get("stderr_tail") or "")
+    assert backend2.is_session_active is False

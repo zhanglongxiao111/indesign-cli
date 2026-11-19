@@ -230,6 +230,28 @@ node <plugin-entry>
 - 插件进程不保证跨命令保留内存。
 - 宿主必须设置超时，并在超时后终止插件进程。
 
+### 9.1 可选单次调用 `stdio_session` 会话模式
+
+当插件包含需要多轮 `tools/call` → `tools/resume` 的宿主动作流程时，为避免每轮重复冷启动 Node 子进程，插件可在 `manifest.json` 中显式声明支持可选的单次调用会话模式：
+
+```json
+{
+  "capabilities": {
+    "tools": true,
+    "host_actions": ["script.run", "export.verify", "session.show"],
+    "stdio_session": true
+  }
+}
+```
+
+启用条件与传输约定：
+
+- **启用条件**：仅当 `manifest.capabilities.stdio_session === true` 时，宿主在单次工具调用作用域（`tools/call` 及其关联的所有 `tools/resume` 轮次）内以 `node <plugin-entry> --stdio-session` 启动插件子进程。
+- **NDJSON 分帧**：宿主按行向 `stdin` 写入单行 JSON-RPC 2.0 请求（以 `\n` 结尾）；插件在 `--stdio-session` 模式下**不得等待 `stdin` EOF 才处理**，必须逐行读取请求、串行分派并立即向 `stdout` 写入单行 JSON-RPC 2.0 响应（以 `\n` 结尾）。
+- **生命周期与非守护约束**：会话仅限于当前单次 CLI 工具调用期间。调用完成、失败或超时后，宿主立即关闭 `stdin` 并回收子进程（超时时强制终止）；插件在收到 `stdin` EOF 后必须立即干净退出，不得常驻后台。
+- **超时与诊断**：单次请求的超时同时覆盖 `stdin` 发送阶段与等待 `stdout` 响应阶段；插件诊断日志写 `stderr`（建议按行刷新），超时或异常退出后由宿主回收并在错误详情中返回 `stderr_tail`。
+- **向后兼容**：未声明 `capabilities.stdio_session: true` 的插件（以及不带 `--stdio-session` 参数的直接调用）仍沿用原有一次性 `node <plugin-entry>`（读取完整 `stdin` 至 EOF 后输出单个 JSON 并退出）契约，零破坏性变更。
+
 请求格式：
 
 ```json

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import codecs
 from contextlib import contextmanager
 import json
 import os
 import queue
 import subprocess
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Iterator
@@ -62,7 +64,7 @@ class PluginBackend:
                 self._session_depth = 0
                 self.close()
 
-    def close(self) -> None:
+    def close(self, *, force: bool = False) -> None:
         proc = self._proc
         self._proc = None
         stdout_thread = self._stdout_thread
@@ -72,35 +74,53 @@ class PluginBackend:
         self._stdout_queue = None
         if proc is None:
             return
-        try:
-            if proc.stdin is not None and not proc.stdin.closed:
-                proc.stdin.close()
-        except OSError:
-            pass
-        try:
-            if proc.poll() is None:
-                proc.wait(timeout=2.0)
-        except subprocess.TimeoutExpired:
+        if force:
             try:
-                proc.terminate()
-                proc.wait(timeout=1.0)
-            except Exception:
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=0.5)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait(timeout=1.0)
+            except OSError:
+                pass
+            try:
+                if proc.stdin is not None and not proc.stdin.closed:
+                    proc.stdin.close()
+            except (OSError, ValueError):
+                pass
+        else:
+            try:
+                if proc.stdin is not None and not proc.stdin.closed:
+                    proc.stdin.close()
+            except (OSError, ValueError):
+                pass
+            try:
+                if proc.poll() is None:
+                    proc.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
                 try:
-                    proc.kill()
+                    proc.terminate()
                     proc.wait(timeout=1.0)
                 except Exception:
-                    pass
-        except OSError:
-            pass
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=1.0)
+                    except Exception:
+                        pass
+            except OSError:
+                pass
+        # Let reader threads finish draining remaining pipe bytes after process exit before closing handles.
+        for thread in (stderr_thread, stdout_thread):
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=0.5)
         for stream in (proc.stdout, proc.stderr):
             try:
                 if stream is not None and not stream.closed:
                     stream.close()
-            except OSError:
+            except (OSError, ValueError):
                 pass
-        for thread in (stdout_thread, stderr_thread):
-            if thread is not None and thread.is_alive():
-                thread.join(timeout=0.2)
 
     def _resolve_child_env(self) -> dict[str, str] | None:
         if not self._child_env_resolved:
@@ -152,16 +172,24 @@ class PluginBackend:
 
         def _read_stderr() -> None:
             assert proc.stderr is not None
+            decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
             try:
+                fd = proc.stderr.fileno()
                 while True:
-                    chunk = proc.stderr.read(4096)
-                    if not chunk:
+                    raw_chunk = os.read(fd, 4096)
+                    if not raw_chunk:
                         break
+                    chunk = decoder.decode(raw_chunk, final=False)
+                    if chunk:
+                        with self._stderr_lock:
+                            self._stderr_chunks.append(chunk)
+                            if len(self._stderr_chunks) > 32:
+                                joined = "".join(self._stderr_chunks)[-8192:]
+                                self._stderr_chunks = [joined]
+                tail = decoder.decode(b"", final=True)
+                if tail:
                     with self._stderr_lock:
-                        self._stderr_chunks.append(chunk)
-                        if len(self._stderr_chunks) > 32:
-                            joined = "".join(self._stderr_chunks)[-8192:]
-                            self._stderr_chunks = [joined]
+                        self._stderr_chunks.append(tail)
             except (OSError, ValueError):
                 pass
 
@@ -175,17 +203,51 @@ class PluginBackend:
         self._stderr_thread = stderr_thread
         return proc
 
+    def _raise_session_timeout(self, method: str) -> None:
+        # Force-terminate and drain stderr first so blocked stdin writers unblock and stderr_tail is complete.
+        self.close(force=True)
+        stderr_text = self._collect_stderr()
+        raise CliError(
+            "Plugin timed out",
+            code="TIMEOUT",
+            retryable=True,
+            details={
+                "plugin": self.record.id,
+                "method": method,
+                "timeout_seconds": self.timeout,
+                "stderr_tail": _stderr_tail(stderr_text),
+            },
+            state_uncertain=True,
+            next_action="Run `indesign-cli session doctor` before retrying plugin host actions.",
+        )
+
     def _request_in_session(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
         proc = self._ensure_session_process()
         assert proc.stdin is not None
         assert self._stdout_queue is not None
-        try:
-            proc.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
-            proc.stdin.flush()
-        except OSError as exc:
-            stderr_text = self._collect_stderr()
+        deadline = time.monotonic() + float(self.timeout)
+        encoded_line = json.dumps(payload, ensure_ascii=False) + "\n"
+        write_error: list[BaseException] = []
+
+        def _write_stdin() -> None:
+            try:
+                assert proc.stdin is not None
+                proc.stdin.write(encoded_line)
+                proc.stdin.flush()
+            except (OSError, ValueError) as exc:
+                write_error.append(exc)
+
+        writer = threading.Thread(target=_write_stdin, name="indesign-cli-plugin-stdin", daemon=True)
+        writer.start()
+        remaining = max(0.001, deadline - time.monotonic())
+        writer.join(timeout=remaining)
+        if writer.is_alive():
+            self._raise_session_timeout(method)
+        if write_error:
+            exc = write_error[0]
             returncode = proc.poll()
             self.close()
+            stderr_text = self._collect_stderr()
             raise CliError(
                 "Plugin process failed",
                 code="PLUGIN_CALL_FAILED",
@@ -197,32 +259,21 @@ class PluginBackend:
                 },
             ) from exc
 
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            self._raise_session_timeout(method)
         try:
-            raw_line = self._stdout_queue.get(timeout=self.timeout)
-        except queue.Empty as exc:
-            stderr_text = self._collect_stderr()
-            self.close()
-            raise CliError(
-                "Plugin timed out",
-                code="TIMEOUT",
-                retryable=True,
-                details={
-                    "plugin": self.record.id,
-                    "method": method,
-                    "timeout_seconds": self.timeout,
-                    "stderr_tail": _stderr_tail(stderr_text),
-                },
-                state_uncertain=True,
-                next_action="Run `indesign-cli session doctor` before retrying plugin host actions.",
-            ) from exc
+            raw_line = self._stdout_queue.get(timeout=remaining)
+        except queue.Empty:
+            self._raise_session_timeout(method)
 
         if raw_line is None:
             try:
                 returncode = proc.wait(timeout=1.0)
             except subprocess.TimeoutExpired:
                 returncode = proc.poll()
-            stderr_text = self._collect_stderr()
             self.close()
+            stderr_text = self._collect_stderr()
             if returncode not in (None, 0):
                 raise CliError(
                     "Plugin process failed",
