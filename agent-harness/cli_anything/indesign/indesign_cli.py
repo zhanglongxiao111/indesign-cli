@@ -412,10 +412,23 @@ def run(argv: list[str] | None = None) -> int:
     if args.version:
         return emit(version_payload())
     if args.group == "tool":
+        plugins_loaded = True
         if args.tool_command in {"schema", "explain", "call"}:
-            catalog, warnings = _build_catalog_for_tool(args.tool_id)
+            base_catalog = Catalog(repo_root=repo_root())
+            if _catalog_has_tool(base_catalog, args.tool_id):
+                catalog, warnings = base_catalog, []
+                plugins_loaded = False
+            else:
+                catalog, warnings = build_catalog_with_backends(base=base_catalog)
+                plugins_loaded = True
         elif args.tool_command == "batch":
-            catalog, warnings = _build_catalog_for_batch(args.plan)
+            base_catalog = Catalog(repo_root=repo_root())
+            if _batch_plan_needs_plugins(args.plan, base_catalog):
+                catalog, warnings = build_catalog_with_backends(base=base_catalog)
+                plugins_loaded = True
+            else:
+                catalog, warnings = base_catalog, []
+                plugins_loaded = False
         else:
             catalog, warnings = build_catalog_with_backends()
         if args.tool_command == "domains" or args.tool_command is None:
@@ -435,7 +448,12 @@ def run(argv: list[str] | None = None) -> int:
             data = slim_tools(catalog.list_tools(domain=args.domain, source=args.source, query=args.query))
             return emit(success(command="tool search", data=data, duration_ms=elapsed(start), warnings=warnings))
         timeout_seconds = timeout_seconds_from_ms(getattr(args, "timeout_ms", None), getattr(args, "timeout", None))
-        router = Router(catalog=catalog, repo_root=repo_root(), backend_timeout_seconds=timeout_seconds)
+        router = Router(
+            catalog=catalog,
+            repo_root=repo_root(),
+            backend_timeout_seconds=timeout_seconds,
+            plugin_catalog_loader=(lambda base: build_catalog_with_backends(base=base)) if not plugins_loaded else None,
+        )
         if args.tool_command == "schema":
             data = router.schema(args.tool_id)
             return emit(success(command="tool schema", data=data, duration_ms=elapsed(start), tool_id=args.tool_id, warnings=warnings))
@@ -497,6 +515,8 @@ def run(argv: list[str] | None = None) -> int:
                     return emit(payload)
                 raise
             duration_ms = elapsed(start)
+            if router.catalog_warnings:
+                warnings.extend(router.catalog_warnings)
             _record_session_call(store, warnings=warnings, tool_id=tool_id, domain=tool["domain"], source=tool["source"], ok=True, duration_ms=duration_ms)
             record_tool_call(
                 tool_id=tool_id,
@@ -562,6 +582,8 @@ def run(argv: list[str] | None = None) -> int:
                     )
                 raise
             duration_ms = elapsed(start)
+            if router.catalog_warnings:
+                warnings.extend(router.catalog_warnings)
             _record_session_call(
                 store,
                 warnings=warnings,

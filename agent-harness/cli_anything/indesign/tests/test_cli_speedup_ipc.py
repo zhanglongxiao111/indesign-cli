@@ -733,3 +733,74 @@ def test_router_session_is_reentrant_and_closes_all_sources_on_outer_exit(monkey
     # 退出最外层 session 后所有 source 子进程全部回收
     assert all(proc.poll() is not None for proc in spawned)
     assert router._session_backends == {}
+
+
+def test_tool_call_tool_batch_lazily_loads_plugins_for_plugin_steps(monkeypatch, tmp_path, capsys):
+    from cli_anything.indesign import indesign_cli
+
+    _isolate_localappdata(monkeypatch, tmp_path)
+    _plugin_dir, workspace = _install_plugin_copy(tmp_path)
+    monkeypatch.chdir(workspace)
+
+    # 1) Plan containing a plugin step executed via `tool call tool.batch` must lazily load plugins and succeed.
+    plan_with_plugin = workspace / "plugin-plan.json"
+    plan_with_plugin.write_text(
+        json.dumps(
+            {
+                "steps": [
+                    {
+                        "id": "lint-1",
+                        "type": "tool",
+                        "tool": "html.authoring_lint",
+                        "args": {"package": "demo.html"},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    rc = indesign_cli.run(
+        [
+            "tool",
+            "call",
+            "tool.batch",
+            "--args",
+            json.dumps({"plan": str(plan_with_plugin)}),
+        ]
+    )
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["ok"] is True
+    assert out["data"]["failed_step"] is None
+    assert len(out["data"]["steps"]) == 1
+    assert out["data"]["steps"][0]["tool"] == "html.authoring_lint"
+    assert out["data"]["steps"][0]["ok"] is True
+
+    # 2) Built-in-only plan executed via `tool call tool.batch` must NOT trigger plugin discovery.
+    discover_calls: list[Any] = []
+    real_build = indesign_cli.build_catalog_with_backends
+
+    def spy_build(*args, **kwargs):
+        discover_calls.append((args, kwargs))
+        return real_build(*args, **kwargs)
+
+    monkeypatch.setattr(indesign_cli, "build_catalog_with_backends", spy_build)
+    plan_builtin = workspace / "builtin-plan.json"
+    plan_builtin.write_text(
+        json.dumps({"steps": [{"id": "s1", "type": "tool", "tool": "session.show", "args": {}}]}),
+        encoding="utf-8",
+    )
+    rc2 = indesign_cli.run(
+        [
+            "tool",
+            "call",
+            "tool.batch",
+            "--args",
+            json.dumps({"plan": str(plan_builtin)}),
+        ]
+    )
+    out2 = json.loads(capsys.readouterr().out)
+    assert rc2 == 0
+    assert out2["ok"] is True
+    assert discover_calls == []

@@ -5,7 +5,7 @@ import json
 import sys
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from .. import __version__
 from .catalog import Catalog
@@ -123,7 +123,14 @@ PRIMITIVE_SCHEMAS = {
 
 
 class Router:
-    def __init__(self, catalog: Catalog, repo_root: Path, backend_timeout_seconds: int | None = None) -> None:
+    def __init__(
+        self,
+        catalog: Catalog,
+        repo_root: Path,
+        backend_timeout_seconds: int | None = None,
+        *,
+        plugin_catalog_loader: Callable[[Catalog], tuple[Catalog, list[str]]] | None = None,
+    ) -> None:
         self.catalog = catalog
         self.repo_root = repo_root
         self.backend_timeout_seconds = backend_timeout_seconds
@@ -132,6 +139,9 @@ class Router:
         self.last_plugin_call_meta: dict[str, Any] | None = None
         self._session_depth: int = 0
         self._session_backends: dict[str, McpBackend] = {}
+        self._plugin_catalog_loader = plugin_catalog_loader
+        self._plugins_loaded = plugin_catalog_loader is None
+        self.catalog_warnings: list[str] = []
 
     @contextmanager
     def session(self) -> Iterator["Router"]:
@@ -150,8 +160,20 @@ class Router:
                     except Exception:
                         pass
 
+    def _ensure_plugins_loaded(self) -> bool:
+        if self._plugins_loaded or self._plugin_catalog_loader is None:
+            return False
+        self._plugins_loaded = True
+        upgraded, extra_warnings = self._plugin_catalog_loader(self.catalog)
+        self.catalog = upgraded
+        if extra_warnings:
+            self.catalog_warnings.extend(extra_warnings)
+        return True
+
     def _find(self, tool_id: str) -> dict[str, Any]:
         matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
+        if not matches and self._ensure_plugins_loaded():
+            matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
         if not matches:
             raise CliError(
                 f"Tool not found: {tool_id}",
