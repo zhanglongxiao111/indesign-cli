@@ -142,6 +142,8 @@ indesign-cli tool list --domain html
 
 插件工具不会默认挤进 Agent 上下文。Agent 仍然先看 domain 摘要，再按需读取具体 schema。
 
+插件协议规范见 [indesign-cli 插件宿主协议](docs/superpowers/specs/2026-05-27-indesign-cli-plugin-host-protocol-design.md)。若插件包含多轮 `tools/resume` 流程，可在 `manifest.json` 中声明 `capabilities.stdio_session: true` 并在入口支持 `--stdio-session`（按行 NDJSON 交换请求并在 `stdin` EOF 后退出），宿主会在单次工具调用内复用同一插件子进程并在调用结束后立即回收（无常驻后台）；未声明该能力的插件继续沿用一次性子进程调用。
+
 ## 🛠️ 常用能力
 
 ### 🔎 查询可用工具

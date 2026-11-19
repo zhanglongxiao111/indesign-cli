@@ -124,6 +124,8 @@ The last command should list `html.authoring_lint`, `html.build`, `html.reverse_
 
 The plugin record is written to `.indesign-cli\plugins\` in the **current directory**, so installation is per project. Run `plugin install` again in each new project directory.
 
+Plugin protocol details are documented in [indesign-cli Plugin Host Protocol](docs/superpowers/specs/2026-05-27-indesign-cli-plugin-host-protocol-design.md). Plugins with multi-step `tools/resume` flows may opt into single-call process reuse by declaring `capabilities.stdio_session: true` and supporting `--stdio-session` (line-delimited JSON-RPC over stdio, exiting on `stdin` EOF); the host reuses one plugin process for that single tool call and terminates/reaps it immediately on completion (no persistent daemon). Plugins without `stdio_session: true` keep using one-shot subprocess invocations.
+
 Plugin tools do not have to occupy the agent context by default. Agents can still inspect compact domain summaries first, then load schemas only when needed.
 
 ## 🛠️ Common capabilities
