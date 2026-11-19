@@ -141,8 +141,10 @@ export class ScriptExecutor {
             ? undoName.trim()
             : 'MCP Operation';
         const scriptLiteral = escapeExtendScriptLiteral(body);
+        // Use UndoModes.ENTIRE_SCRIPT instead of FAST_ENTIRE_SCRIPT to avoid native
+        // Adobe InDesign 2025 crashes during complex document/master/table mutations.
         const invokeLine = fastUndo
-            ? `  __mcpScriptResult = app.doScript(${scriptLiteral}, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.FAST_ENTIRE_SCRIPT, ${escapeExtendScriptLiteral(safeUndoName)});`
+            ? `  __mcpScriptResult = app.doScript(${scriptLiteral}, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, ${escapeExtendScriptLiteral(safeUndoName)});`
             : `  __mcpScriptResult = eval(${scriptLiteral});`;
 
         const lines = [

@@ -219,7 +219,7 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
 {
   const UserInteractionLevels = { NEVER_INTERACT: 1699640946 };
   const ScriptLanguage = { JAVASCRIPT: 1246973031 };
-  const UndoModes = { FAST_ENTIRE_SCRIPT: 1699963733 };
+  const UndoModes = { ENTIRE_SCRIPT: 1699963733 };
 
   // 6a) disableRedraw + fastUndo success path
   {
@@ -245,7 +245,8 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
     );
     assert.equal(wrapped.includes('enableRedraw = false'), true);
     assert.equal(wrapped.includes('finally'), true);
-    assert.equal(wrapped.includes('UndoModes.FAST_ENTIRE_SCRIPT'), true);
+    assert.equal(wrapped.includes('UndoModes.ENTIRE_SCRIPT'), true);
+    assert.equal(wrapped.includes('UndoModes.FAST_ENTIRE_SCRIPT'), false);
     const out = vm.runInContext(wrapped, ctx);
     assert.equal(out, 'ok-fast-undo');
     assert.equal(redrawInsideScript, false);
@@ -253,7 +254,7 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
     assert.equal(doScriptCalls.length, 1);
     assert.equal(doScriptCalls[0].lang, ScriptLanguage.JAVASCRIPT);
     assert.equal(doScriptCalls[0].args, undefined);
-    assert.equal(doScriptCalls[0].undoMode, UndoModes.FAST_ENTIRE_SCRIPT);
+    assert.equal(doScriptCalls[0].undoMode, UndoModes.ENTIRE_SCRIPT);
     assert.equal(doScriptCalls[0].undoName, 'Batch Populate');
   }
 
@@ -278,11 +279,11 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
     assert.equal(fakeApp.scriptPreferences.enableRedraw, false);
   }
 
-  // 6c) Default options do not alter enableRedraw or use UndoModes.FAST_ENTIRE_SCRIPT
+  // 6c) Default options do not alter enableRedraw or use UndoModes.ENTIRE_SCRIPT
   {
     const wrappedDefault = ScriptExecutor.buildWrappedScript('"plain";');
     assert.equal(wrappedDefault.includes('enableRedraw'), false);
-    assert.equal(wrappedDefault.includes('UndoModes.FAST_ENTIRE_SCRIPT'), false);
+    assert.equal(wrappedDefault.includes('UndoModes.ENTIRE_SCRIPT'), false);
     const fakeApp = { scriptPreferences: { userInteractionLevel: null, enableRedraw: true } };
     const out = vm.runInNewContext(wrappedDefault, { app: fakeApp, UserInteractionLevels });
     assert.equal(out, 'plain');
@@ -326,7 +327,8 @@ async function runOpenDocumentWithFakeApp(app, existingPaths, args) {
       });
       assert.equal(res, 'win-ok');
       assert.equal(passedToDoScript.lang, 1246973031);
-      assert.equal(passedToDoScript.code.includes('UndoModes.FAST_ENTIRE_SCRIPT'), true);
+      assert.equal(passedToDoScript.code.includes('UndoModes.ENTIRE_SCRIPT'), true);
+      assert.equal(passedToDoScript.code.includes('UndoModes.FAST_ENTIRE_SCRIPT'), false);
       assert.equal(passedToDoScript.code.includes('"Win Op"'), true);
       assert.equal(passedToDoScript.code.includes('enableRedraw = false'), true);
     } finally {
