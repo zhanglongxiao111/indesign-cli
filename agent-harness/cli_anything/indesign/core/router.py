@@ -242,14 +242,15 @@ class Router:
             }
             self.last_plugin_call_meta = meta
             try:
-                result = backend.call_tool(tool_id, args, self._plugin_context())
-                executor = HostActionExecutor(
-                    self,
-                    Path.cwd(),
-                    total_deadline_seconds=self._plugin_total_deadline_seconds(),
-                    stats=stats,
-                )
-                final = executor.complete(backend, tool_id, result)
+                with backend.session():
+                    result = backend.call_tool(tool_id, args, self._plugin_context())
+                    executor = HostActionExecutor(
+                        self,
+                        Path.cwd(),
+                        total_deadline_seconds=self._plugin_total_deadline_seconds(),
+                        stats=stats,
+                    )
+                    final = executor.complete(backend, tool_id, result)
                 meta["plugin_metrics"] = _extract_plugin_metrics(final)
                 return final
             finally:

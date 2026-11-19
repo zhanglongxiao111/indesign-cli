@@ -804,3 +804,113 @@ def test_tool_call_tool_batch_lazily_loads_plugins_for_plugin_steps(monkeypatch,
     assert rc2 == 0
     assert out2["ok"] is True
     assert discover_calls == []
+
+
+def test_plugin_backend_stdio_session_reuses_single_process_and_closes_on_exit(monkeypatch, tmp_path):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.plugins.backend import PluginBackend
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    plugin_dir = tmp_path / "session-plugin"
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    entry = plugin_dir / "index.js"
+    entry.write_text(
+        r"""
+const readline = require('readline');
+let count = 0;
+function handle(req) {
+  count += 1;
+  const params = req.params || {};
+  if (params.args && params.args.sleepMs) {
+    return new Promise((resolve) => setTimeout(() => resolve({
+      jsonrpc: '2.0',
+      id: req.id,
+      result: { status: 'complete', data: { pid: process.pid, count } }
+    }), Number(params.args.sleepMs)));
+  }
+  return Promise.resolve({
+    jsonrpc: '2.0',
+    id: req.id,
+    result: { status: 'complete', data: { pid: process.pid, count, method: req.method } }
+  });
+}
+if (process.argv.includes('--stdio-session')) {
+  const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  (async () => {
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      const out = await handle(JSON.parse(line));
+      process.stdout.write(JSON.stringify(out) + '\n');
+    }
+  })();
+} else {
+  let raw = '';
+  process.stdin.on('data', (c) => { raw += c; });
+  process.stdin.on('end', async () => {
+    const out = await handle(JSON.parse(raw));
+    process.stdout.write(JSON.stringify(out));
+  });
+}
+""".lstrip(),
+        encoding="utf-8",
+    )
+    manifest = {
+        "schema_version": 1,
+        "protocol": "indesign-cli-plugin.v1",
+        "id": "session-plugin",
+        "name": "session-plugin",
+        "version": "1.0.0",
+        "kind": "node-plugin",
+        "domain": "demo",
+        "entry": "index.js",
+        "description": "test session plugin",
+        "timeout_default_ms": 10000,
+        "document_state_policy": "none",
+        "host_actions": ["session.show"],
+        "requires": {"indesign_cli": ">=0.1.0", "node": ">=18.0.0"},
+        "capabilities": {"tools": True, "stdio_session": True},
+        "permissions": {"filesystem": [], "indesign": "host_only", "network": False},
+    }
+    manifest_path = plugin_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    record = PluginRecord(
+        id="session-plugin",
+        source="project",
+        root=plugin_dir,
+        manifest_path=manifest_path,
+        manifest=manifest,
+    )
+
+    spawned: list[subprocess.Popen[str]] = []
+    real_popen = subprocess.Popen
+
+    def spy_popen(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        spawned.append(proc)
+        return proc
+
+    monkeypatch.setattr(subprocess, "Popen", spy_popen)
+
+    backend = PluginBackend(record, timeout=10)
+    assert backend.supports_stdio_session is True
+    with backend.session():
+        r1 = backend.call_tool("demo.run", {}, {})
+        r2 = backend.resume_tool("demo.run", {}, [])
+        r3 = backend.resume_tool("demo.run", {}, [])
+        assert len(spawned) == 1
+        assert spawned[0].poll() is None
+        assert r1["data"]["pid"] == r2["data"]["pid"] == r3["data"]["pid"]
+        assert [r1["data"]["count"], r2["data"]["count"], r3["data"]["count"]] == [1, 2, 3]
+
+    # Exiting session() must immediately close & reap the child process (no daemon).
+    assert spawned[0].poll() is not None
+    assert backend.is_session_active is False
+
+    # Timeout inside session() must reap child and raise TIMEOUT.
+    timeout_backend = PluginBackend(record, timeout=1)
+    with timeout_backend.session():
+        with pytest.raises(CliError) as exc_info:
+            timeout_backend.call_tool("demo.run", {"sleepMs": 3000}, {})
+        assert exc_info.value.code == "TIMEOUT"
+        assert timeout_backend.is_session_active is False
+    assert all(proc.poll() is not None for proc in spawned)
