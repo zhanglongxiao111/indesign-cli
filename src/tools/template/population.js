@@ -337,7 +337,7 @@ try {
     const script = scriptParts.join('\n');
 
     try {
-        const rawResult = await runScript(script);
+        const rawResult = await runScript(script, { disableRedraw: true });
         const data = parseTemplateJsonResult(rawResult, 'Populate Template Slots');
         return formatResponse(data, 'Populate Template Slots');
     } catch (error) {
