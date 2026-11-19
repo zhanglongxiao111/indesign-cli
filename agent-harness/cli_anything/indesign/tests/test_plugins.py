@@ -18,6 +18,43 @@ def test_plugin_backend_uses_runtime_node_environment_by_default(monkeypatch):
     assert PluginBackend(record).node_executable == runtime_node
 
 
+def test_plugin_backend_passes_probed_edge_executable_when_env_missing(monkeypatch):
+    from cli_anything.indesign.core.plugins import backend as backend_module
+    from cli_anything.indesign.core.plugins.backend import PluginBackend
+    from cli_anything.indesign.core.plugins.manifest import PluginRecord
+
+    monkeypatch.delenv("HTML_INDESIGN_BROWSER_EXECUTABLE", raising=False)
+    probed_path = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+    monkeypatch.setattr(
+        backend_module,
+        "probe_edge",
+        lambda: {"checked": True, "available": True, "browser": "msedge", "path": probed_path},
+    )
+    captured_env: dict[str, str] = {}
+
+    def fake_runner(args, **kwargs):
+        if isinstance(kwargs.get("env"), dict):
+            captured_env.update(kwargs["env"])
+        req = json.loads(kwargs.get("input") or "{}")
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout=json.dumps({"jsonrpc": "2.0", "id": req.get("id"), "result": {"ok": True}}),
+            stderr="",
+        )
+
+    record = PluginRecord(
+        id="fake-html-plugin",
+        source="test",
+        root=FAKE_PLUGIN_ROOT,
+        manifest_path=FAKE_PLUGIN_ROOT / "manifest.json",
+        manifest=json.loads((FAKE_PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8")),
+    )
+    PluginBackend(record, runner=fake_runner).request("plugin/doctor", {})
+
+    assert captured_env.get("HTML_INDESIGN_BROWSER_EXECUTABLE") == probed_path
+
+
 def _schema_payload(properties, required=None):
     schema = {"type": "object", "properties": dict(properties)}
     if required:

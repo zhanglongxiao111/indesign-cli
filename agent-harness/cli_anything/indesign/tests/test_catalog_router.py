@@ -592,6 +592,343 @@ def test_session_doctor_command_reports_session_path(tmp_path):
     assert payload["data"]["session_path"] == str(tmp_path / ".indesign-cli" / "session.json")
 
 
+def test_session_write_falls_back_when_smb_replace_denies_access(monkeypatch, tmp_path):
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.session import SessionStore
+
+    monkeypatch.setattr(session_module, "_REPLACE_RETRY_DELAYS", ())
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="document.get_document_info", domain="document", source="classic", ok=True, duration_ms=5)
+    assert store.path.exists()
+
+    original_replace = Path.replace
+
+    # Case 1: SMB denies overwriting an existing target via replace, succeeds once unlinked.
+    def deny_when_target_exists(self, target):
+        if Path(target).exists():
+            raise PermissionError(5, "拒绝访问", str(self), 5, str(target))
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", deny_when_target_exists)
+    store.record_call(tool_id="export.export_pdf", domain="export", source="classic", ok=True, duration_ms=10)
+    stored = store.read(compact=False)
+    assert [item["tool_id"] for item in stored["recent_calls"]] == ["export.export_pdf", "document.get_document_info"]
+    assert list(store.root.glob("*.tmp")) == []
+
+    # Case 2: SMB denies every rename; fallback writes directly and still cleans up tmp files.
+    def always_deny_replace(self, target):
+        raise PermissionError(5, "拒绝访问", str(self), 5, str(target))
+
+    monkeypatch.setattr(Path, "replace", always_deny_replace)
+    store.record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=3)
+    stored_after = store.read(compact=False)
+    assert stored_after["recent_calls"][0]["tool_id"] == "export.verify"
+    assert list(store.root.glob("*.tmp")) == []
+
+
+def test_session_smb_fallback_serializes_concurrent_writers_and_preserves_file_on_lock_failure(monkeypatch, tmp_path):
+    import threading
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.session import SessionStore
+
+    monkeypatch.setattr(session_module, "_REPLACE_RETRY_DELAYS", ())
+    monkeypatch.setattr(
+        Path,
+        "replace",
+        lambda self, target: (_ for _ in ()).throw(PermissionError(5, "拒绝访问", str(self), 5, str(target))),
+    )
+    store = SessionStore(tmp_path)
+    store.write({"version": 1, "recent_calls": [{"tool_id": "seed", "ok": True, "pad": "x" * 800}]})
+
+    errors: list[Exception] = []
+
+    def worker(idx: int) -> None:
+        try:
+            payload_len = 900 if idx % 2 == 0 else 20
+            SessionStore(tmp_path).write(
+                {"version": 1, "recent_calls": [{"tool_id": f"call-{idx}", "ok": True, "pad": "y" * payload_len}]}
+            )
+        except Exception as exc:  # pragma: no cover
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    parsed = json.loads(store.path.read_text(encoding="utf-8"))
+    assert parsed["version"] == 1
+    assert len(parsed["recent_calls"]) == 1
+
+    # When lock acquisition fails, the existing session.json must remain intact rather than truncated/unlinked.
+    before_bytes = store.path.read_bytes()
+    monkeypatch.setattr(
+        session_module,
+        "_session_lock",
+        lambda *_a, **_kw: (_ for _ in ()).throw(PermissionError(5, "lock denied")),
+    )
+    try:
+        store.write({"version": 1, "recent_calls": []})
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("expected PermissionError when both replace and lock fail")
+    assert store.path.read_bytes() == before_bytes
+
+
+def test_session_read_recovers_from_corrupted_json(tmp_path):
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.root.mkdir(parents=True, exist_ok=True)
+    store.path.write_text("{corrupted", encoding="utf-8")
+
+    payload = store.read(compact=True)
+    assert payload["recent_calls"] == []
+    assert payload["session_path"] == str(store.path)
+
+
+def test_cli_survives_session_write_permission_error_for_success_and_cli_error(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    def deny_record_call(self, **_kwargs):
+        raise PermissionError(5, "拒绝访问: \\\\daga-nas5\\share\\project\\.indesign-cli\\session.json")
+
+    monkeypatch.setattr(SessionStore, "record_call", deny_record_call)
+    monkeypatch.chdir(tmp_path)
+
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n" + b"0" * 1024 + b"\n%%EOF\n")
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(indesign_cli, "emit", lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1])
+
+    code = indesign_cli.main(["export", "verify", str(pdf)])
+    assert code == 0
+    ok_payload = json.loads(capsys_buf.pop())
+    assert ok_payload["ok"] is True
+    assert any("SESSION_WRITE_FAILED" in warning for warning in ok_payload["warnings"])
+    assert "daga-nas5" not in json.dumps(ok_payload, ensure_ascii=False)
+
+    monkeypatch.setattr(
+        indesign_cli.Router,
+        "call",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(CliError("No active document", code="NO_ACTIVE_DOCUMENT")),
+    )
+    err_code = indesign_cli.main(["tool", "call", "document.get_document_info"])
+    assert err_code == 1
+    err_payload = json.loads(capsys_buf.pop())
+    assert err_payload["ok"] is False
+    assert err_payload["error"]["code"] == "NO_ACTIVE_DOCUMENT"
+
+
+def test_mcp_backend_preserves_open_document_structured_error_codes(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core.mcp_backend import McpBackend
+    from cli_anything.indesign.core.session import SessionStore
+
+    monkeypatch.chdir(tmp_path)
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+
+    # 1) External file path in structured FILE_NOT_FOUND must be scrubbed in both CLI envelope and session.json.
+    file_not_found_response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": False,
+                        "operation": "Open Document",
+                        "code": "FILE_NOT_FOUND",
+                        "message": "File not found: C:/SecretClient/private/deck.indd",
+                        "result": "File not found: C:/SecretClient/private/deck.indd",
+                        "documentState": {"documentsCount": 1, "activeDocumentName": "ref.indd", "state_uncertain": False},
+                    }
+                ),
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        McpBackend,
+        "call_tool",
+        lambda self, name, _args: self._parse_tool_response(name, file_not_found_response),
+    )
+    monkeypatch.setattr(
+        McpBackend,
+        "list_tools",
+        lambda _self: [
+            {
+                "name": "open_document",
+                "inputSchema": {"type": "object", "properties": {"filePath": {"type": "string"}}, "required": ["filePath"]},
+            }
+        ],
+    )
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps({"filePath": "C:/SecretClient/private/deck.indd"}), encoding="utf-8")
+
+    exit_code = indesign_cli.main(["tool", "call", "document.open_document", "--args-file", str(args_file)])
+    assert exit_code == 1
+    envelope_raw = capsys_buf.pop()
+    envelope = json.loads(envelope_raw)
+    assert envelope["error"]["code"] == "FILE_NOT_FOUND"
+    assert envelope["state_uncertain"] is False
+    assert "SecretClient" not in envelope_raw
+    assert "deck.indd" not in envelope_raw
+    session_raw = (tmp_path / ".indesign-cli" / "session.json").read_text(encoding="utf-8")
+    assert "SecretClient" not in session_raw
+    assert "deck.indd" not in session_raw
+
+    # 2) DOCUMENT_ACTIVATE_FAILED with documentState.state_uncertain=true must propagate to top-level envelope and session.
+    activate_failed_response = {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "success": False,
+                        "operation": "Open Document",
+                        "code": "DOCUMENT_ACTIVATE_FAILED",
+                        "message": "Document could not be activated: target.indd",
+                        "result": "Document could not be activated: target.indd",
+                        "documentState": {"documentsCount": 2, "activeDocumentName": "ref.indd", "state_uncertain": True},
+                    }
+                ),
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        McpBackend,
+        "call_tool",
+        lambda self, name, _args: self._parse_tool_response(name, activate_failed_response),
+    )
+    exit_code_2 = indesign_cli.main(["tool", "call", "document.open_document", "--args-file", str(args_file)])
+    assert exit_code_2 == 1
+    envelope_2 = json.loads(capsys_buf.pop())
+    assert envelope_2["error"]["code"] == "DOCUMENT_ACTIVATE_FAILED"
+    assert envelope_2["state_uncertain"] is True
+    assert isinstance(envelope_2["next_action"], str)
+    stored_session = SessionStore(tmp_path).read(compact=False)
+    assert stored_session["recent_calls"][0]["state_uncertain"] is True
+
+
+def test_session_read_and_doctor_raise_session_busy_instead_of_unlocked_partial_read(monkeypatch, tmp_path):
+    import threading
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core import session as session_module
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(
+        tool_id="export.export_pdf",
+        domain="export",
+        source="classic",
+        ok=False,
+        duration_ms=20,
+        error_code="NO_ACTIVE_DOCUMENT",
+        error_summary="No active document",
+    )
+
+    entered = threading.Event()
+    release = threading.Event()
+    full_bytes = store.path.read_bytes()
+
+    def hold_lock_with_partial_file() -> None:
+        with session_module._session_lock(store.lock_path, timeout_seconds=2.0):
+            # Simulate an in-flight SMB in-place overwrite holding the lock while JSON is incomplete.
+            store.path.write_bytes(b'{"version": 1, "recent_calls": [')
+            entered.set()
+            release.wait(timeout=5.0)
+            store.path.write_bytes(full_bytes)
+
+    holder = threading.Thread(target=hold_lock_with_partial_file)
+    holder.start()
+    assert entered.wait(timeout=2.0)
+    monkeypatch.setattr(session_module, "_LOCK_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.chdir(tmp_path)
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+    try:
+        try:
+            store.read(compact=True)
+        except CliError as exc:
+            assert exc.code == "SESSION_BUSY"
+            assert exc.retryable is True
+        else:
+            raise AssertionError("expected SESSION_BUSY rather than unlocked partial read")
+
+        code = indesign_cli.main(["session", "doctor"])
+        assert code == 1
+        doctor_err = json.loads(capsys_buf.pop())
+        assert doctor_err["error"]["code"] == "SESSION_BUSY"
+        assert doctor_err["error"]["retryable"] is True
+    finally:
+        release.set()
+        holder.join(timeout=2.0)
+
+    monkeypatch.setattr(session_module, "_LOCK_TIMEOUT_SECONDS", 2.0)
+    recovered = store.read(compact=True)
+    assert len(recovered["recent_calls"]) == 1
+    assert recovered["recent_calls"][0]["error_code"] == "NO_ACTIVE_DOCUMENT"
+
+
+def test_session_read_io_error_preserves_existing_file_and_surfaces_warning(monkeypatch, tmp_path):
+    from cli_anything.indesign import indesign_cli
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.session import SessionStore
+
+    store = SessionStore(tmp_path)
+    store.record_call(tool_id="document.open_document", domain="document", source="classic", ok=True, duration_ms=15)
+    original_bytes = store.path.read_bytes()
+
+    original_read_text = Path.read_text
+
+    def deny_session_read(self, *args, **kwargs):
+        if self.name == "session.json":
+            raise PermissionError(5, "拒绝访问", str(self))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", deny_session_read)
+    try:
+        store.record_call(tool_id="export.verify", domain="export", source="cli", ok=True, duration_ms=2)
+    except CliError as exc:
+        assert exc.code == "SESSION_READ_FAILED"
+        assert exc.retryable is True
+    else:
+        raise AssertionError("expected SESSION_READ_FAILED on unreadable session.json")
+
+    # Existing session.json must not be overwritten with an empty session when read fails transiently.
+    assert store.path.read_bytes() == original_bytes
+
+    monkeypatch.chdir(tmp_path)
+    pdf = tmp_path / "out.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n" + b"0" * 1024 + b"\n%%EOF\n")
+    capsys_buf: list[str] = []
+    monkeypatch.setattr(
+        indesign_cli,
+        "emit",
+        lambda payload: (capsys_buf.append(json.dumps(payload, ensure_ascii=False)), int(payload.get("exit_code", 0)))[1],
+    )
+    code = indesign_cli.main(["export", "verify", str(pdf)])
+    assert code == 0
+    payload = json.loads(capsys_buf.pop())
+    assert payload["ok"] is True
+    assert any("SESSION_WRITE_FAILED" in warning for warning in payload["warnings"])
+    assert store.path.read_bytes() == original_bytes
+
+
 def test_tool_batch_stops_on_first_failure(tmp_path):
     plan = tmp_path / "batch.json"
     plan.write_text(

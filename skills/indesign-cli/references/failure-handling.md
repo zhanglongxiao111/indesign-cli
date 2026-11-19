@@ -48,6 +48,11 @@
 
 构建过程中 InDesign 脚本产生的警告（字体回落 `FONT_FALLBACK_APPLIED`、IDML 导出失败 `IDML_EXPORT_FAILED`、预检自动关闭 `PREVIOUS_OUTPUT_CLOSED` 等）会随结果一起返回：成功时在 `data.warnings`，失败时在 `error.details.hostWarnings`，每条含 `code`、`message` 和标量 `details`（如 `requestedFont`/`appliedFont`/`itemId`）。读它们，尤其是 `BUILD_ARTIFACTS_MISSING` 时——缺的那份产物通常在这里能找到原因。
 
+## 会话状态落盘与读取（`SESSION_WRITE_FAILED` / `SESSION_BUSY` / `SESSION_READ_FAILED`）
+
+- 顶层 `warnings` 出现 `SESSION_WRITE_FAILED: ...` 时，说明 `.indesign-cli/session.json` 因目录只读、共享冲突或权限限制未能更新，**不代表本次业务命令失败**。只要顶层 `ok: true`，InDesign 侧修改或导出就已经完成，**不要用原参数重跑修改类命令**；需要核实结果时改用 `export verify` 或只读查询工具（如 `document.get_document_info`）。
+- 调用 `session show` 或 `session doctor` 返回 `SESSION_BUSY` 或 `SESSION_READ_FAILED`（均为 `retryable: true`）时，说明另一个进程正持有 `session.lock` 更新会话文件或网盘文件暂时不可读；稍等片刻重试该只读命令即可，不要手删锁文件或会话文件。
+
 ## 上报工具本身的问题
 
 遇到下面任一情况，用 `feedback report` 把摩擦记进共享遥测，不要只在对话里抱怨：`error.category` 为 `runtime_error` 且 `details` 看不出原因；文档说不清某个参数或错误码；明显缺一个本该有的工具或参数。

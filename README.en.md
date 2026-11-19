@@ -230,9 +230,10 @@ indesign-cli export verify output\deck.pdf
 
 `export_images` currently declares and supports JPEG only. PNG/TIFF requests fail with `ARTIFACT_FORMAT_UNSUPPORTED` instead of creating misleading `.jpg` output.
 
-### 🛡️ Document close safety
+### 🛡️ Document open and close safety
 
-`document.close_document` does not close `activeDocument` by default when multiple documents are open. To close a test document created by the current run, pass `expectedDocumentName` or `forceActiveDocument:true`; discarding unsaved changes also requires `allowDiscard:true`.
+- `document.open_document` checks open documents by normalized path before calling `app.open`: if the target is already open in InDesign, it activates that document directly and returns `data.alreadyOpen: true` instead of failing with a lock/permission error. Missing files, open errors, and activation failures return `FILE_NOT_FOUND`, `DOCUMENT_OPEN_FAILED`, and `DOCUMENT_ACTIVATE_FAILED` (`state_uncertain: true`), respectively.
+- `document.close_document` does not close `activeDocument` by default when multiple documents are open. To close a test document created by the current run, pass `expectedDocumentName` or `forceActiveDocument:true`; discarding unsaved changes also requires `allowDiscard:true`.
 
 ### 🧩 Work with template slots
 
@@ -269,9 +270,13 @@ Every command (including argument typos) returns the unified JSON envelope (`sch
 | `BATCH_PLAN_*` / `BATCH_STEP_INVALID` / `BATCH_STEP_FAILED` | Batch plan format or step failure | Fix the plan per `error.details.expected_step` |
 | `MCP_START_FAILED` / `MCP_TOOL_FAILED` / `INDESIGN_SCRIPT_FAILED` | Node backend or InDesign script failure | Run `server health`; inspect `error.details.result` |
 | `NO_ACTIVE_DOCUMENT` | No document is open | Open or create a document first |
+| `FILE_NOT_FOUND` / `DOCUMENT_OPEN_FAILED` / `DOCUMENT_ACTIVATE_FAILED` | Target document missing / failed to open / open but could not become active | Verify the path and permissions; on `DOCUMENT_ACTIVATE_FAILED` (`state_uncertain: true`), run `session doctor` to confirm the active document |
+| `SESSION_BUSY` / `SESSION_READ_FAILED` | `.indesign-cli/session.json` is locked by an active write or temporarily unreadable (`retryable: true`) | Retry `session show` or `session doctor` shortly without deleting the lock or session file |
 | `ARTIFACT_*` | Export verification failed | Confirm the export succeeded and the path points at a fresh artifact |
 | `SERVER_ROOT_*` / `NPM_*` | Environment or dependency issues | See the troubleshooting section above |
 | `UNEXPECTED_ERROR` | Unexpected CLI exception | Report it with `error.details` (exception type and location) |
+
+> **`SESSION_WRITE_FAILED` warning**: When the working directory (for example, a read-only share or restricted NAS folder) prevents persisting `.indesign-cli/session.json`, the CLI preserves the primary command result and appends `SESSION_WRITE_FAILED: ...` to top-level `warnings`. **When `ok: true`, the business mutation or export has already completed—do not re-run mutating steps**; note that `session show` / `session doctor` may not reflect that call, so verify outputs via `export verify` or read-only inspection tools instead.
 
 ## 🧪 Example workflow
 

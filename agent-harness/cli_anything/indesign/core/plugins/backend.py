@@ -9,6 +9,7 @@ from typing import Any
 
 from ..errors import CliError
 from ..paths import scrub_text_paths
+from ..runtime_health import probe_edge
 from .manifest import PluginRecord
 
 
@@ -32,6 +33,13 @@ class PluginBackend:
             "method": method,
             "params": params or {},
         }
+        run_kwargs: dict[str, Any] = {}
+        if not (os.environ.get("HTML_INDESIGN_BROWSER_EXECUTABLE") or "").strip():
+            edge = probe_edge()
+            if edge.get("available") is True and isinstance(edge.get("path"), str) and edge["path"]:
+                child_env = dict(os.environ)
+                child_env["HTML_INDESIGN_BROWSER_EXECUTABLE"] = edge["path"]
+                run_kwargs["env"] = child_env
         try:
             completed = self.runner(
                 [self.node_executable, str(self.record.entry_path)],
@@ -43,6 +51,7 @@ class PluginBackend:
                 stderr=subprocess.PIPE,
                 timeout=self.timeout,
                 check=False,
+                **run_kwargs,
             )
         except subprocess.TimeoutExpired as exc:
             # 超时最需要证据：TimeoutExpired 自带已捕获的 stderr，别丢。
