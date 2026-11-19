@@ -78,19 +78,50 @@ if ($env:INDESIGN_CLI_RUNTIME_ROOT) {
     }
     $runtimeRoot = Split-Path -Parent (Resolve-Path -LiteralPath $entryRaw).ProviderPath
 } else {
-    $agent = Get-Command indesign-cli-agent -ErrorAction SilentlyContinue
-    $agentPath = if ($agent) { $agent.Source } else { Join-Path $env:LOCALAPPDATA 'indesign-cli\bin\indesign-cli-agent.exe' }
-    if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
-        throw 'indesign-cli-agent is not installed. Run the company Setup first.'
+    $runtimeRoot = ''
+    $stateBase = if ($env:INDESIGN_CLI_INSTALL_ROOT) {
+        Remove-ProviderPrefix $env:INDESIGN_CLI_INSTALL_ROOT
+    } elseif ($env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'indesign-cli'
+    } else {
+        ''
     }
-    $healthText = (& $agentPath health 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) {
-        throw "indesign-cli-agent health failed: $healthText"
+    if ($stateBase) {
+        $statePath = Join-Path $stateBase 'state\current-runtime.json'
+        if (Test-Path -LiteralPath $statePath -PathType Leaf) {
+            try {
+                $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
+            } catch {
+                $state = $null
+            }
+            if ($null -ne $state -and $state.PSObject.Properties['root']) {
+                $candidateRaw = Remove-ProviderPrefix ([string]$state.root)
+                if (
+                    $candidateRaw -and
+                    (Test-Path -LiteralPath $candidateRaw -PathType Container) -and
+                    (Test-Path -LiteralPath (Join-Path $candidateRaw 'node\node.exe') -PathType Leaf) -and
+                    (Test-Path -LiteralPath (Join-Path $candidateRaw 'plugins\html-indesign') -PathType Container)
+                ) {
+                    $runtimeRoot = (Resolve-Path -LiteralPath $candidateRaw).ProviderPath
+                }
+            }
+        }
     }
-    $health = $healthText | ConvertFrom-Json
-    $runtimeRoot = [string]$health.data.runtime_root
     if (-not $runtimeRoot) {
-        throw 'No active runtime. Run the company Setup first.'
+        $agent = Get-Command indesign-cli-agent -ErrorAction SilentlyContinue
+        $agentPath = if ($agent) { $agent.Source } else { Join-Path $env:LOCALAPPDATA 'indesign-cli\bin\indesign-cli-agent.exe' }
+        if (-not (Test-Path -LiteralPath $agentPath -PathType Leaf)) {
+            throw 'indesign-cli-agent is not installed. Run the company Setup first.'
+        }
+        $healthText = (& $agentPath health 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0) {
+            throw "indesign-cli-agent health failed: $healthText"
+        }
+        $health = $healthText | ConvertFrom-Json
+        $runtimeRoot = [string]$health.data.runtime_root
+        if (-not $runtimeRoot) {
+            throw 'No active runtime. Run the company Setup first.'
+        }
     }
 }
 

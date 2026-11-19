@@ -91,6 +91,11 @@ def _session_lock(lock_path: Path, *, timeout_seconds: float = _LOCK_TIMEOUT_SEC
         _INPROC_LOCK.release()
 
 
+def _is_unc_path(path: Path) -> bool:
+    raw = str(path)
+    return raw.startswith("\\\\") or raw.startswith("//")
+
+
 def _overwrite_in_place(target: Path, serialized: str) -> None:
     data = serialized.encode("utf-8")
     mode = "r+b" if target.exists() else "wb"
@@ -109,6 +114,15 @@ def _replace_with_smb_fallback(
     *,
     already_locked: bool = False,
 ) -> None:
+    # UNC/SMB 上覆盖已有目标的 MoveFileExW 几乎必然触发 WinError 5；
+    # 直接在文件锁保护下原地覆写，跳过必败的 3 次 rename + 170ms 休眠退避。
+    if _is_unc_path(target) and target.exists():
+        if already_locked:
+            _overwrite_in_place(target, serialized)
+        else:
+            with _session_lock(lock_path):
+                _overwrite_in_place(target, serialized)
+        return
     last_exc: OSError | None = None
     for index in range(len(_REPLACE_RETRY_DELAYS) + 1):
         try:
@@ -182,9 +196,16 @@ class SessionStore:
 
     def _write_unlocked(self, payload: dict[str, Any], *, already_locked: bool) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_name(f"session.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
         to_store = {key: value for key, value in payload.items() if key != "session_path"}
         serialized = json.dumps(to_store, ensure_ascii=False, indent=2)
+        if _is_unc_path(self.path) and self.path.exists():
+            if already_locked:
+                _overwrite_in_place(self.path, serialized)
+            else:
+                with _session_lock(self.lock_path):
+                    _overwrite_in_place(self.path, serialized)
+            return
+        tmp = self.path.with_name(f"session.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
         try:
             tmp.write_text(serialized, encoding="utf-8")
             _replace_with_smb_fallback(

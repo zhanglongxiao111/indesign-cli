@@ -46,6 +46,10 @@ class RuntimeLayout:
         return self.state / "current-runtime.json"
 
     @property
+    def update_check_state(self) -> Path:
+        return self.state / "update-check.json"
+
+    @property
     def update_lock(self) -> Path:
         return self.state / "runtime-update.lock"
 
@@ -591,18 +595,128 @@ def install_embedded_runtime(
             shutil.rmtree(staging, ignore_errors=True)
 
 
+DEFAULT_UPDATE_CHECK_TTL_SECONDS = 4 * 3600
+
+
+def _update_check_ttl_seconds() -> float:
+    raw = os.environ.get("INDESIGN_CLI_UPDATE_CHECK_TTL_SECONDS")
+    if raw is None or not raw.strip():
+        return float(DEFAULT_UPDATE_CHECK_TTL_SECONDS)
+    try:
+        value = float(raw.strip())
+    except ValueError:
+        return float(DEFAULT_UPDATE_CHECK_TTL_SECONDS)
+    return max(0.0, value)
+
+
+def _should_bypass_update_check_cache(command_args: list[str] | None) -> bool:
+    if not command_args:
+        return False
+    return command_args[0] in {"install", "health"}
+
+
+def _read_update_check_cache(
+    layout: RuntimeLayout,
+    *,
+    current_version: str,
+    sources: list[str] | tuple[str, ...] | None,
+    now: float,
+) -> dict[str, Any] | None:
+    ttl = _update_check_ttl_seconds()
+    if ttl <= 0:
+        return None
+    path = layout.update_check_state
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        return None
+    checked_at = payload.get("checked_at")
+    if isinstance(checked_at, bool) or not isinstance(checked_at, (int, float)):
+        return None
+    age = now - float(checked_at)
+    if age < -5.0 or age >= ttl:
+        return None
+    if payload.get("current_version") != current_version:
+        return None
+    latest_version = payload.get("latest_version")
+    if not isinstance(latest_version, str) or parse_version(latest_version) is None:
+        return None
+    if compare_versions(current_version, latest_version) < 0:
+        return None
+    normalized_sources = list(sources) if sources is not None else None
+    if payload.get("sources") != normalized_sources:
+        return None
+    return payload
+
+
+def _write_update_check_cache(
+    layout: RuntimeLayout,
+    *,
+    current_version: str,
+    latest_version: str,
+    source: str | None,
+    sources: list[str] | tuple[str, ...] | None,
+    now: float,
+) -> None:
+    path = layout.update_check_state
+    tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp")
+    payload = {
+        "schema_version": 1,
+        "checked_at": now,
+        "current_version": current_version,
+        "latest_version": latest_version,
+        "source": source,
+        "sources": list(sources) if sources is not None else None,
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def ensure_runtime_ready(*, root: Path, sources: list[str] | tuple[str, ...] | None = None, command_args: list[str] | None = None) -> dict[str, Any]:
+    layout = RuntimeLayout(root)
     state = read_current_runtime(root)
     current = Path(str(state["root"])) if state else None
+    current_version = str((state or {}).get("version") or "") or None
+    if current and current_version and not _should_bypass_update_check_cache(command_args):
+        cached = _read_update_check_cache(layout, current_version=current_version, sources=sources, now=time.time())
+        if cached is not None:
+            validate_runtime_shallow(current)
+            return {
+                "updated": False,
+                "version": current_version,
+                "runtime_root": str(current),
+                "source": cached.get("source"),
+                "warnings": [],
+                "command_args": command_args or [],
+                "update_check_cached": True,
+            }
     manifest, warnings = load_first_runtime_manifest(sources)
     if manifest is None:
         if current:
             validate_runtime_shallow(current)
             return {"updated": False, "version": state.get("version"), "runtime_root": str(current), "warnings": warnings, "command_args": command_args or []}
         raise CliError("Cannot install initial runtime", code="INITIAL_INSTALL_FAILED", details={"sources": list(sources or []), "warnings": warnings})
-    current_version = str((state or {}).get("version") or "") or None
     if current and compare_versions(current_version, manifest.version) >= 0:
         validate_runtime_shallow(current)
+        _write_update_check_cache(
+            layout,
+            current_version=current_version,
+            latest_version=manifest.version,
+            source=manifest.source,
+            sources=sources,
+            now=time.time(),
+        )
         return {"updated": False, "version": current_version, "runtime_root": str(current), "source": manifest.source, "warnings": warnings, "command_args": command_args or []}
     try:
         installed = install_runtime(manifest, root=root)
@@ -611,5 +725,13 @@ def ensure_runtime_ready(*, root: Path, sources: list[str] | tuple[str, ...] | N
             warnings.append({"code": exc.code, "source": manifest.source, "message": exc.message})
             return {"updated": False, "version": current_version, "latest": manifest.version, "runtime_root": str(current), "warnings": warnings, "command_args": command_args or []}
         raise CliError("Cannot install initial runtime", code="INITIAL_INSTALL_FAILED", details={"reason": exc.code, "reason_details": exc.details}) from exc
+    _write_update_check_cache(
+        layout,
+        current_version=manifest.version,
+        latest_version=manifest.version,
+        source=manifest.source,
+        sources=sources,
+        now=time.time(),
+    )
     warnings.extend(installed.warnings)
     return {"updated": installed.installed, "version": manifest.version, "previous_version": current_version, "runtime_root": str(installed.runtime_root), "source": manifest.source, "warnings": warnings, "command_args": command_args or []}

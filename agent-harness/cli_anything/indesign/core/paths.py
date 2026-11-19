@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 
 _PATH_PREFIX = (
@@ -35,14 +36,35 @@ def _normalize_matched_path(raw_path: str) -> str:
     return raw_path
 
 
+@lru_cache(maxsize=64)
+def _resolve_root_cached(raw_root: str) -> tuple[Path, Path]:
+    path = Path(raw_root)
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path
+    norm_root = Path(os.path.normpath(str(resolved)))
+    return resolved, norm_root
+
+
+def clear_allow_roots_cache() -> None:
+    _resolve_root_cached.cache_clear()
+
+
+def _resolve_allow_roots(allow_roots: list[Path] | None) -> tuple[tuple[Path, Path], ...]:
+    raw_roots = [str(root) for root in allow_roots] if allow_roots is not None else [str(Path.cwd())]
+    return tuple(_resolve_root_cached(raw) for raw in raw_roots)
+
+
 def scrub_path(path_value: str, cwd: Path) -> dict[str, object]:
     path = Path(path_value)
     try:
         resolved = path.resolve()
     except OSError:
         resolved = path
+    resolved_cwd, _ = _resolve_root_cached(str(cwd))
     try:
-        relative = resolved.relative_to(cwd.resolve())
+        relative = resolved.relative_to(resolved_cwd)
         return {
             "path": str(relative).replace("\\", "/"),
             "external": False,
@@ -59,21 +81,20 @@ def scrub_path(path_value: str, cwd: Path) -> dict[str, object]:
 
 def scrub_text_paths(value: str, allow_roots: list[Path] | None = None) -> str:
     # 白名单内（默认 cwd）的路径输出相对形式，供 Agent 自我修复；白名单外按外部资产打码。
-    roots: list[Path] = []
-    for root in allow_roots if allow_roots is not None else [Path.cwd()]:
-        try:
-            roots.append(root.resolve())
-        except OSError:
-            roots.append(root)
+    if not value:
+        return value
+    roots: tuple[tuple[Path, Path], ...] | None = None
 
     def replace(match: re.Match[str]) -> str:
+        nonlocal roots
+        if roots is None:
+            roots = _resolve_allow_roots(allow_roots)
         normalized = _normalize_matched_path(match.group(0))
         is_unc = normalized.startswith(("\\\\", "//"))
         if is_unc:
             unc_win = "\\\\" + normalized.lstrip("\\/").replace("/", "\\")
             path = Path(os.path.normpath(unc_win))
-            for root in roots:
-                norm_root = Path(os.path.normpath(str(root)))
+            for _resolved_root, norm_root in roots:
                 if os.path.normcase(norm_root.drive) != os.path.normcase(path.drive):
                     continue
                 try:
@@ -89,9 +110,9 @@ def scrub_text_paths(value: str, allow_roots: list[Path] | None = None) -> str:
             resolved = path.resolve()
         except OSError:
             resolved = path
-        for root in roots:
+        for resolved_root, _norm_root in roots:
             try:
-                relative = resolved.relative_to(root)
+                relative = resolved.relative_to(resolved_root)
             except ValueError:
                 continue
             return str(relative).replace("\\", "/")
