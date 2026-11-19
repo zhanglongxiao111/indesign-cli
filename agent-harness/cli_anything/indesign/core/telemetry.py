@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import re
+import threading
+import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .. import __version__
 
@@ -125,6 +129,177 @@ def _new_session_id(origin_key: str, now: datetime) -> str:
     return f"s-{origin_key[:12]}-{stamp}-{uuid.uuid4().hex[:8]}"
 
 
+_SPOOL_MAX_BYTES = 5 * 1024 * 1024
+_SPOOL_FLUSH_TIMEOUT_SECONDS = 0.05
+_SPOOL_LOCK_TIMEOUT_SECONDS = 2.0
+_REMOTE_BACKOFF_SECONDS = 5.0
+_SPOOL_LOCK = threading.Lock()
+_FLUSH_LOCK = threading.Lock()
+_REMOTE_BACKOFF_UNTIL: dict[str, float] = {}
+
+
+def _is_lock_contention(exc: OSError) -> bool:
+    winerror = getattr(exc, "winerror", None)
+    if winerror in {33, 36}:
+        return True
+    return exc.errno in {errno.EACCES, errno.EAGAIN}
+
+
+def _spool_lock_path(spool_path: Path) -> Path:
+    return spool_path.with_name(f"{spool_path.stem}.lock")
+
+
+def _spool_flush_lock_path(spool_path: Path) -> Path:
+    return spool_path.with_name(f"{spool_path.stem}.flush.lock")
+
+
+def _lock_handle_nonblocking(handle: Any) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_handle(handle: Any) -> None:
+    try:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+
+
+def _open_lock_file(lock_path: Path) -> Any:
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with lock_path.open("xb") as init_handle:
+            init_handle.write(b"\0")
+    except (FileExistsError, PermissionError):
+        if not lock_path.exists():
+            raise
+    handle = lock_path.open("r+b")
+    try:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+    except OSError:
+        pass
+    return handle
+
+
+@contextmanager
+def _spool_file_lock(
+    spool_path: Path,
+    *,
+    timeout_seconds: float = _SPOOL_LOCK_TIMEOUT_SECONDS,
+) -> Iterator[bool]:
+    """Cross-process + intra-process lock protecting telemetry-spool.jsonl mutations."""
+    start = time.monotonic()
+    if not _SPOOL_LOCK.acquire(timeout=timeout_seconds):
+        yield False
+        return
+    handle = None
+    locked = False
+    try:
+        lock_path = _spool_lock_path(spool_path)
+        handle = _open_lock_file(lock_path)
+        while True:
+            try:
+                _lock_handle_nonblocking(handle)
+                locked = True
+                break
+            except OSError as exc:
+                if not _is_lock_contention(exc):
+                    raise
+                if time.monotonic() - start >= timeout_seconds:
+                    break
+                time.sleep(0.005)
+        yield locked
+    finally:
+        if handle is not None:
+            if locked:
+                _unlock_handle(handle)
+            handle.close()
+        _SPOOL_LOCK.release()
+
+
+@contextmanager
+def _try_flush_file_lock(spool_path: Path) -> Iterator[bool]:
+    """Non-blocking cross-process lock so concurrent CLI processes do not duplicate-upload."""
+    handle = None
+    locked = False
+    try:
+        lock_path = _spool_flush_lock_path(spool_path)
+        handle = _open_lock_file(lock_path)
+        try:
+            _lock_handle_nonblocking(handle)
+            locked = True
+        except OSError as exc:
+            if not _is_lock_contention(exc):
+                raise
+        yield locked
+    except OSError:
+        yield False
+    finally:
+        if handle is not None:
+            if locked:
+                _unlock_handle(handle)
+            handle.close()
+
+
+def _is_unc_path(path: Path | str) -> bool:
+    raw = str(path)
+    return raw.startswith("\\\\") or raw.startswith("//")
+
+
+def _use_spool_mode(root: Path) -> bool:
+    sync_env = os.environ.get("INDESIGN_CLI_TELEMETRY_SYNC", "").strip().lower()
+    if sync_env in {"1", "true", "yes", "on"}:
+        return False
+    if sync_env in {"0", "false", "no", "off"}:
+        return True
+    return _is_unc_path(root)
+
+
+def _local_state_dir() -> Path:
+    override = os.environ.get("INDESIGN_CLI_INSTALL_ROOT")
+    if override:
+        return Path(override) / "state"
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "indesign-cli" / "state"
+
+
+def _spool_path() -> Path:
+    return _local_state_dir() / "telemetry-spool.jsonl"
+
+
+def _local_session_state_path(origin_key: str) -> Path:
+    return _local_state_dir() / "telemetry-state" / f"{origin_key}.json"
+
+
+def _flush_timeout_seconds() -> float:
+    raw = os.environ.get("INDESIGN_CLI_TELEMETRY_FLUSH_TIMEOUT_SECONDS")
+    if raw is None or not raw.strip():
+        return _SPOOL_FLUSH_TIMEOUT_SECONDS
+    try:
+        value = float(raw.strip())
+    except ValueError:
+        return _SPOOL_FLUSH_TIMEOUT_SECONDS
+    return max(0.0, value)
+
+
 def _state_path(root: Path, origin_key: str) -> Path:
     return root / "state" / f"{origin_key}.json"
 
@@ -137,29 +312,248 @@ def _read_state(path: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _resolve_session(root: Path, origin_key: str, cwd_hash: str, now: datetime) -> tuple[str, str | None, str | None]:
+def _resolve_session_with_state(
+    state_file: Path,
+    origin_key: str,
+    cwd_hash: str,
+    now: datetime,
+) -> tuple[str, str | None, str | None, dict[str, Any] | None]:
     explicit = os.environ.get("INDESIGN_CLI_SESSION_ID")
     agent_thread_id = os.environ.get("INDESIGN_CLI_AGENT_THREAD_ID") or None
     agent_run_id = os.environ.get("INDESIGN_CLI_AGENT_RUN_ID") or None
     if explicit:
-        return _safe_token(explicit, fallback_prefix="session"), agent_thread_id, agent_run_id
+        return _safe_token(explicit, fallback_prefix="session"), agent_thread_id, agent_run_id, None
     if agent_thread_id and agent_run_id:
-        return f"agent-{_hash(agent_thread_id, 12)}-{_hash(agent_run_id, 12)}", agent_thread_id, agent_run_id
+        return f"agent-{_hash(agent_thread_id, 12)}-{_hash(agent_run_id, 12)}", agent_thread_id, agent_run_id, None
 
-    state = _read_state(_state_path(root, origin_key))
+    state = _read_state(state_file)
     last_seen = _parse_iso(state.get("last_seen_at"))
     session_id = state.get("session_id")
     if isinstance(session_id, str) and session_id and state.get("cwd_hash") == cwd_hash and last_seen:
         if now - last_seen <= timedelta(hours=_idle_hours()):
-            return _safe_token(session_id, fallback_prefix="session"), None, None
-    return _new_session_id(origin_key, now), None, None
+            return _safe_token(session_id, fallback_prefix="session"), None, None, state
+    return _new_session_id(origin_key, now), None, None, state
+
+
+def _resolve_session(root: Path, origin_key: str, cwd_hash: str, now: datetime) -> tuple[str, str | None, str | None]:
+    session_id, agent_thread_id, agent_run_id, _ = _resolve_session_with_state(
+        _state_path(root, origin_key),
+        origin_key,
+        cwd_hash,
+        now,
+    )
+    return session_id, agent_thread_id, agent_run_id
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    if _is_unc_path(path) and path.exists():
+        with path.open("r+b") as handle:
+            handle.seek(0)
+            handle.write(serialized.encode("utf-8"))
+            handle.truncate()
+            handle.flush()
+        return
     tmp = path.with_name(f"{path.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    tmp.replace(path)
+    try:
+        tmp.write_text(serialized, encoding="utf-8")
+        try:
+            tmp.replace(path)
+        except PermissionError:
+            mode = "r+b" if path.exists() else "wb"
+            with path.open(mode) as handle:
+                handle.seek(0)
+                handle.write(serialized.encode("utf-8"))
+                handle.truncate()
+                handle.flush()
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _write_remote_batch(root: Path, entries: list[tuple[str, dict[str, Any], dict[str, Any]]]) -> None:
+    latest_states: dict[str, dict[str, Any]] = {}
+    session_lines: dict[tuple[str, str, str], list[str]] = {}
+    for date_part, payload, state_payload in entries:
+        origin_key = str(payload["origin_key"])
+        session_id = str(payload["session_id"])
+        latest_states[origin_key] = state_payload
+        key = (date_part, origin_key, session_id)
+        session_lines.setdefault(key, []).append(
+            json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"
+        )
+    for origin_key, state_payload in latest_states.items():
+        _write_json_atomic(_state_path(root, origin_key), state_payload)
+    for (date_part, origin_key, session_id), lines in session_lines.items():
+        session_file = root / "sessions" / date_part / f"{origin_key}__{session_id}.jsonl"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        with session_file.open("a", encoding="utf-8") as handle:
+            handle.writelines(lines)
+
+
+def _append_spool_record(spool_path: Path, record: dict[str, Any]) -> None:
+    encoded = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    max_bytes = _SPOOL_MAX_BYTES
+    if max_bytes <= 0 or len(encoded) > max_bytes:
+        return
+    with _spool_file_lock(spool_path) as acquired:
+        if not acquired:
+            return
+        spool_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            current_size = spool_path.stat().st_size if spool_path.exists() else 0
+        except OSError:
+            current_size = 0
+        if current_size + len(encoded) <= max_bytes:
+            with spool_path.open("ab") as handle:
+                handle.write(encoded)
+            return
+        try:
+            existing_lines = spool_path.read_bytes().splitlines(keepends=True)
+        except OSError:
+            existing_lines = []
+        existing_lines.append(encoded)
+        kept: list[bytes] = []
+        total = 0
+        for line in reversed(existing_lines):
+            if total + len(line) > max_bytes:
+                break
+            kept.append(line)
+            total += len(line)
+        kept.reverse()
+        tmp = spool_path.with_name(f"{spool_path.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            tmp.write_bytes(b"".join(kept))
+            tmp.replace(spool_path)
+        finally:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _flush_spool_sync(*, ignore_backoff: bool = False) -> int:
+    spool_path = _spool_path()
+    with _try_flush_file_lock(spool_path) as flush_acquired:
+        if not flush_acquired:
+            return 0
+        with _spool_file_lock(spool_path) as acquired:
+            if not acquired or not spool_path.exists():
+                return 0
+            try:
+                raw_lines = spool_path.read_bytes().splitlines(keepends=True)
+            except OSError:
+                return 0
+        if not raw_lines:
+            return 0
+
+        now_mono = time.monotonic()
+        parsed_by_root: dict[str, list[tuple[int, str, dict[str, Any], dict[str, Any]]]] = {}
+        invalid_indices: set[int] = set()
+        for idx, raw in enumerate(raw_lines):
+            if not raw.strip():
+                invalid_indices.add(idx)
+                continue
+            try:
+                item = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                invalid_indices.add(idx)
+                continue
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("root"), str)
+                or not isinstance(item.get("date"), str)
+                or not isinstance(item.get("payload"), dict)
+                or not isinstance(item.get("state"), dict)
+            ):
+                invalid_indices.add(idx)
+                continue
+            parsed_by_root.setdefault(item["root"], []).append((idx, item["date"], item["payload"], item["state"]))
+
+        flushed_indices: set[int] = set(invalid_indices)
+        flushed_events = 0
+        for root_str, entries in parsed_by_root.items():
+            if not ignore_backoff and _REMOTE_BACKOFF_UNTIL.get(root_str, 0.0) > now_mono:
+                continue
+            batch = [(date_part, payload, state_payload) for _, date_part, payload, state_payload in entries]
+            try:
+                _write_remote_batch(Path(root_str), batch)
+            except Exception:
+                _REMOTE_BACKOFF_UNTIL[root_str] = time.monotonic() + _REMOTE_BACKOFF_SECONDS
+                continue
+            _REMOTE_BACKOFF_UNTIL.pop(root_str, None)
+            for idx, _, _, _ in entries:
+                flushed_indices.add(idx)
+            flushed_events += len(entries)
+
+        if not flushed_indices:
+            return 0
+
+        with _spool_file_lock(spool_path) as acquired:
+            if not acquired:
+                return flushed_events
+            try:
+                current_lines = spool_path.read_bytes().splitlines(keepends=True)
+            except OSError:
+                return flushed_events
+            snapshot_len = len(raw_lines)
+            if len(current_lines) >= snapshot_len and current_lines[:snapshot_len] == raw_lines:
+                remaining = [line for idx, line in enumerate(raw_lines) if idx not in flushed_indices]
+                remaining.extend(current_lines[snapshot_len:])
+            else:
+                flushed_raw = {raw_lines[idx] for idx in flushed_indices}
+                remaining = [line for line in current_lines if line not in flushed_raw]
+            if not remaining:
+                try:
+                    spool_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            else:
+                tmp = spool_path.with_name(f"{spool_path.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+                try:
+                    tmp.write_bytes(b"".join(remaining))
+                    tmp.replace(spool_path)
+                except OSError:
+                    pass
+                finally:
+                    try:
+                        tmp.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+        return flushed_events
+
+
+def flush_spool(*, ignore_backoff: bool = True) -> int:
+    if not _FLUSH_LOCK.acquire(blocking=False):
+        return 0
+    try:
+        return _flush_spool_sync(ignore_backoff=ignore_backoff)
+    finally:
+        _FLUSH_LOCK.release()
+
+
+def _trigger_nonblocking_flush(root: Path) -> None:
+    if _REMOTE_BACKOFF_UNTIL.get(str(root), 0.0) > time.monotonic():
+        return
+    if not _FLUSH_LOCK.acquire(blocking=False):
+        return
+
+    def _worker() -> None:
+        try:
+            _flush_spool_sync(ignore_backoff=False)
+        except Exception:
+            pass
+        finally:
+            _FLUSH_LOCK.release()
+
+    worker = threading.Thread(target=_worker, name="indesign-cli-telemetry-flush", daemon=True)
+    worker.start()
+    timeout = _flush_timeout_seconds()
+    if timeout > 0:
+        worker.join(timeout=timeout)
 
 
 def _telemetry_root() -> Path | None:
@@ -179,7 +573,14 @@ def telemetry_context(*, cwd: Path | None = None, now: datetime | None = None) -
     current_now = now or _utc_now()
     cwd_hash = _cwd_fingerprint(current_cwd)
     origin_key = _origin_key(cwd_hash)
-    session_id, agent_thread_id, agent_run_id = _resolve_session(root, origin_key, cwd_hash, current_now)
+    spool_mode = _use_spool_mode(root)
+    state_file = _local_session_state_path(origin_key) if spool_mode else _state_path(root, origin_key)
+    session_id, agent_thread_id, agent_run_id, loaded_state = _resolve_session_with_state(
+        state_file,
+        origin_key,
+        cwd_hash,
+        current_now,
+    )
     context: dict[str, Any] = {
         "root": root,
         "now": current_now,
@@ -192,6 +593,10 @@ def telemetry_context(*, cwd: Path | None = None, now: datetime | None = None) -
         "cwd": str(current_cwd),
         "host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "",
         "cli_version": __version__,
+        "_state": loaded_state,
+        "_state_loaded": loaded_state is not None,
+        "_spool_mode": spool_mode,
+        "_state_file": state_file,
     }
     if agent_thread_id:
         context["agent_thread_id"] = agent_thread_id
@@ -234,23 +639,39 @@ def record_event(event: dict[str, Any], *, cwd: Path | None = None, now: datetim
     payload = _sanitize_event(event, context)
     root = context["root"]
     try:
+        state_file = context["_state_file"]
+        previous_state = context["_state"] if context.get("_state_loaded") else _read_state(state_file)
         state_payload = {
             "session_id": payload["session_id"],
             "created_at": payload["ts"],
             "last_seen_at": payload["ts"],
             "cwd_hash": payload["cwd_hash"],
         }
-        state_path = _state_path(root, payload["origin_key"])
-        previous_state = _read_state(state_path)
-        if previous_state.get("session_id") == payload["session_id"] and isinstance(previous_state.get("created_at"), str):
+        if (
+            isinstance(previous_state, dict)
+            and previous_state.get("session_id") == payload["session_id"]
+            and isinstance(previous_state.get("created_at"), str)
+        ):
             state_payload["created_at"] = previous_state["created_at"]
-        _write_json_atomic(state_path, state_payload)
 
         date_part = context["now"].astimezone(timezone.utc).date().isoformat()
-        session_file = root / "sessions" / date_part / f"{payload['origin_key']}__{payload['session_id']}.jsonl"
-        session_file.parent.mkdir(parents=True, exist_ok=True)
-        with session_file.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+        if context.get("_spool_mode"):
+            try:
+                _write_json_atomic(state_file, state_payload)
+            except OSError:
+                pass
+            _append_spool_record(
+                _spool_path(),
+                {
+                    "root": str(root),
+                    "date": date_part,
+                    "payload": payload,
+                    "state": state_payload,
+                },
+            )
+            _trigger_nonblocking_flush(root)
+        else:
+            _write_remote_batch(root, [(date_part, payload, state_payload)])
     except Exception:
         pass
     return payload

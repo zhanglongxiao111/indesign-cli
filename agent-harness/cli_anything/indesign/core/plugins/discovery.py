@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
 import os
 from pathlib import Path
 from typing import Any
+import uuid
 
 from ..errors import CliError
 from .manifest import PluginRecord, load_installed_plugin, load_plugin_record
+
+
+PLUGIN_CATALOG_CACHE_SCHEMA_VERSION = 1
 
 
 SOURCE_PRIORITY = {
@@ -92,3 +97,151 @@ def discover_plugins(cwd: Path, *, host_version: str) -> tuple[list[PluginRecord
 
 def plugin_summaries(records: list[PluginRecord]) -> list[dict[str, Any]]:
     return [record.summary() for record in sorted(records, key=lambda item: item.id)]
+
+
+def plugin_catalog_cache_path() -> Path:
+    install_override = os.environ.get("INDESIGN_CLI_INSTALL_ROOT")
+    if install_override:
+        base = Path(install_override).resolve()
+    else:
+        local_app_data = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        base = Path(local_app_data) / "indesign-cli"
+    return base / "state" / "plugin-catalog-cache.json"
+
+
+def plugin_cache_fingerprint(record: PluginRecord, *, host_version: str) -> dict[str, Any] | None:
+    try:
+        manifest_resolved = record.manifest_path.resolve()
+        entry_resolved = record.entry_path.resolve()
+        manifest_mtime_ns = manifest_resolved.stat().st_mtime_ns
+        entry_mtime_ns = entry_resolved.stat().st_mtime_ns
+    except OSError:
+        return None
+    return {
+        "plugin_id": record.id,
+        "manifest_path": str(manifest_resolved),
+        "manifest_mtime_ns": int(manifest_mtime_ns),
+        "manifest_version": record.version,
+        "entry_mtime_ns": int(entry_mtime_ns),
+        "host_version": host_version,
+    }
+
+
+def _plugin_cache_entry_key(fingerprint: dict[str, Any]) -> str:
+    manifest_key = os.path.normcase(str(fingerprint["manifest_path"]))
+    return f"{fingerprint['plugin_id']}|{manifest_key}"
+
+
+def _read_plugin_cache_file(cache_path: Path) -> dict[str, Any]:
+    try:
+        raw = cache_path.read_text(encoding="utf-8")
+        payload = json.loads(raw)
+    except (OSError, json.JSONDecodeError):
+        return {"schema_version": PLUGIN_CATALOG_CACHE_SCHEMA_VERSION, "entries": {}}
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != PLUGIN_CATALOG_CACHE_SCHEMA_VERSION
+        or not isinstance(payload.get("entries"), dict)
+    ):
+        return {"schema_version": PLUGIN_CATALOG_CACHE_SCHEMA_VERSION, "entries": {}}
+    return payload
+
+
+def _write_plugin_cache_file(cache_path: Path, payload: dict[str, Any]) -> None:
+    tmp_path: Path | None = None
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = cache_path.parent / f"{cache_path.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp_path, cache_path)
+    except OSError:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+
+def load_plugin_catalog_cache(record: PluginRecord, *, host_version: str) -> dict[str, Any] | None:
+    fingerprint = plugin_cache_fingerprint(record, host_version=host_version)
+    if fingerprint is None:
+        return None
+    payload = _read_plugin_cache_file(plugin_catalog_cache_path())
+    entry = payload["entries"].get(_plugin_cache_entry_key(fingerprint))
+    if not isinstance(entry, dict) or entry.get("fingerprint") != fingerprint:
+        return None
+    if not isinstance(entry.get("handshake"), dict) or not isinstance(entry.get("tools"), list):
+        return None
+    return entry
+
+
+def save_plugin_catalog_cache(
+    record: PluginRecord,
+    *,
+    host_version: str,
+    handshake: dict[str, Any],
+    tools: list[dict[str, Any]],
+    schemas: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    fingerprint = plugin_cache_fingerprint(record, host_version=host_version)
+    if fingerprint is None:
+        return
+    cache_path = plugin_catalog_cache_path()
+    payload = _read_plugin_cache_file(cache_path)
+    key = _plugin_cache_entry_key(fingerprint)
+    existing = payload["entries"].get(key)
+    merged_schemas: dict[str, dict[str, Any]] = {}
+    if isinstance(existing, dict) and existing.get("fingerprint") == fingerprint and isinstance(existing.get("schemas"), dict):
+        merged_schemas.update(existing["schemas"])
+    if isinstance(schemas, dict):
+        merged_schemas.update(schemas)
+    payload["entries"][key] = {
+        "fingerprint": fingerprint,
+        "handshake": handshake,
+        "tools": tools,
+        "schemas": merged_schemas,
+    }
+    _write_plugin_cache_file(cache_path, payload)
+
+
+def load_cached_plugin_schema(record: PluginRecord, tool_id: str, *, host_version: str) -> dict[str, Any] | None:
+    fingerprint = plugin_cache_fingerprint(record, host_version=host_version)
+    if fingerprint is None:
+        return None
+    payload = _read_plugin_cache_file(plugin_catalog_cache_path())
+    entry = payload["entries"].get(_plugin_cache_entry_key(fingerprint))
+    if not isinstance(entry, dict) or entry.get("fingerprint") != fingerprint:
+        return None
+    schemas = entry.get("schemas")
+    if not isinstance(schemas, dict):
+        return None
+    schema = schemas.get(tool_id)
+    return dict(schema) if isinstance(schema, dict) else None
+
+
+def save_cached_plugin_schema(
+    record: PluginRecord,
+    tool_id: str,
+    input_schema: dict[str, Any],
+    *,
+    host_version: str,
+) -> None:
+    fingerprint = plugin_cache_fingerprint(record, host_version=host_version)
+    if fingerprint is None:
+        return
+    cache_path = plugin_catalog_cache_path()
+    payload = _read_plugin_cache_file(cache_path)
+    key = _plugin_cache_entry_key(fingerprint)
+    existing = payload["entries"].get(key)
+    if isinstance(existing, dict) and existing.get("fingerprint") == fingerprint:
+        schemas = existing.get("schemas")
+        if not isinstance(schemas, dict):
+            schemas = {}
+            existing["schemas"] = schemas
+        schemas[tool_id] = input_schema
+    else:
+        payload["entries"][key] = {
+            "fingerprint": fingerprint,
+            "schemas": {tool_id: input_schema},
+        }
+    _write_plugin_cache_file(cache_path, payload)

@@ -42,11 +42,83 @@ def _scrub_nested_paths(value: Any) -> Any:
 
 
 class McpBackend:
-    def __init__(self, repo_root: Path, entry: str, timeout_seconds: int = 30) -> None:
+    def __init__(
+        self,
+        repo_root: Path,
+        entry: str,
+        timeout_seconds: int = 30,
+        *,
+        persistent: bool = False,
+    ) -> None:
         self.repo_root = repo_root
         self.entry = entry
         self.timeout_seconds = timeout_seconds
         self._next_id = 1
+        self._persistent = persistent
+        self._started = False
+        self._proc: subprocess.Popen[str] | None = None
+        self._stderr_tail: list[str] = []
+        self._stderr_thread: threading.Thread | None = None
+
+    @property
+    def is_open(self) -> bool:
+        return self._proc is not None and self._proc.poll() is None
+
+    @property
+    def is_session_active(self) -> bool:
+        return self._persistent
+
+    def open(self) -> "McpBackend":
+        if self.is_open:
+            self._persistent = True
+            return self
+        if self._proc is not None:
+            self.close()
+        self._persistent = True
+        self._start_and_initialize()
+        return self
+
+    def close(self) -> None:
+        proc = self._proc
+        stderr_thread = self._stderr_thread
+        self._proc = None
+        self._stderr_thread = None
+        self._persistent = False
+        self._started = False
+        if proc is None:
+            return
+        if proc.stdin is not None:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+        if proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                    proc.wait(timeout=1)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            except OSError:
+                pass
+        for stream in (proc.stdout, proc.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+        if stderr_thread is not None and stderr_thread.is_alive():
+            stderr_thread.join(timeout=0.5)
+
+    def __enter__(self) -> "McpBackend":
+        return self.open()
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
+        self.close()
+        return False
 
     def list_tools(self) -> list[dict[str, Any]]:
         response = self._with_process(lambda proc: self._request(proc, "tools/list", {}))
@@ -58,7 +130,7 @@ class McpBackend:
         )
         return self._parse_tool_response(name, response)
 
-    def _with_process(self, action: Callable[[subprocess.Popen[str]], dict[str, Any]]) -> dict[str, Any]:
+    def _start_and_initialize(self) -> subprocess.Popen[str]:
         entry_path = self.repo_root / self.entry
         if not entry_path.exists():
             raise CliError(f"MCP entry not found: {self.entry}", code="MCP_ENTRY_NOT_FOUND")
@@ -77,27 +149,28 @@ class McpBackend:
         except OSError as exc:
             raise CliError("Failed to start MCP process", code="MCP_START_FAILED", details={"entry": self.entry}) from exc
 
-        timed_out = {"value": False}
         stderr_tail: list[str] = []
 
         def drain_stderr() -> None:
             if proc.stderr is None:
                 return
-            for line in proc.stderr:
-                stderr_tail.append(scrub_text_paths(line.strip()))
-                del stderr_tail[:-20]
+            try:
+                for line in proc.stderr:
+                    stderr_tail.append(scrub_text_paths(line.strip()))
+                    del stderr_tail[:-20]
+            except (OSError, ValueError):
+                pass
 
-        def kill_process() -> None:
-            timed_out["value"] = True
-            proc.kill()
-
-        timer = threading.Timer(self.timeout_seconds, kill_process)
         stderr_thread = threading.Thread(target=drain_stderr, daemon=True)
-        try:
-            timer.start()
-            stderr_thread.start()
+        stderr_thread.start()
+        self._proc = proc
+        self._stderr_tail = stderr_tail
+        self._stderr_thread = stderr_thread
+        self._started = True
+
+        def initialize(active_proc: subprocess.Popen[str]) -> None:
             self._request(
-                proc,
+                active_proc,
                 "initialize",
                 {
                     "protocolVersion": "2024-11-05",
@@ -105,30 +178,124 @@ class McpBackend:
                     "clientInfo": {"name": "indesign-cli", "version": "0.2.0"},
                 },
             )
-            self._notify(proc, "notifications/initialized", {})
-            return action(proc)
-        finally:
+            self._notify(active_proc, "notifications/initialized", {})
+
+        try:
+            self._run_with_timeout(proc, initialize)
+        except BaseException:
+            self.close()
+            raise
+        return proc
+
+    def _run_with_timeout(
+        self,
+        proc: subprocess.Popen[str],
+        action: Callable[[subprocess.Popen[str]], Any],
+    ) -> Any:
+        timed_out = {"value": False}
+
+        def kill_process() -> None:
+            timed_out["value"] = True
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+        timer = threading.Timer(self.timeout_seconds, kill_process)
+        timer.daemon = True
+        try:
+            timer.start()
+            result = action(proc)
+        except BaseException:
             timer.cancel()
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
             if timed_out["value"]:
+                self.close()
                 raise TimeoutError(
                     "MCP process timed out",
-                    details={"entry": self.entry, "timeout_seconds": self.timeout_seconds, "stderr_tail": stderr_tail},
+                    details={
+                        "entry": self.entry,
+                        "timeout_seconds": self.timeout_seconds,
+                        "stderr_tail": list(self._stderr_tail),
+                    },
                 )
+            raise
+        else:
+            timer.cancel()
+            if timed_out["value"]:
+                self.close()
+                raise TimeoutError(
+                    "MCP process timed out",
+                    details={
+                        "entry": self.entry,
+                        "timeout_seconds": self.timeout_seconds,
+                        "stderr_tail": list(self._stderr_tail),
+                    },
+                )
+            return result
+
+    def _with_process(self, action: Callable[[subprocess.Popen[str]], dict[str, Any]]) -> dict[str, Any]:
+        if not self._persistent:
+            proc = self._start_and_initialize()
+            try:
+                return self._run_with_timeout(proc, action)
+            finally:
+                self.close()
+
+        if self._proc is None:
+            if self._started:
+                raise CliError(
+                    "MCP process session is already closed",
+                    code="MCP_PROCESS_EXITED",
+                    details={"entry": self.entry},
+                    state_uncertain=True,
+                    next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
+                )
+            proc = self._start_and_initialize()
+        else:
+            proc = self._proc
+            rc = proc.poll()
+            if rc is not None:
+                stderr_tail = list(self._stderr_tail)
+                self.close()
+                raise CliError(
+                    "MCP process exited unexpectedly",
+                    code="MCP_PROCESS_EXITED",
+                    details={"entry": self.entry, "returncode": rc, "stderr_tail": stderr_tail},
+                    state_uncertain=True,
+                    next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
+                )
+
+        try:
+            return self._run_with_timeout(proc, action)
+        except BaseException as exc:
+            if (
+                proc.poll() is not None
+                or isinstance(exc, TimeoutError)
+                or (
+                    isinstance(exc, CliError)
+                    and exc.code in {"MCP_PROCESS_EXITED", "MCP_BAD_JSON", "MCP_STDIO_UNAVAILABLE", "MCP_STDIN_UNAVAILABLE"}
+                )
+            ):
+                self.close()
+            raise
 
     def _request(self, proc: subprocess.Popen[str], method: str, params: dict[str, Any]) -> dict[str, Any]:
         if proc.stdin is None or proc.stdout is None:
             raise CliError("MCP process stdio is unavailable", code="MCP_STDIO_UNAVAILABLE")
         request = {"jsonrpc": "2.0", "id": self._next_id, "method": method, "params": params}
         self._next_id += 1
-        proc.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
-        proc.stdin.flush()
-        line = proc.stdout.readline()
+        try:
+            proc.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+            proc.stdin.flush()
+            line = proc.stdout.readline()
+        except OSError as exc:
+            raise CliError(
+                "MCP process pipe closed before response",
+                code="MCP_PROCESS_EXITED",
+                details={"method": method, "entry": self.entry},
+                state_uncertain=True,
+                next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
+            ) from exc
         if line == "":
             raise TimeoutError("MCP process ended before response", details={"method": method, "entry": self.entry})
         try:
@@ -147,8 +314,17 @@ class McpBackend:
     def _notify(self, proc: subprocess.Popen[str], method: str, params: dict[str, Any]) -> None:
         if proc.stdin is None:
             raise CliError("MCP process stdin is unavailable", code="MCP_STDIN_UNAVAILABLE")
-        proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method, "params": params}) + "\n")
-        proc.stdin.flush()
+        try:
+            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method, "params": params}) + "\n")
+            proc.stdin.flush()
+        except OSError as exc:
+            raise CliError(
+                "MCP process pipe closed during notification",
+                code="MCP_PROCESS_EXITED",
+                details={"method": method, "entry": self.entry},
+                state_uncertain=True,
+                next_action="Run `indesign-cli session doctor` before retrying mutating steps.",
+            ) from exc
 
     def _parse_tool_response(self, name: str, response: dict[str, Any]) -> dict[str, Any]:
         content = response.get("content", [])

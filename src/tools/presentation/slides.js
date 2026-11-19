@@ -58,7 +58,7 @@ export async function addCoverPage(args) {
             '} catch (e) { "Error: " + e.message; }'
         );
 
-        const result = await runScript(scriptLines.join('\n'));
+        const result = await runScript(scriptLines.join('\n'), { disableRedraw: true });
         return formatResponse(result, 'Add Cover Page');
     }
 
@@ -83,7 +83,7 @@ export async function addSectionPage(args) {
             '} catch (e) { "Error: " + e.message; }'
         ].join('\n');
 
-        const result = await runScript(script);
+        const result = await runScript(script, { disableRedraw: true });
         return formatResponse(result, 'Add Section Page');
     }
 
@@ -118,7 +118,7 @@ export async function addFullBleedImage(args) {
             '} catch (e) { "Error: " + e.message; }'
         ].join('\n');
 
-        const result = await runScript(script);
+        const result = await runScript(script, { disableRedraw: true });
         return formatResponse(result, 'Add Full-Bleed Image');
     }
 
@@ -158,7 +158,7 @@ export async function addImageGrid(args) {
             '} catch (e) { "Error: " + e.message; }'
         ].join('\n');
 
-        const result = await runScript(script);
+        const result = await runScript(script, { disableRedraw: true });
         return formatResponse(result, 'Add Image Grid');
     }
 

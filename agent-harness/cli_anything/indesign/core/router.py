@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 import sys
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterator
 
+from .. import __version__
 from .catalog import Catalog
 from .errors import CliError
 from .internal_backend import InternalToolBackend
 from .mcp_backend import McpBackend
 from .plugins.backend import PluginBackend
+from .plugins.discovery import load_cached_plugin_schema, save_cached_plugin_schema
 from .plugins.host_actions import ALLOWED_HOST_ACTIONS, DEFAULT_TOTAL_DEADLINE_SECONDS, HostActionExecutor
 from .telemetry import FEEDBACK_CODES, recent_call_summaries, record_event, validate_feedback_payload
 
@@ -120,16 +123,57 @@ PRIMITIVE_SCHEMAS = {
 
 
 class Router:
-    def __init__(self, catalog: Catalog, repo_root: Path, backend_timeout_seconds: int | None = None) -> None:
+    def __init__(
+        self,
+        catalog: Catalog,
+        repo_root: Path,
+        backend_timeout_seconds: int | None = None,
+        *,
+        plugin_catalog_loader: Callable[[Catalog], tuple[Catalog, list[str]]] | None = None,
+    ) -> None:
         self.catalog = catalog
         self.repo_root = repo_root
         self.backend_timeout_seconds = backend_timeout_seconds
         # 最近一次插件工具调用的遥测元数据（插件版本、host action/resume 计数、插件自报指标）。
         # 只在插件分支写入；host action 递归回 call() 时走的是 script/cli 分支，不会覆盖它。
         self.last_plugin_call_meta: dict[str, Any] | None = None
+        self._session_depth: int = 0
+        self._session_backends: dict[str, McpBackend] = {}
+        self._plugin_catalog_loader = plugin_catalog_loader
+        self._plugins_loaded = plugin_catalog_loader is None
+        self.catalog_warnings: list[str] = []
+
+    @contextmanager
+    def session(self) -> Iterator["Router"]:
+        self._session_depth += 1
+        try:
+            yield self
+        finally:
+            self._session_depth -= 1
+            if self._session_depth <= 0:
+                self._session_depth = 0
+                backends = list(self._session_backends.values())
+                self._session_backends.clear()
+                for backend in backends:
+                    try:
+                        backend.close()
+                    except Exception:
+                        pass
+
+    def _ensure_plugins_loaded(self) -> bool:
+        if self._plugins_loaded or self._plugin_catalog_loader is None:
+            return False
+        self._plugins_loaded = True
+        upgraded, extra_warnings = self._plugin_catalog_loader(self.catalog)
+        self.catalog = upgraded
+        if extra_warnings:
+            self.catalog_warnings.extend(extra_warnings)
+        return True
 
     def _find(self, tool_id: str) -> dict[str, Any]:
         matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
+        if not matches and self._ensure_plugins_loaded():
+            matches = [tool for tool in self.catalog.list_tools(callable_only=False) if tool["id"] == tool_id]
         if not matches:
             raise CliError(
                 f"Tool not found: {tool_id}",
@@ -150,13 +194,20 @@ class Router:
         if tool["source"] == "hidden_handler":
             return {"tool": slim_tool, "inputSchema": InternalToolBackend(self.repo_root, catalog=self.catalog).schema(tool_id), "metadata": metadata}
         if tool["source"] == "plugin":
+            plugin_id = tool.get("plugin")
+            record = self.catalog.plugin_record(plugin_id) if isinstance(plugin_id, str) and plugin_id else None
+            if record is not None:
+                cached_schema = load_cached_plugin_schema(record, tool_id, host_version=__version__)
+                if cached_schema is not None:
+                    return {"tool": slim_tool, "inputSchema": cached_schema, "metadata": metadata}
             backend = self._plugin_backend(tool)
             payload = backend.schema(tool_id)
-            return {"tool": slim_tool, "inputSchema": payload.get("inputSchema", {}), "metadata": metadata}
-        backend = self._backend(tool["source"])
-        for item in backend.list_tools():
-            if item["name"] == tool["name"]:
-                return {"tool": slim_tool, "inputSchema": item.get("inputSchema", {}), "metadata": metadata}
+            input_schema = payload.get("inputSchema", {})
+            if record is not None and isinstance(input_schema, dict):
+                save_cached_plugin_schema(record, tool_id, input_schema, host_version=__version__)
+            return {"tool": slim_tool, "inputSchema": input_schema, "metadata": metadata}
+        if tool["source"] in BACKENDS:
+            return {"tool": slim_tool, "inputSchema": self.catalog.schema(tool_id), "metadata": metadata}
         raise CliError(f"Backend schema missing for {tool_id}", code="SCHEMA_NOT_FOUND")
 
     @staticmethod
@@ -214,7 +265,24 @@ class Router:
             entry = BACKENDS[source]
         except KeyError as exc:
             raise CliError(f"Unsupported backend source: {source}", code="BACKEND_NOT_SUPPORTED") from exc
-        return McpBackend(repo_root=self.repo_root, entry=entry, timeout_seconds=self.backend_timeout_seconds or 30)
+        timeout_seconds = self.backend_timeout_seconds or 30
+        if self._session_depth > 0:
+            existing = self._session_backends.get(source)
+            if existing is not None:
+                if existing.is_session_active:
+                    existing.timeout_seconds = timeout_seconds
+                    return existing
+                existing.close()
+                self._session_backends.pop(source, None)
+            backend = McpBackend(
+                repo_root=self.repo_root,
+                entry=entry,
+                timeout_seconds=timeout_seconds,
+                persistent=True,
+            )
+            self._session_backends[source] = backend
+            return backend
+        return McpBackend(repo_root=self.repo_root, entry=entry, timeout_seconds=timeout_seconds)
 
     def _plugin_backend(self, tool: dict[str, Any]) -> PluginBackend:
         plugin_id = tool.get("plugin")

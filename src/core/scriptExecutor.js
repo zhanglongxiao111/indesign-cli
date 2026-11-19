@@ -11,7 +11,7 @@ import { createRequire } from 'module';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const EXTENDSCRIPT_RUNTIME_SNIPPET = `
+export const EXTENDSCRIPT_RUNTIME_SNIPPET = `
 if (typeof JSON === "undefined") { JSON = {}; }
 function __mcpJsonSeenContains(arr, value) {
   for (var i = 0; i < arr.length; i++) {
@@ -19,37 +19,25 @@ function __mcpJsonSeenContains(arr, value) {
   }
   return false;
 }
+var __mcpJsonEscapeMap = {
+  '"': '\\\\"',
+  '\\\\': '\\\\\\\\',
+  '\\b': '\\\\b',
+  '\\t': '\\\\t',
+  '\\n': '\\\\n',
+  '\\f': '\\\\f',
+  '\\r': '\\\\r',
+  '\\u2028': '\\\\u2028',
+  '\\u2029': '\\\\u2029'
+};
 function __mcpJsonEscapeString(str) {
   if (str === null || str === undefined) return "";
-  var result = "";
-  var backslash = String.fromCharCode(92);
-  for (var i = 0; i < str.length; i++) {
-    var ch = str.charAt(i);
-    var code = str.charCodeAt(i);
-    if (code === 34) {
-      result += backslash + '"';
-    } else if (code === 92) {
-      result += backslash + backslash;
-    } else if (code === 8) {
-      result += backslash + "b";
-    } else if (code === 9) {
-      result += backslash + "t";
-    } else if (code === 10) {
-      result += backslash + "n";
-    } else if (code === 12) {
-      result += backslash + "f";
-    } else if (code === 13) {
-      result += backslash + "r";
-    } else if (code === 0x2028 || code === 0x2029) {
-      result += backslash + "u" + code.toString(16);
-    } else if (code < 32) {
-      var hex = code.toString(16);
-      result += backslash + "u" + ("0000" + hex).slice(-4);
-    } else {
-      result += ch;
-    }
-  }
-  return result;
+  return String(str).replace(/["\\\\\\x00-\\x1f\\u2028\\u2029]/g, function(ch) {
+    var mapped = __mcpJsonEscapeMap[ch];
+    if (typeof mapped === "string") return mapped;
+    var hex = ch.charCodeAt(0).toString(16);
+    return "\\\\u" + ("0000" + hex).slice(-4);
+  });
 }
 function __mcpJsonSerialize(value) {
   var seen = [];
@@ -86,12 +74,119 @@ if (typeof JSON.parse !== "function") {
 }
 `;
 
+export const DEFAULT_COM_PROG_IDS = [
+    // Newer/future first
+    'InDesign.Application.2026',
+    'InDesign.Application.CC.2026',
+    // Current
+    'InDesign.Application.2025',
+    'InDesign.Application.CC.2025',
+    // Generic
+    'InDesign.Application',
+    // Recent past
+    'InDesign.Application.2024',
+    'InDesign.Application.CC.2024',
+    'InDesign.Application.2023',
+    'InDesign.Application.CC.2023',
+    'InDesign.Application.2022',
+    'InDesign.Application.CC.2022',
+    // InDesign Server fallbacks (least preferred)
+    'InDesignServer.Application.2025',
+    'InDesignServer.Application.2024',
+    'InDesignServer.Application',
+];
+
+function escapeExtendScriptLiteral(str) {
+    return JSON.stringify(String(str ?? ''))
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029');
+}
+
 export class ScriptExecutor {
     // Cache a COM Application instance for Windows to avoid repeated activation
     static _winApp = null;
 
     static isWindows() {
         return process.platform === 'win32';
+    }
+
+    /**
+     * Build wrapped ExtendScript code enforcing non-interactive execution,
+     * ES3 JSON helpers, and optional redraw suppression / fast undo.
+     * @param {string} script
+     * @param {{ disableRedraw?: boolean, fastUndo?: boolean, undoName?: string }} [options]
+     * @returns {string}
+     */
+    static buildWrappedScript(script, options = {}) {
+        const {
+            disableRedraw = false,
+            fastUndo = false,
+            undoName = 'MCP Operation'
+        } = options || {};
+        const body = String(script ?? '');
+
+        if (!disableRedraw && !fastUndo) {
+            return [
+                'try {',
+                '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
+                EXTENDSCRIPT_RUNTIME_SNIPPET,
+                body,
+                '} catch (e) {',
+                '  "Error: " + e.message;',
+                '}'
+            ].join('\n');
+        }
+
+        const safeUndoName = (typeof undoName === 'string' && undoName.trim())
+            ? undoName.trim()
+            : 'MCP Operation';
+        const scriptLiteral = escapeExtendScriptLiteral(body);
+        // Use UndoModes.ENTIRE_SCRIPT instead of FAST_ENTIRE_SCRIPT to avoid native
+        // Adobe InDesign 2025 crashes during complex document/master/table mutations.
+        const invokeLine = fastUndo
+            ? `  __mcpScriptResult = app.doScript(${scriptLiteral}, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, ${escapeExtendScriptLiteral(safeUndoName)});`
+            : `  __mcpScriptResult = eval(${scriptLiteral});`;
+
+        const lines = [
+            'var __mcpScriptResult;',
+        ];
+        if (disableRedraw) {
+            lines.push(
+                'var __mcpPrevRedraw;',
+                'var __mcpHasPrevRedraw = false;'
+            );
+        }
+        lines.push(
+            'try {',
+            '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
+            EXTENDSCRIPT_RUNTIME_SNIPPET
+        );
+        if (disableRedraw) {
+            lines.push(
+                '  try {',
+                '    __mcpPrevRedraw = app.scriptPreferences.enableRedraw;',
+                '    __mcpHasPrevRedraw = true;',
+                '    app.scriptPreferences.enableRedraw = false;',
+                '  } catch (__mcpRedrawErr) {}'
+            );
+        }
+        lines.push(
+            invokeLine,
+            '} catch (e) {',
+            '  __mcpScriptResult = "Error: " + (e && e.message ? e.message : e);',
+            '}'
+        );
+        if (disableRedraw) {
+            lines.push(
+                'finally {',
+                '  if (__mcpHasPrevRedraw) {',
+                '    try { app.scriptPreferences.enableRedraw = __mcpPrevRedraw; } catch (__mcpRestoreErr) {}',
+                '  }',
+                '}'
+            );
+        }
+        lines.push('__mcpScriptResult;');
+        return lines.join('\n');
     }
 
     /**
@@ -106,6 +201,107 @@ export class ScriptExecutor {
         } catch (error) {
             throw new Error(`AppleScript execution failed: ${error.message}`);
         }
+    }
+
+    static _getComProgIdCachePath(env = process.env) {
+        const localAppData = typeof env?.LOCALAPPDATA === 'string' ? env.LOCALAPPDATA.trim() : '';
+        if (localAppData) {
+            return path.join(localAppData, 'indesign-cli', 'state', 'com-progid.json');
+        }
+        try {
+            const home = os.homedir();
+            if (home) {
+                return path.join(home, 'AppData', 'Local', 'indesign-cli', 'state', 'com-progid.json');
+            }
+        } catch {}
+        return null;
+    }
+
+    static _readCachedComProgId(options = {}) {
+        const cachePath = options.cachePath || this._getComProgIdCachePath(options.env);
+        if (!cachePath) return null;
+        try {
+            if (!fs.existsSync(cachePath)) return null;
+            const raw = fs.readFileSync(cachePath, 'utf8').trim();
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const candidate = typeof parsed === 'string'
+                ? parsed
+                : (parsed && typeof parsed === 'object' ? (parsed.progId || parsed.progID) : null);
+            if (typeof candidate === 'string' && candidate.trim()) {
+                return candidate.trim();
+            }
+        } catch {}
+        return null;
+    }
+
+    static _writeCachedComProgId(progId, options = {}) {
+        if (typeof progId !== 'string' || !progId.trim()) return;
+        const cachePath = options.cachePath || this._getComProgIdCachePath(options.env);
+        if (!cachePath) return;
+        try {
+            fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+            fs.writeFileSync(
+                cachePath,
+                JSON.stringify({ progId: progId.trim(), updatedAt: new Date().toISOString() }),
+                'utf8'
+            );
+        } catch {
+            // Ignore cache write errors so COM activation never fails
+        }
+    }
+
+    /**
+     * Build ordered Windows COM ProgID candidates:
+     * 1) process.env.INDESIGN_CLI_COM_PROGID (if set)
+     * 2) Cached ProgID from %LOCALAPPDATA%\indesign-cli\state\com-progid.json
+     * 3) Full 14-item fallback list
+     */
+    static getWindowsComProgIds(options = {}) {
+        const env = options.env || process.env;
+        const cachedProgId = Object.prototype.hasOwnProperty.call(options, 'cachedProgId')
+            ? options.cachedProgId
+            : this._readCachedComProgId(options);
+        const seen = new Set();
+        const ordered = [];
+        const pushUnique = (id) => {
+            if (typeof id !== 'string') return;
+            const trimmed = id.trim();
+            if (!trimmed || seen.has(trimmed)) return;
+            seen.add(trimmed);
+            ordered.push(trimmed);
+        };
+
+        pushUnique(env?.INDESIGN_CLI_COM_PROGID);
+        pushUnique(cachedProgId);
+        for (const id of DEFAULT_COM_PROG_IDS) {
+            pushUnique(id);
+        }
+        return ordered;
+    }
+
+    static _resolveWindowsInDesignApp(WinaxObject, options = {}) {
+        const cachedProgId = this._readCachedComProgId(options);
+        const progIDs = this.getWindowsComProgIds({ ...options, cachedProgId });
+
+        let lastError;
+        for (const id of progIDs) {
+            try {
+                const app = new WinaxObject(id);
+                if (id !== cachedProgId) {
+                    this._writeCachedComProgId(id, options);
+                }
+                return app;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw new Error(
+            `Could not create InDesign COM object. Tried: ${progIDs.join(', ')}. ` +
+            `Last error: ${lastError?.message || lastError}. ` +
+            `Tips: Ensure Adobe InDesign desktop is installed and has been launched at least once, ` +
+            `and that COM registration is available. If installation is fresh, try restarting or running once as administrator.`
+        );
     }
 
     /**
@@ -129,45 +325,9 @@ export class ScriptExecutor {
             throw new Error("Missing dependency 'winax'. Please run: npm install winax");
         }
 
-        // Prefer explicit recent desktop ProgIDs, then generic, then older versions
-        const progIDs = [
-            // Newer/future first
-            'InDesign.Application.2026',
-            'InDesign.Application.CC.2026',
-            // Current
-            'InDesign.Application.2025',
-            'InDesign.Application.CC.2025',
-            // Generic
-            'InDesign.Application',
-            // Recent past
-            'InDesign.Application.2024',
-            'InDesign.Application.CC.2024',
-            'InDesign.Application.2023',
-            'InDesign.Application.CC.2023',
-            'InDesign.Application.2022',
-            'InDesign.Application.CC.2022',
-            // InDesign Server fallbacks (least preferred)
-            'InDesignServer.Application.2025',
-            'InDesignServer.Application.2024',
-            'InDesignServer.Application',
-        ];
-
-        let lastError;
-        for (const id of progIDs) {
-            try {
-                const app = new WinaxObject(id);
-                this._winApp = app;
-                return app;
-            } catch (err) {
-                lastError = err;
-            }
-        }
-        throw new Error(
-            `Could not create InDesign COM object. Tried: ${progIDs.join(', ')}. ` +
-            `Last error: ${lastError?.message || lastError}. ` +
-            `Tips: Ensure Adobe InDesign desktop is installed and has been launched at least once, ` +
-            `and that COM registration is available. If installation is fresh, try restarting or running once as administrator.`
-        );
+        const app = this._resolveWindowsInDesignApp(WinaxObject);
+        this._winApp = app;
+        return app;
     }
 
     /**
@@ -175,11 +335,12 @@ export class ScriptExecutor {
      * - On Windows: Use COM DoScript via winax
      * - On macOS: Use AppleScript to run the temp JSX file
      * @param {string} script - The ExtendScript to execute
+     * @param {{ disableRedraw?: boolean, fastUndo?: boolean, undoName?: string }} [options]
      * @returns {string} The result of the script execution
      */
-    static async executeInDesignScript(script) {
+    static async executeInDesignScript(script, options = {}) {
         if (this.isWindows()) {
-            return await this._executeInDesignScriptWindows(script);
+            return await this._executeInDesignScriptWindows(script, options);
         }
         // macOS path (AppleScript + temp JSX file)
         let tempDir;
@@ -189,15 +350,7 @@ export class ScriptExecutor {
             tempScriptPath = path.join(tempDir, 'script.jsx');
 
             // Force non-interactive (headless) execution where possible
-            const wrapped = [
-                'try {',
-                '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
-                EXTENDSCRIPT_RUNTIME_SNIPPET,
-                script,
-                '} catch (e) {',
-                '  "Error: " + e.message;',
-                '}'
-            ].join('\n');
+            const wrapped = this.buildWrappedScript(script, options);
             fs.writeFileSync(tempScriptPath, wrapped, { encoding: 'utf8' });
 
             const escapedScriptPath = tempScriptPath.replace(/"/g, '\\"');
@@ -222,9 +375,10 @@ export class ScriptExecutor {
     /**
      * Execute a JSX file directly so $.fileName, relative #include, etc. behave correctly.
      * @param {string} filePath - Absolute or relative path to the JSX file.
+     * @param {{ disableRedraw?: boolean, fastUndo?: boolean, undoName?: string }} [options]
      * @returns {string} The result of the script execution.
      */
-    static async executeInDesignScriptFile(filePath) {
+    static async executeInDesignScriptFile(filePath, options = {}) {
         if (!filePath || typeof filePath !== 'string') {
             throw new Error('filePath must be a string');
         }
@@ -241,25 +395,17 @@ export class ScriptExecutor {
             '}',
             '__mcpResult;'
         ].join('\n');
-        return await this.executeInDesignScript(wrapper);
+        return await this.executeInDesignScript(wrapper, options);
     }
 
     /**
      * Windows: Execute via COM DoScript
      */
-    static async _executeInDesignScriptWindows(script) {
+    static async _executeInDesignScriptWindows(script, options = {}) {
         try {
             const app = this._getWindowsInDesignApp();
-            // Wrap to enforce non-interactive mode and basic error capture
-            const wrapped = [
-                'try {',
-                '  app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT;',
-                EXTENDSCRIPT_RUNTIME_SNIPPET,
-                script,
-                '} catch (e) {',
-                '  "Error: " + e.message;',
-                '}'
-            ].join('\n');
+            // Wrap to enforce non-interactive mode, optional redraw/undo controls, and basic error capture
+            const wrapped = this.buildWrappedScript(script, options);
             // ScriptLanguage.JAVASCRIPT (numeric enum for COM environments)
             const ScriptLanguage_JAVASCRIPT = 1246973031;
             const result = app.DoScript(wrapped, ScriptLanguage_JAVASCRIPT);
