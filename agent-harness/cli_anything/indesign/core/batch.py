@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 import json
 from json import JSONDecodeError
 from pathlib import Path
@@ -70,44 +71,79 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
         raise CliError("Batch plan steps must be a list", code="BATCH_PLAN_INVALID", hint=PLAN_HINT)
 
     results: list[dict[str, Any]] = []
-    for index, step in enumerate(steps):
-        if not isinstance(step, dict):
-            raise _step_error("Batch step must be an object", {"index": index})
-        step_id = step.get("id")
-        step_type = step.get("type")
-        tool_id = step.get("tool")
-        args = step.get("args")
-        if not isinstance(step_id, str) or not step_id:
-            raise _step_error("Batch step id is required", {"index": index})
-        if step_type != "tool":
-            raise _step_error("Batch step type must be tool", {"id": step_id})
-        if not isinstance(tool_id, str) or not tool_id:
-            raise _step_error("Batch step tool is required", {"id": step_id})
-        if not isinstance(args, dict):
-            raise _step_error("Batch step args must be an object", {"id": step_id})
+    session_ctx = router.session() if callable(getattr(router, "session", None)) else nullcontext()
+    with session_ctx:
+        for index, step in enumerate(steps):
+            if not isinstance(step, dict):
+                raise _step_error("Batch step must be an object", {"index": index})
+            step_id = step.get("id")
+            step_type = step.get("type")
+            tool_id = step.get("tool")
+            args = step.get("args")
+            if not isinstance(step_id, str) or not step_id:
+                raise _step_error("Batch step id is required", {"index": index})
+            if step_type != "tool":
+                raise _step_error("Batch step type must be tool", {"id": step_id})
+            if not isinstance(tool_id, str) or not tool_id:
+                raise _step_error("Batch step tool is required", {"id": step_id})
+            if not isinstance(args, dict):
+                raise _step_error("Batch step args must be an object", {"id": step_id})
 
-        started = now_ms()
-        tool_meta: dict[str, Any] | None = None
-        try:
-            tool_meta = router._find(tool_id)
-            data = router.call(tool_id, args)
-        except CliError as exc:
+            started = now_ms()
+            tool_meta: dict[str, Any] | None = None
+            try:
+                tool_meta = router._find(tool_id)
+                data = router.call(tool_id, args)
+            except CliError as exc:
+                duration_ms = max(1, now_ms() - started)
+                failure_stage = None
+                if isinstance(exc.details, dict):
+                    for key in ("failed_stage", "failure_stage", "stage", "phase"):
+                        value = exc.details.get(key)
+                        if isinstance(value, str) and value.strip():
+                            failure_stage = value
+                            break
+                record_tool_call(
+                    tool_id=tool_id,
+                    source=str(tool_meta.get("source")) if tool_meta else None,
+                    ok=False,
+                    duration_ms=duration_ms,
+                    error_code=exc.code,
+                    error_message=exc.message,
+                    failure_stage=failure_stage,
+                    arg_keys=list(args),
+                    via_batch=True,
+                )
+                results.append(
+                    {
+                        "id": step_id,
+                        "tool": tool_id,
+                        "ok": False,
+                        "code": exc.code,
+                        "message": exc.message,
+                        "duration_ms": duration_ms,
+                    }
+                )
+                state_uncertain = _step_state_uncertain(exc, tool_meta)
+                cleanup_suggestions = ["Inspect session doctor before retrying mutating steps."] if state_uncertain else []
+                raise CliError(
+                    f"Batch failed at step {step_id}",
+                    code="BATCH_STEP_FAILED",
+                    details={
+                        "failed_step": step_id,
+                        "steps": results,
+                        "state_uncertain": state_uncertain,
+                        "cleanup_suggestions": cleanup_suggestions,
+                    },
+                    state_uncertain=state_uncertain,
+                    next_action="Run `indesign-cli session doctor` before retrying mutating steps." if state_uncertain else None,
+                ) from exc
             duration_ms = max(1, now_ms() - started)
-            failure_stage = None
-            if isinstance(exc.details, dict):
-                for key in ("failed_stage", "failure_stage", "stage", "phase"):
-                    value = exc.details.get(key)
-                    if isinstance(value, str) and value.strip():
-                        failure_stage = value
-                        break
             record_tool_call(
                 tool_id=tool_id,
                 source=str(tool_meta.get("source")) if tool_meta else None,
-                ok=False,
+                ok=True,
                 duration_ms=duration_ms,
-                error_code=exc.code,
-                error_message=exc.message,
-                failure_stage=failure_stage,
                 arg_keys=list(args),
                 via_batch=True,
             )
@@ -115,44 +151,11 @@ def run_batch(router: Router, plan_path: Path, *, on_error: str = "stop") -> dic
                 {
                     "id": step_id,
                     "tool": tool_id,
-                    "ok": False,
-                    "code": exc.code,
-                    "message": exc.message,
+                    "ok": True,
                     "duration_ms": duration_ms,
+                    "data": data,
                 }
             )
-            state_uncertain = _step_state_uncertain(exc, tool_meta)
-            cleanup_suggestions = ["Inspect session doctor before retrying mutating steps."] if state_uncertain else []
-            raise CliError(
-                f"Batch failed at step {step_id}",
-                code="BATCH_STEP_FAILED",
-                details={
-                    "failed_step": step_id,
-                    "steps": results,
-                    "state_uncertain": state_uncertain,
-                    "cleanup_suggestions": cleanup_suggestions,
-                },
-                state_uncertain=state_uncertain,
-                next_action="Run `indesign-cli session doctor` before retrying mutating steps." if state_uncertain else None,
-            ) from exc
-        duration_ms = max(1, now_ms() - started)
-        record_tool_call(
-            tool_id=tool_id,
-            source=str(tool_meta.get("source")) if tool_meta else None,
-            ok=True,
-            duration_ms=duration_ms,
-            arg_keys=list(args),
-            via_batch=True,
-        )
-        results.append(
-            {
-                "id": step_id,
-                "tool": tool_id,
-                "ok": True,
-                "duration_ms": duration_ms,
-                "data": data,
-            }
-        )
 
     return {
         "failed_step": None,

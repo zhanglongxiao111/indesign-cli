@@ -18,7 +18,11 @@ from .core.mcp_backend import McpBackend
 from .core.node_setup import setup_node_dependencies
 from .core.paths import scrub_text_paths
 from .core.plugins.backend import PluginBackend
-from .core.plugins.discovery import discover_plugins
+from .core.plugins.discovery import (
+    discover_plugins,
+    load_plugin_catalog_cache,
+    save_plugin_catalog_cache,
+)
 from .core.plugins.install import install_plugin, list_plugins, remove_plugin
 from .core.plugins.validate import doctor_plugin, validate_plugin_path
 from .core.router import Router, load_args
@@ -279,8 +283,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
-    base = Catalog(repo_root=repo_root())
+def build_catalog_with_backends(
+    *,
+    base: Catalog | None = None,
+    use_cache: bool = True,
+) -> tuple[Catalog, list[str]]:
+    base_catalog = base if base is not None else Catalog(repo_root=repo_root())
     warnings: list[str] = []
     plugin_tools: list[dict[str, Any]] = []
     plugin_domain_summaries: dict[str, str] = {}
@@ -293,21 +301,67 @@ def build_catalog_with_backends() -> tuple[Catalog, list[str]]:
         warnings.append(f"plugin discovery unavailable: {exc.code}")
     for record in discovered:
         try:
-            backend = PluginBackend(record)
-            backend.handshake({"name": "indesign-cli", "version": __version__, "protocol": record.manifest["protocol"]})
-            plugin_tools.extend(plugin_tool_entries(record, backend.list_tools()))
+            cached = load_plugin_catalog_cache(record, host_version=__version__) if use_cache else None
+            if cached is not None:
+                raw_tools = cached["tools"]
+            else:
+                backend = PluginBackend(record)
+                handshake = backend.handshake({"name": "indesign-cli", "version": __version__, "protocol": record.manifest["protocol"]})
+                raw_tools = backend.list_tools()
+                if use_cache:
+                    save_plugin_catalog_cache(
+                        record,
+                        host_version=__version__,
+                        handshake=handshake,
+                        tools=raw_tools,
+                    )
+            plugin_tools.extend(plugin_tool_entries(record, raw_tools))
             plugin_domain_summaries[record.domain] = str(record.manifest.get("description") or f"{record.id} plugin tools")
             plugin_records[record.id] = record
         except CliError as exc:
             warnings.append(f"plugin {record.id} unavailable: {exc.code}")
     return (
-        base.with_exposed_tools(
+        base_catalog.with_exposed_tools(
             plugin_tools=plugin_tools,
             plugin_domain_summaries=plugin_domain_summaries,
             plugin_records=plugin_records,
         ),
         warnings,
     )
+
+
+def _catalog_has_tool(catalog: Catalog, tool_id: str) -> bool:
+    return any(tool["id"] == tool_id for tool in catalog.list_tools(callable_only=False))
+
+
+def _build_catalog_for_tool(tool_id: str) -> tuple[Catalog, list[str]]:
+    base = Catalog(repo_root=repo_root())
+    if _catalog_has_tool(base, tool_id):
+        return base, []
+    return build_catalog_with_backends(base=base)
+
+
+def _batch_plan_needs_plugins(plan_path: str, base: Catalog) -> bool:
+    try:
+        payload = json.loads(Path(plan_path).read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict) or not isinstance(payload.get("steps"), list):
+        return False
+    base_ids = {tool["id"] for tool in base.list_tools(callable_only=False)}
+    for step in payload["steps"]:
+        if isinstance(step, dict):
+            step_tool = step.get("tool")
+            if isinstance(step_tool, str) and step_tool and step_tool not in base_ids:
+                return True
+    return False
+
+
+def _build_catalog_for_batch(plan_path: str) -> tuple[Catalog, list[str]]:
+    base = Catalog(repo_root=repo_root())
+    if _batch_plan_needs_plugins(plan_path, base):
+        return build_catalog_with_backends(base=base)
+    return base, []
 
 
 # tool list/search 的紧凑输出字段；完整契约通过 tool schema / tool explain 获取。
@@ -358,7 +412,12 @@ def run(argv: list[str] | None = None) -> int:
     if args.version:
         return emit(version_payload())
     if args.group == "tool":
-        catalog, warnings = build_catalog_with_backends()
+        if args.tool_command in {"schema", "explain", "call"}:
+            catalog, warnings = _build_catalog_for_tool(args.tool_id)
+        elif args.tool_command == "batch":
+            catalog, warnings = _build_catalog_for_batch(args.plan)
+        else:
+            catalog, warnings = build_catalog_with_backends()
         if args.tool_command == "domains" or args.tool_command is None:
             return emit(success(command="tool domains", data=catalog.domains(), duration_ms=elapsed(start), warnings=warnings))
         if args.tool_command == "list":
@@ -580,7 +639,8 @@ def run(argv: list[str] | None = None) -> int:
         }
         return emit(success(command="agent quickstart", data=data, duration_ms=elapsed(start), tool_id="agent.quickstart", domain="agent", source="cli"))
     if args.group == "script" and args.script_command == "run":
-        catalog, warnings = build_catalog_with_backends()
+        catalog = Catalog(repo_root=repo_root())
+        warnings: list[str] = []
         script_timeout = timeout_seconds_from_ms(args.timeout_ms, args.timeout)
         router = Router(catalog=catalog, repo_root=repo_root(), backend_timeout_seconds=script_timeout)
         store = SessionStore(Path.cwd())

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -52,41 +53,43 @@ class HostActionExecutor:
         base_backend_timeout = getattr(backend, "timeout", None)
         current = initial
         failed_results: list[dict[str, Any]] = []
-        try:
-            for _round in range(self.max_resume_rounds + 1):
-                if current.get("status") != "requires_host_actions":
-                    if (
-                        failed_results
-                        and current.get("status") != "error"
-                        and current.get("data", {}).get("ok") is not False
-                    ):
-                        raise CliError(
-                            "Plugin host action failed",
-                            code="PLUGIN_HOST_ACTION_FAILED",
-                            details={"tool_id": tool_id, "host_results": failed_results, "plugin_result": current},
-                        )
-                    return current
-                actions = current.get("actions")
-                if not isinstance(actions, list):
-                    raise CliError("Plugin host actions must be an array", code="PLUGIN_HOST_ACTION_INVALID")
-                host_results: list[dict[str, Any]] = []
-                for action in actions:
-                    if not isinstance(action, dict):
-                        continue
-                    self.stats["host_action_count"] = self.stats.get("host_action_count", 0) + 1
-                    result = self._execute_action(action, self._remaining_seconds(started, tool_id))
-                    host_results.append(result)
-                    if _host_result_failed(result):
-                        break
-                failed_results.extend(result for result in host_results if _host_result_failed(result))
-                remaining = self._remaining_seconds(started, tool_id)
+        session_ctx = self.router.session() if callable(getattr(self.router, "session", None)) else nullcontext()
+        with session_ctx:
+            try:
+                for _round in range(self.max_resume_rounds + 1):
+                    if current.get("status") != "requires_host_actions":
+                        if (
+                            failed_results
+                            and current.get("status") != "error"
+                            and current.get("data", {}).get("ok") is not False
+                        ):
+                            raise CliError(
+                                "Plugin host action failed",
+                                code="PLUGIN_HOST_ACTION_FAILED",
+                                details={"tool_id": tool_id, "host_results": failed_results, "plugin_result": current},
+                            )
+                        return current
+                    actions = current.get("actions")
+                    if not isinstance(actions, list):
+                        raise CliError("Plugin host actions must be an array", code="PLUGIN_HOST_ACTION_INVALID")
+                    host_results: list[dict[str, Any]] = []
+                    for action in actions:
+                        if not isinstance(action, dict):
+                            continue
+                        self.stats["host_action_count"] = self.stats.get("host_action_count", 0) + 1
+                        result = self._execute_action(action, self._remaining_seconds(started, tool_id))
+                        host_results.append(result)
+                        if _host_result_failed(result):
+                            break
+                    failed_results.extend(result for result in host_results if _host_result_failed(result))
+                    remaining = self._remaining_seconds(started, tool_id)
+                    if isinstance(base_backend_timeout, int):
+                        backend.timeout = max(1, min(base_backend_timeout, int(remaining)))
+                    self.stats["resume_count"] = self.stats.get("resume_count", 0) + 1
+                    current = backend.resume_tool(tool_id, current.get("state") if isinstance(current.get("state"), dict) else {}, host_results)
+            finally:
                 if isinstance(base_backend_timeout, int):
-                    backend.timeout = max(1, min(base_backend_timeout, int(remaining)))
-                self.stats["resume_count"] = self.stats.get("resume_count", 0) + 1
-                current = backend.resume_tool(tool_id, current.get("state") if isinstance(current.get("state"), dict) else {}, host_results)
-        finally:
-            if isinstance(base_backend_timeout, int):
-                backend.timeout = base_backend_timeout
+                    backend.timeout = base_backend_timeout
         raise CliError("Plugin exceeded host action resume limit", code="PLUGIN_HOST_ACTION_LIMIT_EXCEEDED", details={"tool_id": tool_id})
 
     def _remaining_seconds(self, started: float, tool_id: str) -> float:
