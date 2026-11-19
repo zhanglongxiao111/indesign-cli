@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -7,9 +8,10 @@ import re
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .. import __version__
 
@@ -129,10 +131,132 @@ def _new_session_id(origin_key: str, now: datetime) -> str:
 
 _SPOOL_MAX_BYTES = 5 * 1024 * 1024
 _SPOOL_FLUSH_TIMEOUT_SECONDS = 0.05
+_SPOOL_LOCK_TIMEOUT_SECONDS = 2.0
 _REMOTE_BACKOFF_SECONDS = 5.0
 _SPOOL_LOCK = threading.Lock()
 _FLUSH_LOCK = threading.Lock()
 _REMOTE_BACKOFF_UNTIL: dict[str, float] = {}
+
+
+def _is_lock_contention(exc: OSError) -> bool:
+    winerror = getattr(exc, "winerror", None)
+    if winerror in {33, 36}:
+        return True
+    return exc.errno in {errno.EACCES, errno.EAGAIN}
+
+
+def _spool_lock_path(spool_path: Path) -> Path:
+    return spool_path.with_name(f"{spool_path.stem}.lock")
+
+
+def _spool_flush_lock_path(spool_path: Path) -> Path:
+    return spool_path.with_name(f"{spool_path.stem}.flush.lock")
+
+
+def _lock_handle_nonblocking(handle: Any) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_handle(handle: Any) -> None:
+    try:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+
+
+def _open_lock_file(lock_path: Path) -> Any:
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with lock_path.open("xb") as init_handle:
+            init_handle.write(b"\0")
+    except (FileExistsError, PermissionError):
+        if not lock_path.exists():
+            raise
+    handle = lock_path.open("r+b")
+    try:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+    except OSError:
+        pass
+    return handle
+
+
+@contextmanager
+def _spool_file_lock(
+    spool_path: Path,
+    *,
+    timeout_seconds: float = _SPOOL_LOCK_TIMEOUT_SECONDS,
+) -> Iterator[bool]:
+    """Cross-process + intra-process lock protecting telemetry-spool.jsonl mutations."""
+    start = time.monotonic()
+    if not _SPOOL_LOCK.acquire(timeout=timeout_seconds):
+        yield False
+        return
+    handle = None
+    locked = False
+    try:
+        lock_path = _spool_lock_path(spool_path)
+        handle = _open_lock_file(lock_path)
+        while True:
+            try:
+                _lock_handle_nonblocking(handle)
+                locked = True
+                break
+            except OSError as exc:
+                if not _is_lock_contention(exc):
+                    raise
+                if time.monotonic() - start >= timeout_seconds:
+                    break
+                time.sleep(0.005)
+        yield locked
+    finally:
+        if handle is not None:
+            if locked:
+                _unlock_handle(handle)
+            handle.close()
+        _SPOOL_LOCK.release()
+
+
+@contextmanager
+def _try_flush_file_lock(spool_path: Path) -> Iterator[bool]:
+    """Non-blocking cross-process lock so concurrent CLI processes do not duplicate-upload."""
+    handle = None
+    locked = False
+    try:
+        lock_path = _spool_flush_lock_path(spool_path)
+        handle = _open_lock_file(lock_path)
+        try:
+            _lock_handle_nonblocking(handle)
+            locked = True
+        except OSError as exc:
+            if not _is_lock_contention(exc):
+                raise
+        yield locked
+    except OSError:
+        yield False
+    finally:
+        if handle is not None:
+            if locked:
+                _unlock_handle(handle)
+            handle.close()
 
 
 def _is_unc_path(path: Path | str) -> bool:
@@ -275,7 +399,9 @@ def _append_spool_record(spool_path: Path, record: dict[str, Any]) -> None:
     max_bytes = _SPOOL_MAX_BYTES
     if max_bytes <= 0 or len(encoded) > max_bytes:
         return
-    with _SPOOL_LOCK:
+    with _spool_file_lock(spool_path) as acquired:
+        if not acquired:
+            return
         spool_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             current_size = spool_path.stat().st_size if spool_path.exists() else 0
@@ -311,88 +437,93 @@ def _append_spool_record(spool_path: Path, record: dict[str, Any]) -> None:
 
 def _flush_spool_sync(*, ignore_backoff: bool = False) -> int:
     spool_path = _spool_path()
-    with _SPOOL_LOCK:
-        if not spool_path.exists():
+    with _try_flush_file_lock(spool_path) as flush_acquired:
+        if not flush_acquired:
             return 0
-        try:
-            raw_lines = spool_path.read_bytes().splitlines(keepends=True)
-        except OSError:
+        with _spool_file_lock(spool_path) as acquired:
+            if not acquired or not spool_path.exists():
+                return 0
+            try:
+                raw_lines = spool_path.read_bytes().splitlines(keepends=True)
+            except OSError:
+                return 0
+        if not raw_lines:
             return 0
-    if not raw_lines:
-        return 0
 
-    now_mono = time.monotonic()
-    parsed_by_root: dict[str, list[tuple[int, str, dict[str, Any], dict[str, Any]]]] = {}
-    invalid_indices: set[int] = set()
-    for idx, raw in enumerate(raw_lines):
-        if not raw.strip():
-            invalid_indices.add(idx)
-            continue
-        try:
-            item = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            invalid_indices.add(idx)
-            continue
-        if (
-            not isinstance(item, dict)
-            or not isinstance(item.get("root"), str)
-            or not isinstance(item.get("date"), str)
-            or not isinstance(item.get("payload"), dict)
-            or not isinstance(item.get("state"), dict)
-        ):
-            invalid_indices.add(idx)
-            continue
-        parsed_by_root.setdefault(item["root"], []).append((idx, item["date"], item["payload"], item["state"]))
-
-    flushed_indices: set[int] = set(invalid_indices)
-    flushed_events = 0
-    for root_str, entries in parsed_by_root.items():
-        if not ignore_backoff and _REMOTE_BACKOFF_UNTIL.get(root_str, 0.0) > now_mono:
-            continue
-        batch = [(date_part, payload, state_payload) for _, date_part, payload, state_payload in entries]
-        try:
-            _write_remote_batch(Path(root_str), batch)
-        except Exception:
-            _REMOTE_BACKOFF_UNTIL[root_str] = time.monotonic() + _REMOTE_BACKOFF_SECONDS
-            continue
-        _REMOTE_BACKOFF_UNTIL.pop(root_str, None)
-        for idx, _, _, _ in entries:
-            flushed_indices.add(idx)
-        flushed_events += len(entries)
-
-    if not flushed_indices:
-        return 0
-
-    with _SPOOL_LOCK:
-        try:
-            current_lines = spool_path.read_bytes().splitlines(keepends=True)
-        except OSError:
-            return flushed_events
-        snapshot_len = len(raw_lines)
-        if len(current_lines) >= snapshot_len and current_lines[:snapshot_len] == raw_lines:
-            remaining = [line for idx, line in enumerate(raw_lines) if idx not in flushed_indices]
-            remaining.extend(current_lines[snapshot_len:])
-        else:
-            flushed_raw = {raw_lines[idx] for idx in flushed_indices}
-            remaining = [line for line in current_lines if line not in flushed_raw]
-        if not remaining:
+        now_mono = time.monotonic()
+        parsed_by_root: dict[str, list[tuple[int, str, dict[str, Any], dict[str, Any]]]] = {}
+        invalid_indices: set[int] = set()
+        for idx, raw in enumerate(raw_lines):
+            if not raw.strip():
+                invalid_indices.add(idx)
+                continue
             try:
-                spool_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-        else:
-            tmp = spool_path.with_name(f"{spool_path.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+                item = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                invalid_indices.add(idx)
+                continue
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("root"), str)
+                or not isinstance(item.get("date"), str)
+                or not isinstance(item.get("payload"), dict)
+                or not isinstance(item.get("state"), dict)
+            ):
+                invalid_indices.add(idx)
+                continue
+            parsed_by_root.setdefault(item["root"], []).append((idx, item["date"], item["payload"], item["state"]))
+
+        flushed_indices: set[int] = set(invalid_indices)
+        flushed_events = 0
+        for root_str, entries in parsed_by_root.items():
+            if not ignore_backoff and _REMOTE_BACKOFF_UNTIL.get(root_str, 0.0) > now_mono:
+                continue
+            batch = [(date_part, payload, state_payload) for _, date_part, payload, state_payload in entries]
             try:
-                tmp.write_bytes(b"".join(remaining))
-                tmp.replace(spool_path)
+                _write_remote_batch(Path(root_str), batch)
+            except Exception:
+                _REMOTE_BACKOFF_UNTIL[root_str] = time.monotonic() + _REMOTE_BACKOFF_SECONDS
+                continue
+            _REMOTE_BACKOFF_UNTIL.pop(root_str, None)
+            for idx, _, _, _ in entries:
+                flushed_indices.add(idx)
+            flushed_events += len(entries)
+
+        if not flushed_indices:
+            return 0
+
+        with _spool_file_lock(spool_path) as acquired:
+            if not acquired:
+                return flushed_events
+            try:
+                current_lines = spool_path.read_bytes().splitlines(keepends=True)
             except OSError:
-                pass
-            finally:
+                return flushed_events
+            snapshot_len = len(raw_lines)
+            if len(current_lines) >= snapshot_len and current_lines[:snapshot_len] == raw_lines:
+                remaining = [line for idx, line in enumerate(raw_lines) if idx not in flushed_indices]
+                remaining.extend(current_lines[snapshot_len:])
+            else:
+                flushed_raw = {raw_lines[idx] for idx in flushed_indices}
+                remaining = [line for line in current_lines if line not in flushed_raw]
+            if not remaining:
                 try:
-                    tmp.unlink(missing_ok=True)
+                    spool_path.unlink(missing_ok=True)
                 except OSError:
                     pass
-    return flushed_events
+            else:
+                tmp = spool_path.with_name(f"{spool_path.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+                try:
+                    tmp.write_bytes(b"".join(remaining))
+                    tmp.replace(spool_path)
+                except OSError:
+                    pass
+                finally:
+                    try:
+                        tmp.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+        return flushed_events
 
 
 def flush_spool(*, ignore_backoff: bool = True) -> int:

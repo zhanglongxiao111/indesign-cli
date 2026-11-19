@@ -332,6 +332,118 @@ def test_telemetry_spool_enforces_5mb_hard_cap(tmp_path, monkeypatch):
     assert "tool.0" not in kept
 
 
+def test_telemetry_spool_cross_process_lock_prevents_lost_events(tmp_path, monkeypatch):
+    import sys
+    from cli_anything.indesign.core import telemetry
+
+    local_app_data = tmp_path / "local"
+    remote_root = tmp_path / "fake-nas-telemetry"
+    cwd = tmp_path / "workspace"
+    cwd.mkdir()
+
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.delenv("INDESIGN_CLI_INSTALL_ROOT", raising=False)
+    monkeypatch.setenv("INDESIGN_CLI_TELEMETRY_DIR", str(remote_root))
+    monkeypatch.setenv("INDESIGN_CLI_TELEMETRY_SYNC", "0")
+    monkeypatch.delenv("INDESIGN_CLI_TELEMETRY", raising=False)
+    telemetry._REMOTE_BACKOFF_UNTIL.clear()
+
+    spool = telemetry._spool_path()
+    rec_a = {
+        "root": str(remote_root),
+        "date": "2026-11-19",
+        "payload": {
+            "origin_key": "origin-a",
+            "session_id": "sess-a",
+            "tool_id": "proc.a",
+        },
+        "state": {"session_id": "sess-a", "created_at": "2026-11-19T00:00:00+00:00", "last_seen_at": "2026-11-19T00:00:00+00:00", "cwd_hash": "a"},
+    }
+    rec_b = {
+        "root": str(remote_root),
+        "date": "2026-11-19",
+        "payload": {
+            "origin_key": "origin-a",
+            "session_id": "sess-a",
+            "tool_id": "proc.b",
+        },
+        "state": {"session_id": "sess-a", "created_at": "2026-11-19T00:00:00+00:00", "last_seen_at": "2026-11-19T00:00:01+00:00", "cwd_hash": "a"},
+    }
+    telemetry._append_spool_record(spool, rec_a)
+
+    # 1) Reproduce exact Codex race: hold the cross-process spool lock as if Process A is in its
+    #    prune critical section (between read_bytes and unlink), spawn Process B appending rec_b,
+    #    then unlink spool and release lock -> Process B must block on the OS lock and land rec_b
+    #    AFTER the unlink instead of having rec_b deleted!
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO_ROOT / "agent-harness")
+    child_code = (
+        "import json, sys; from pathlib import Path; "
+        "from cli_anything.indesign.core import telemetry; "
+        "telemetry._append_spool_record(Path(sys.argv[1]), json.loads(sys.argv[2]))"
+    )
+    with telemetry._spool_file_lock(spool) as acquired:
+        assert acquired is True
+        current_lines = spool.read_bytes().splitlines(keepends=True)
+        assert len(current_lines) == 1
+        child = subprocess.Popen(
+            [sys.executable, "-c", child_code, str(spool), json.dumps(rec_b)],
+            env=env,
+        )
+        time.sleep(0.25)
+        # Child must still be waiting on the cross-process lock, not mutating spool mid-prune.
+        assert child.poll() is None
+        spool.unlink(missing_ok=True)
+    assert child.wait(timeout=10.0) == 0
+
+    assert spool.exists()
+    remaining_after_race = [
+        json.loads(line)["payload"]["tool_id"]
+        for line in spool.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert remaining_after_race == ["proc.b"]
+
+    # 2) Also verify a child process appending during an in-flight remote flush is preserved.
+    rec_c = {
+        "root": str(remote_root),
+        "date": "2026-11-19",
+        "payload": {
+            "origin_key": "origin-a",
+            "session_id": "sess-a",
+            "tool_id": "proc.c",
+        },
+        "state": {"session_id": "sess-a", "created_at": "2026-11-19T00:00:00+00:00", "last_seen_at": "2026-11-19T00:00:02+00:00", "cwd_hash": "a"},
+    }
+    real_write = telemetry._write_remote_batch
+
+    def write_and_spawn_child(root_arg, batch):
+        res = subprocess.run(
+            [sys.executable, "-c", child_code, str(spool), json.dumps(rec_c)],
+            env=env,
+            check=True,
+            timeout=10.0,
+        )
+        assert res.returncode == 0
+        return real_write(root_arg, batch)
+
+    monkeypatch.setattr(telemetry, "_write_remote_batch", write_and_spawn_child)
+    assert telemetry.flush_spool(ignore_backoff=True) == 1
+    assert spool.exists()
+    monkeypatch.setattr(telemetry, "_write_remote_batch", real_write)
+    assert telemetry.flush_spool(ignore_backoff=True) == 1
+    assert not spool.exists()
+
+    session_files = list((remote_root / "sessions").glob("*/*.jsonl"))
+    assert len(session_files) == 1
+    flushed_tools = [
+        json.loads(line)["tool_id"]
+        for line in session_files[0].read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert flushed_tools == ["proc.b", "proc.c"]
+
+
 def test_telemetry_mode_selection_for_unc_local_and_sync_override(tmp_path, monkeypatch):
     from cli_anything.indesign.core import telemetry
 
