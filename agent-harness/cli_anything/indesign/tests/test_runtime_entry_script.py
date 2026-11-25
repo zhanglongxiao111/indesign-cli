@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -142,3 +143,40 @@ def test_entry_script_reports_incomplete_runtime_instead_of_running_nothing(tmp_
 
     assert "CODE=1" in result.stdout
     assert "indesign-cli.exe" in result.stderr
+
+
+@pytest.mark.skipif(_pwsh() is None, reason="需要 Windows 上的 pwsh")
+def test_entry_script_forwards_piped_stdin_utf8_and_restores_encoding(tmp_path):
+    # 用当前 python.exe 冒充 indesign-cli.exe（把其目录放到 PATH 供加载 python3XX.dll），
+    # 实测 PowerShell 管道在非交互环境下把含中文多行 JSX 完整透传给子进程，且不污染 $OutputEncoding。
+    py_exe = Path(sys.executable)
+    runtime = _fake_runtime(tmp_path / "py-runtime", cli_bytes=py_exe.read_bytes())
+    entry = runtime / RUNTIME_ENTRY_SCRIPT_NAME
+    command = (
+        "$beforeEnc = $OutputEncoding.WebName; "
+        "$jsx = \"line1`nreturn '中文校验_OK';\"; "
+        "$out = ($jsx | & '" + str(entry) + "' -c \"import sys; raw=sys.stdin.buffer.read(); print('STDIN=' + raw.decode('utf-8'))\"); "
+        "$code = $LASTEXITCODE; "
+        "$afterEnc = $OutputEncoding.WebName; "
+        "Write-Output \"CODE=$code\"; "
+        "Write-Output \"ENC_MATCH=$($beforeEnc -eq $afterEnc)\"; "
+        "Write-Output $out"
+    )
+    env = {key: value for key, value in os.environ.items() if not key.startswith("INDESIGN_CLI_")}
+    env["PATH"] = f"{py_exe.parent};{env.get('PATH', '')}"
+    result = subprocess.run(
+        [_pwsh(), "-NoProfile", "-NonInteractive", "-Command", command],
+        input="",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "CODE=0" in result.stdout
+    assert "ENC_MATCH=True" in result.stdout
+    assert "STDIN=line1" in result.stdout
+    assert "中文校验_OK" in result.stdout

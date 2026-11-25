@@ -73,8 +73,16 @@ def verify_artifact(path: Path, created_after: datetime | None = None, cwd: Path
             "mtime": stat.st_mtime,
             "mtime_iso": mtime_iso,
         }
+    if suffix == ".indd":
+        raise CliError(
+            "Unsupported artifact type: .indd",
+            code="ARTIFACT_UNSUPPORTED",
+            details={"path": path_info, "suffix": suffix},
+            hint="export verify 只验证 PDF 和 IDML 导出产物；检查 .indd 请改用文档查询工具（如 `document.get_document_info`）或直接检查文件存在与大小。",
+        )
     raise CliError(
         f"Unsupported artifact type: {suffix}",
         code="ARTIFACT_UNSUPPORTED",
+        details={"path": path_info, "suffix": suffix},
         hint="当前只验证 PDF 和 IDML；图片等产物请先检查文件存在、大小和导出日志。",
     )

@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .errors import CliError
+
 
 def _read_stdin_text() -> str:
     buffer = getattr(sys.stdin, "buffer", None)
@@ -37,8 +39,15 @@ def run_script(router: Any, script_path: Path) -> dict[str, Any]:
 
 
 def run_stdin_script(router: Any, cwd: Path) -> dict[str, Any]:
+    text = _read_stdin_text()
+    if not text.strip():
+        raise CliError(
+            "Script content from stdin is empty",
+            code="SCRIPT_INPUT_EMPTY",
+            hint="通过管道向 `script run --stdin` 传入非空 JSX 代码，或把脚本写入 .jsx 文件后运行 `script run <file.jsx>`。",
+        )
     tmp_dir = cwd / ".indesign-cli" / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     script_path = tmp_dir / "stdin.jsx"
-    script_path.write_text(_read_stdin_text(), encoding="utf-8")
+    script_path.write_text(text, encoding="utf-8")
     return run_script(router, script_path)

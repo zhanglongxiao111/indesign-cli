@@ -186,6 +186,59 @@ def test_run_stdin_script_reads_utf8_bytes(tmp_path, monkeypatch):
     assert router.file_path == tmp_path / ".indesign-cli" / "tmp" / "stdin.jsx"
 
 
+def test_run_stdin_script_rejects_empty_stdin_before_calling_router(tmp_path, monkeypatch):
+    from cli_anything.indesign.core.errors import CliError
+    from cli_anything.indesign.core.scripts import run_stdin_script
+
+    class EmptyStdin:
+        buffer = io.BytesIO(b"   \r\n\t ")
+
+    class FailIfCalledRouter:
+        def call(self, tool_id, args):
+            raise AssertionError(f"router should not be called on empty stdin: {tool_id} {args}")
+
+    monkeypatch.setattr(sys, "stdin", EmptyStdin())
+
+    with pytest.raises(CliError) as exc_info:
+        run_stdin_script(FailIfCalledRouter(), tmp_path)
+
+    assert exc_info.value.code == "SCRIPT_INPUT_EMPTY"
+    assert exc_info.value.hint
+    assert not (tmp_path / ".indesign-cli" / "tmp" / "stdin.jsx").exists()
+
+
+def test_script_run_stdin_empty_returns_input_error_envelope(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "-m", "cli_anything.indesign", "script", "run", "--stdin"],
+        input="",
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env={**os.environ, "PYTHONPATH": str(HARNESS_ROOT)},
+    )
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "SCRIPT_INPUT_EMPTY"
+    assert payload["error"]["category"] == "input_error"
+    assert payload["error"]["hint"]
+
+
+def test_export_verify_indd_directs_to_document_query_tool(tmp_path):
+    indd = tmp_path / "layout.indd"
+    indd.write_bytes(b"fake-indd-content")
+
+    result = run_module("export", "verify", str(indd), cwd=tmp_path)
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "ARTIFACT_UNSUPPORTED"
+    assert payload["error"]["details"]["suffix"] == ".indd"
+    assert "PDF" in payload["error"]["hint"] and "IDML" in payload["error"]["hint"]
+    assert "document.get_document_info" in payload["error"]["hint"]
+
+
 def test_cli_help_is_agent_oriented():
     root = run_module("--help")
     assert root.returncode == 0
